@@ -26,8 +26,8 @@ const contactInfo = [
   {
     icon: Mail,
     title: 'Email',
-    content: 'mbristrutturazioni@yahoo.com',
-    href: 'mailto:mbristrutturazioni@yahoo.com',
+    content: 'mbristrutturazioniroma@gmail.com',
+    href: 'mailto:mbristrutturazioniroma@gmail.com',
   },
 ];
 
@@ -93,10 +93,10 @@ export default function Contact() {
 
     emailjs
       .sendForm(
-        'service_l9t2pcl',
-        'template_rbj6nxk',
+        'service_rqko90m', // Nuovo Service ID Gmail
+        'template_rbj6nxk', // ID del tuo template
         e.target as HTMLFormElement,
-        'nipzQBUhrUoZz04UK'
+        'nipzQBUhrUoZz04UK' // La tua Public Key
       )
       .then(
         (result) => {
