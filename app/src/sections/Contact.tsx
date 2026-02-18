@@ -1,3 +1,4 @@
+import emailjs from '@emailjs/browser';
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -20,7 +21,7 @@ const contactInfo = [
     icon: Phone,
     title: 'Telefono',
     content: '+39 339 126 8722',
-    href: 'tel:+393391268722',
+    href: 'https://wa.me/393391268722?text=Ciao,%20vorrei%20informazioni%20per%20una%20ristrutturazione',
   },
   {
     icon: Mail,
@@ -89,12 +90,27 @@ export default function Contact() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate form submission
-    setIsSubmitted(true);
-    setTimeout(() => {
-      setIsSubmitted(false);
-      setFormData({ name: '', email: '', phone: '', message: '' });
-    }, 3000);
+
+    emailjs
+      .sendForm(
+        'service_l9t2pcl',
+        'template_rbj6nxk',
+        e.target as HTMLFormElement,
+        'nipzQBUhrUoZz04UK'
+      )
+      .then(
+        (result) => {
+          console.log(result.text);
+          setIsSubmitted(true);
+          setFormData({ name: '', email: '', phone: '', message: '' });
+          setTimeout(() => {
+            setIsSubmitted(false);
+          }, 3000);
+        },
+        (error) => {
+          console.log(error.text);
+        }
+      );
   };
 
   const handleChange = (
