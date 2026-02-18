@@ -9,6 +9,7 @@ import WhyChooseUs from './sections/WhyChooseUs';
 import Stats from './sections/Stats';
 import Contact from './sections/Contact';
 import Footer from './sections/Footer';
+import WhatsAppButton from './components/WhatsAppButton';
 import './App.css';
 
 // Register GSAP plugins
@@ -41,6 +42,7 @@ function App() {
         <Contact />
       </main>
       <Footer />
+      <WhatsAppButton />
     </div>
   );
 }
