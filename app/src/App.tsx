@@ -9,6 +9,7 @@ import WhyChooseUs from './sections/WhyChooseUs';
 import Stats from './sections/Stats';
 import Modelli3D from './sections/Modelli3D';
 import Preventivo from './sections/Preventivo';
+import PreventivoV2 from './sections/preventivo-v2';
 import Crea3D from './sections/Crea3D';
 import Contact from './sections/Contact';
 import Footer from './sections/Footer';
@@ -19,6 +20,9 @@ import './App.css';
 gsap.registerPlugin(ScrollTrigger);
 
 function App() {
+  const usaPreventivoV2 =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('v') === '2';
+
   useEffect(() => {
     // Configure ScrollTrigger defaults
     ScrollTrigger.defaults({
@@ -43,7 +47,7 @@ function App() {
         <WhyChooseUs />
         <Stats />
         <Modelli3D />
-        <Preventivo />
+        {usaPreventivoV2 ? <PreventivoV2 /> : <Preventivo />}
         <Crea3D />
         <Contact />
       </main>

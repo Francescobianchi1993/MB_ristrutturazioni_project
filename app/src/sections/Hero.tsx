@@ -108,10 +108,10 @@ export default function Hero() {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-2">
               <Button
-                onClick={() => scrollToSection('#contatti')}
+                onClick={() => scrollToSection('#preventivo')}
                 className="bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-8 py-6 rounded-full text-base transition-all hover:scale-105 hover:shadow-xl group"
               >
-                Richiedi Preventivo Gratuito
+                Calcola il tuo preventivo
                 <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
               </Button>
               <Button

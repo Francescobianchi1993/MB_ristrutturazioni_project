@@ -1,54 +1,68 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { 
-  Home, 
-  MessageCircle, 
-  Wrench, 
-  ClipboardList, 
-  Box, 
-  Hammer,
-  ArrowRight
+import {
+  Home,
+  MessageCircle,
+  Wrench,
+  ClipboardList,
+  Box,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Ogni servizio porta direttamente alla sezione del sito che lo realizza,
+// invece di duplicare info statiche con CTA generico verso i contatti.
 const services = [
   {
     icon: Home,
     title: 'Ristrutturazioni Complete',
     description: 'Ristrutturazioni chiavi in mano, con zero pensieri e un\'unica soluzione per tutte le tue esigenze.',
     features: ['Chiavi in mano', 'Project management', 'Finanziamenti'],
+    cta: 'Calcola il tuo preventivo',
+    href: '#preventivo',
+  },
+  {
+    icon: ClipboardList,
+    title: 'Offerte su Misura',
+    description: 'Configura il tuo intervento con il nostro preventivo guidato — dal singolo bagno alla casa intera.',
+    features: ['Personalizzazione', 'Flessibilità', 'Trasparenza'],
+    cta: 'Configura preventivo',
+    href: '#preventivo',
+  },
+  {
+    icon: Box,
+    title: 'Progettazione 3D',
+    description: 'Esplora i progetti realizzati e ricevi un render personalizzato del tuo spazio prima di iniziare.',
+    features: ['Rendering 3D', 'Tour 360°', 'Before/After'],
+    cta: 'Vedi i nostri progetti',
+    href: '#modelli-3d',
+  },
+  {
+    icon: Sparkles,
+    title: 'Render personalizzato',
+    description: 'Carica la tua planimetria e ricevi un render fotorealistico del risultato finale entro 48 ore.',
+    features: ['Render 48h', 'Stile su misura', 'Gratuito'],
+    cta: 'Crea il tuo render',
+    href: '#crea-3d',
   },
   {
     icon: MessageCircle,
     title: 'Consulenza Gratuita',
-    description: 'Prima di iniziare qualsiasi tipo di lavoro, offriamo un servizio di consulenza gratuita.',
+    description: 'Sopralluogo gratuito con il nostro team. Pianifichiamo insieme tempi, materiali e budget.',
     features: ['Sopralluogo', 'Preventivo', 'Pianificazione'],
+    cta: 'Prenota sopralluogo',
+    href: '#contatti',
   },
   {
     icon: Wrench,
     title: 'Assistenza Tecnica',
     description: 'Servizio di assistenza sia ai privati che ai condomini, compreso il pronto intervento h24.',
     features: ['Pronto intervento', 'Manutenzione', 'Riparazioni'],
-  },
-  {
-    icon: ClipboardList,
-    title: 'Offerte su Misura',
-    description: 'Disponiamo di diverse offerte in base alle esigenze e alle richieste specifiche di ogni cliente.',
-    features: ['Personalizzazione', 'Flessibilità', 'Trasparenza'],
-  },
-  {
-    icon: Box,
-    title: 'Progettazione 3D',
-    description: 'Progettazione grafica 3D per avere un\'anteprima concreta del risultato finale prima di iniziare.',
-    features: ['Rendering 3D', 'Virtual tour', 'Materiali'],
-  },
-  {
-    icon: Hammer,
-    title: 'Dettagli Artigianali',
-    description: '35 anni di esperienza nel settore edile. Soddisfiamo ogni richiesta nel migliore dei modi.',
-    features: ['Falegnameria', 'Idraulica', 'Elettricità'],
+    cta: 'Richiedi assistenza',
+    href: '#contatti',
   },
 ];
 
@@ -128,19 +142,18 @@ export default function Services() {
           </p>
         </div>
 
-        {/* Services Grid */}
+        {/* Services Grid — ogni card è un link diretto alla sezione corrispondente */}
         <div ref={cardsRef} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.map((service, index) => (
-            <div
+            <a
               key={index}
-              className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-transparent hover:border-[#F5B800]/20"
+              href={service.href}
+              className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-transparent hover:border-[#F5B800]/40 cursor-pointer flex flex-col"
             >
-              {/* Icon */}
               <div className="w-14 h-14 bg-[#F5B800]/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#F5B800] transition-colors duration-300">
                 <service.icon className="w-7 h-7 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
               </div>
 
-              {/* Content */}
               <h3 className="font-display text-xl font-semibold text-[#1A1A1A] mb-3">
                 {service.title}
               </h3>
@@ -148,7 +161,6 @@ export default function Services() {
                 {service.description}
               </p>
 
-              {/* Features */}
               <ul className="space-y-2 mb-5">
                 {service.features.map((feature, idx) => (
                   <li key={idx} className="flex items-center gap-2 text-sm text-[#666666]">
@@ -158,30 +170,12 @@ export default function Services() {
                 ))}
               </ul>
 
-              {/* Link */}
-              <a
-                href="#contatti"
-                className="inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm group/link"
-              >
-                Scopri di più
-                <ArrowRight className="w-4 h-4 transition-transform group-hover/link:translate-x-1" />
-              </a>
-            </div>
+              <span className="mt-auto inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm">
+                {service.cta}
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </span>
+            </a>
           ))}
-        </div>
-
-        {/* CTA */}
-        <div className="text-center mt-12">
-          <p className="text-[#666666] mb-4">
-            Hai bisogno di un servizio personalizzato?
-          </p>
-          <a
-            href="#contatti"
-            className="inline-flex items-center gap-2 bg-[#1A1A1A] text-white px-8 py-4 rounded-full font-semibold hover:bg-[#333] transition-colors"
-          >
-            Parla con un esperto
-            <ArrowRight className="w-5 h-5" />
-          </a>
         </div>
       </div>
     </section>
