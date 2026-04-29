@@ -7,6 +7,9 @@ import About from './sections/About';
 import Services from './sections/Services';
 import WhyChooseUs from './sections/WhyChooseUs';
 import Stats from './sections/Stats';
+import Modelli3D from './sections/Modelli3D';
+import Preventivo from './sections/Preventivo';
+import Crea3D from './sections/Crea3D';
 import Contact from './sections/Contact';
 import Footer from './sections/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
@@ -39,6 +42,9 @@ function App() {
         <Services />
         <WhyChooseUs />
         <Stats />
+        <Modelli3D />
+        <Preventivo />
+        <Crea3D />
         <Contact />
       </main>
       <Footer />

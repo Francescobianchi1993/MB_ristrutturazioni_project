@@ -3,10 +3,13 @@ import { Menu, X, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navLinks = [
-  { name: 'Home', href: '#home' },
-  { name: 'Chi Siamo', href: '#chi-siamo' },
-  { name: 'Servizi', href: '#servizi' },
-  { name: 'Contatti', href: '#contatti' },
+  { name: 'Home', href: '#home', highlight: false },
+  { name: 'Chi Siamo', href: '#chi-siamo', highlight: false },
+  { name: 'Servizi', href: '#servizi', highlight: false },
+  { name: 'Modelli 3D', href: '#modelli-3d', highlight: true },
+  { name: 'Preventivo', href: '#preventivo', highlight: true },
+  { name: 'Crea il tuo 3D', href: '#crea-3d', highlight: true },
+  { name: 'Contatti', href: '#contatti', highlight: false },
 ];
 
 export default function Navbar() {
@@ -58,7 +61,7 @@ export default function Navbar() {
           </a>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-6">
             {navLinks.map((link) => (
               <a
                 key={link.name}
@@ -67,8 +70,11 @@ export default function Navbar() {
                   e.preventDefault();
                   scrollToSection(link.href);
                 }}
-                className="text-[#1A1A1A] hover:text-[#F5B800] font-medium transition-colors relative group"
+                className="text-[#1A1A1A] hover:text-[#F5B800] font-medium text-[15px] transition-colors relative group flex items-center gap-1.5"
               >
+                {link.highlight && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#F5B800]" />
+                )}
                 {link.name}
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#F5B800] transition-all group-hover:w-full" />
               </a>
@@ -78,8 +84,8 @@ export default function Navbar() {
           {/* CTA Button */}
           <div className="hidden md:block">
             <Button
-              onClick={() => scrollToSection('#contatti')}
-              className="bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-6 py-2 rounded-full transition-all hover:scale-105 hover:shadow-lg"
+              onClick={() => scrollToSection('#preventivo')}
+              className="bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-6 py-2 rounded-full transition-all hover:scale-105 hover:shadow-lg text-sm"
             >
               Richiedi Preventivo
             </Button>
@@ -87,7 +93,7 @@ export default function Navbar() {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
+            className="lg:hidden p-2"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -101,13 +107,13 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       <div
-        className={`md:hidden absolute top-full left-0 right-0 bg-white shadow-lg transition-all duration-300 ${
+        className={`lg:hidden absolute top-full left-0 right-0 bg-white shadow-lg transition-all duration-300 ${
           isMobileMenuOpen
             ? 'opacity-100 translate-y-0'
             : 'opacity-0 -translate-y-4 pointer-events-none'
         }`}
       >
-        <div className="px-4 py-6 space-y-4">
+        <div className="px-4 py-6 space-y-1">
           {navLinks.map((link) => (
             <a
               key={link.name}
@@ -116,13 +122,16 @@ export default function Navbar() {
                 e.preventDefault();
                 scrollToSection(link.href);
               }}
-              className="block text-[#1A1A1A] hover:text-[#F5B800] font-medium py-2 transition-colors"
+              className="flex items-center gap-2 text-[#1A1A1A] hover:text-[#F5B800] font-medium py-3 px-3 rounded-xl hover:bg-[#F8F8F8] transition-colors min-h-[48px]"
             >
+              {link.highlight && (
+                <span className="w-2 h-2 rounded-full bg-[#F5B800]" />
+              )}
               {link.name}
             </a>
           ))}
           <Button
-            onClick={() => scrollToSection('#contatti')}
+            onClick={() => scrollToSection('#preventivo')}
             className="w-full bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold py-3 rounded-full mt-4"
           >
             Richiedi Preventivo
