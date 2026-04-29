@@ -16,7 +16,7 @@ import {
   type MacroSlotId,
   ID_COMUNI,
 } from '@/lib/preventivoModel';
-import { MACRO_SLOT_BY_ID, type VoceKit } from './data';
+import { MACRO_SLOT_BY_ID } from './data';
 import type { VocePrezzario } from '@/lib/prezzario_v2';
 
 export interface RisultatoPrePopolamento {
