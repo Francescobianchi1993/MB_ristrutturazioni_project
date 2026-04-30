@@ -5,9 +5,7 @@ import {
   Home,
   MessageCircle,
   Wrench,
-  ClipboardList,
   Box,
-  Sparkles,
   ArrowRight,
 } from 'lucide-react';
 
@@ -18,48 +16,32 @@ gsap.registerPlugin(ScrollTrigger);
 const services = [
   {
     icon: Home,
-    title: 'Ristrutturazioni Complete',
-    description: 'Ristrutturazioni chiavi in mano, con zero pensieri e un\'unica soluzione per tutte le tue esigenze.',
-    features: ['Chiavi in mano', 'Project management', 'Finanziamenti'],
+    title: 'Preventivo personalizzato',
+    description: 'Configuri online, vedi subito i costi. Dalla piccola riparazione alla ristrutturazione completa, senza sorprese.',
+    features: ['Tutto online, in pochi minuti', 'Costi visibili in anticipo', 'Dal piccolo intervento alla grande ristrutturazione'],
     cta: 'Calcola il tuo preventivo',
     href: '#preventivo',
   },
   {
-    icon: ClipboardList,
-    title: 'Offerte su Misura',
-    description: 'Configura il tuo intervento con il nostro preventivo guidato — dal singolo bagno alla casa intera.',
-    features: ['Personalizzazione', 'Flessibilità', 'Trasparenza'],
-    cta: 'Configura preventivo',
-    href: '#preventivo',
-  },
-  {
     icon: Box,
-    title: 'Progettazione 3D',
-    description: 'Esplora i progetti realizzati e ricevi un render personalizzato del tuo spazio prima di iniziare.',
-    features: ['Rendering 3D', 'Tour 360°', 'Before/After'],
-    cta: 'Vedi i nostri progetti',
+    title: 'Progettazione & Render 3D',
+    description: 'Esplora i nostri progetti realizzati con tour 360° o ricevi un render fotorealistico della tua planimetria in 48h.',
+    features: ['Tour 360° dei progetti', 'Render della tua casa', 'Before / After'],
+    cta: 'Vedi progetti & render',
     href: '#modelli-3d',
   },
   {
-    icon: Sparkles,
-    title: 'Render personalizzato',
-    description: 'Carica la tua planimetria e ricevi un render fotorealistico del risultato finale entro 48 ore.',
-    features: ['Render 48h', 'Stile su misura', 'Gratuito'],
-    cta: 'Crea il tuo render',
-    href: '#crea-3d',
-  },
-  {
     icon: MessageCircle,
-    title: 'Consulenza Gratuita',
-    description: 'Sopralluogo gratuito con il nostro team. Pianifichiamo insieme tempi, materiali e budget.',
+    title: 'Sopralluogo\ngratuito',
+    description: 'Con un membro del nostro team pianifichiamo insieme tutte le esigenze: tempi, materiali, budget.',
     features: ['Sopralluogo', 'Preventivo', 'Pianificazione'],
     cta: 'Prenota sopralluogo',
     href: '#contatti',
   },
   {
     icon: Wrench,
-    title: 'Assistenza Tecnica',
-    description: 'Servizio di assistenza sia ai privati che ai condomini, compreso il pronto intervento h24.',
+    title: 'Assistenza\nPronto intervento',
+    description: 'Servizio di assistenza sia privati che ai condomini. Pronto intervento.\n ',
     features: ['Pronto intervento', 'Manutenzione', 'Riparazioni'],
     cta: 'Richiedi assistenza',
     href: '#contatti',
@@ -142,8 +124,8 @@ export default function Services() {
           </p>
         </div>
 
-        {/* Services Grid — ogni card è un link diretto alla sezione corrispondente */}
-        <div ref={cardsRef} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Services Grid — ogni card è un link diretto alla sezione corrispondente. */}
+        <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {services.map((service, index) => (
             <a
               key={index}
@@ -154,18 +136,18 @@ export default function Services() {
                 <service.icon className="w-7 h-7 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
               </div>
 
-              <h3 className="font-display text-xl font-semibold text-[#1A1A1A] mb-3">
+              <h3 className="font-display text-xl font-semibold text-[#1A1A1A] mb-3 whitespace-pre-line">
                 {service.title}
               </h3>
-              <p className="text-[#666666] text-sm leading-relaxed mb-4">
+              <p className="text-[#666666] text-sm leading-relaxed mb-4 whitespace-pre-line">
                 {service.description}
               </p>
 
               <ul className="space-y-2 mb-5">
                 {service.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-sm text-[#666666]">
-                    <div className="w-1.5 h-1.5 bg-[#F5B800] rounded-full" />
-                    {feature}
+                  <li key={idx} className="flex items-start gap-2 text-sm text-[#666666]">
+                    <div className="w-1.5 h-1.5 bg-[#F5B800] rounded-full flex-shrink-0 mt-[7px]" />
+                    <span>{feature}</span>
                   </li>
                 ))}
               </ul>
