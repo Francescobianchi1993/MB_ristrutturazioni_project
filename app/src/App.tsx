@@ -3,10 +3,8 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from './sections/Navbar';
 import Hero from './sections/Hero';
-import About from './sections/About';
 import Services from './sections/Services';
 import WhyChooseUs from './sections/WhyChooseUs';
-import Stats from './sections/Stats';
 import Modelli3D from './sections/Modelli3D';
 import PreventivoV2 from './sections/preventivo-v2';
 import Crea3D from './sections/Crea3D';
@@ -38,10 +36,8 @@ function App() {
       <Navbar />
       <main>
         <Hero />
-        <About />
         <Services />
         <WhyChooseUs />
-        <Stats />
         <Modelli3D />
         <PreventivoV2 />
         <Crea3D />

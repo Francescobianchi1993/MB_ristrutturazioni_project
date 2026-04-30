@@ -89,11 +89,6 @@ export default function About() {
               <div className="absolute -bottom-4 -left-4 w-32 h-32 border-2 border-[#F5B800] rounded-2xl -z-10" />
             </div>
 
-            {/* Experience badge */}
-            <div className="absolute -bottom-6 right-8 bg-[#1A1A1A] text-white rounded-2xl p-6 shadow-xl">
-              <p className="font-display text-4xl font-bold text-[#F5B800]">35+</p>
-              <p className="text-sm text-white/80">Anni di<br/>esperienza</p>
-            </div>
           </div>
 
           {/* Content Side */}

@@ -8,6 +8,7 @@ import {
   Box,
   ArrowRight,
 } from 'lucide-react';
+import Stats from './Stats';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -104,8 +105,16 @@ export default function Services() {
     <section
       id="servizi"
       ref={sectionRef}
-      className="py-24 lg:py-32 bg-[#F8F8F8]"
+      className="pb-24 lg:pb-32 bg-[#F8F8F8]"
     >
+      {/* Stats dark band — full-width edge-to-edge, riempie lo spazio sopra
+          l'header e fa da social-proof prima del titolo Servizi */}
+      <div className="bg-[#1A1A1A] py-8 lg:py-10 mb-16 lg:mb-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Stats />
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div ref={headerRef} className="text-center max-w-3xl mx-auto mb-16">

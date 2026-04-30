@@ -1,17 +1,19 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { ArrowRight, Phone, Star, CheckCircle } from 'lucide-react';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ArrowRight, Phone, Star, CheckCircle, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function Hero() {
   const heroRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
-  const statsRef = useRef<HTMLDivElement>(null);
+  const aboutRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Content animation
       const contentElements = contentRef.current?.children;
       if (contentElements) {
         gsap.fromTo(
@@ -28,7 +30,6 @@ export default function Hero() {
         );
       }
 
-      // Image animation
       if (imageRef.current) {
         gsap.fromTo(
           imageRef.current,
@@ -43,18 +44,21 @@ export default function Hero() {
         );
       }
 
-      // Stats animation
-      if (statsRef.current) {
+      if (aboutRef.current) {
         gsap.fromTo(
-          statsRef.current.children,
-          { opacity: 0, y: 20 },
+          aboutRef.current.children,
+          { opacity: 0, y: 30 },
           {
             opacity: 1,
             y: 0,
             duration: 0.6,
             stagger: 0.1,
             ease: 'power3.out',
-            delay: 0.9,
+            scrollTrigger: {
+              trigger: aboutRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none none',
+            },
           }
         );
       }
@@ -74,18 +78,19 @@ export default function Hero() {
     <section
       id="home"
       ref={heroRef}
-      className="relative min-h-screen flex items-center pt-20 overflow-hidden"
+      className="relative pt-20 pb-16 lg:pb-24 overflow-hidden"
     >
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-[#FFF8E7] -z-10" />
-      
+
       {/* Decorative elements */}
       <div className="absolute top-1/4 right-0 w-96 h-96 bg-[#F5B800]/10 rounded-full blur-3xl -z-10" />
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#F5B800]/5 rounded-full blur-2xl -z-10" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-0">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-          {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+        {/* TOP — Hero block (2 colonne: testo + immagine) */}
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          {/* Content (left) */}
           <div ref={contentRef} className="space-y-6">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-[#F5B800]/10 text-[#1A1A1A] px-4 py-2 rounded-full text-sm font-medium">
@@ -136,22 +141,28 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Image */}
+          {/* Image (right) */}
           <div ref={imageRef} className="relative">
             <div className="relative aspect-[4/5] lg:aspect-[3/4] max-w-lg mx-auto">
               {/* Background shape */}
               <div className="absolute inset-0 bg-gradient-to-br from-[#F5B800]/20 to-[#F5B800]/5 rounded-3xl transform rotate-3" />
-              
+
               {/* Image container */}
-              <div className="relative overflow-hidden rounded-3xl shadow-2xl">
+              <div className="relative overflow-hidden rounded-3xl shadow-2xl h-full">
                 <img
                   src="/marco-bianchi.png"
                   alt="Marco Bianchi - Fondatore MB Ristrutturazioni"
                   className="w-full h-full object-cover object-top"
                 />
+                {/* Caption overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/60 via-transparent to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6">
+                  <p className="text-white font-display text-xl font-semibold">Marco Bianchi</p>
+                  <p className="text-white/80 text-sm">Fondatore & Artigiano</p>
+                </div>
               </div>
 
-              {/* Floating badge */}
+              {/* Floating phone badge */}
               <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
                 <div className="w-12 h-12 bg-[#F5B800] rounded-full flex items-center justify-center">
                   <Phone className="w-6 h-6 text-[#1A1A1A]" />
@@ -165,26 +176,48 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* BOTTOM — Chi Siamo block (1 colonna full-width centrato) */}
         <div
-          ref={statsRef}
-          className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 pt-8 border-t border-[#E5E5E5]"
+          id="chi-siamo"
+          ref={aboutRef}
+          className="max-w-3xl mx-auto mt-20 lg:mt-28 pt-16 border-t border-[#E5E5E5] space-y-6 scroll-mt-24"
         >
-          <div className="text-center">
-            <p className="font-display text-3xl lg:text-4xl font-bold text-[#F5B800]">35+</p>
-            <p className="text-sm text-[#666666] mt-1">Anni di Esperienza</p>
+          {/* Section label */}
+          <div className="inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm uppercase tracking-wider">
+            <div className="w-8 h-0.5 bg-[#F5B800]" />
+            Chi Siamo
           </div>
-          <div className="text-center">
-            <p className="font-display text-3xl lg:text-4xl font-bold text-[#F5B800]">500+</p>
-            <p className="text-sm text-[#666666] mt-1">Progetti Completati</p>
-          </div>
-          <div className="text-center">
-            <p className="font-display text-3xl lg:text-4xl font-bold text-[#F5B800]">100%</p>
-            <p className="text-sm text-[#666666] mt-1">Clienti Soddisfatti</p>
-          </div>
-          <div className="text-center">
-            <p className="font-display text-3xl lg:text-4xl font-bold text-[#F5B800]">24/7</p>
-            <p className="text-sm text-[#666666] mt-1">Assistenza Disponibile</p>
+
+          {/* Title */}
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] leading-tight">
+            Una vera casa è costruita con{' '}
+            <span className="text-[#F5B800]">Amore & Sogni</span>
+          </h2>
+
+          {/* Paragraphs */}
+          <p className="text-[#666666] leading-relaxed">
+            <strong className="text-[#1A1A1A]">MB Ristrutturazioni</strong> è un nome che viene portato
+            avanti da oltre <strong className="text-[#1A1A1A]">35 anni</strong> di lavoro, di passione e
+            di esperienza nel vero artigianato del settore edile Italiano.
+          </p>
+
+          <p className="text-[#666666] leading-relaxed">
+            Fondata da <strong className="text-[#1A1A1A]">Marco Bianchi</strong> che ormai da decenni
+            soddisfa i suoi clienti e porta avanti gli insegnamenti del padre,{' '}
+            <strong className="text-[#1A1A1A]">Romano</strong>, trasformando le idee delle persone in
+            fantastica realtà.
+          </p>
+
+          {/* Quote */}
+          <div className="bg-[#F8F8F8] rounded-2xl p-6 mt-6 relative">
+            <Quote className="w-8 h-8 text-[#F5B800]/30 absolute top-4 left-4" />
+            <blockquote className="text-[#1A1A1A] font-medium italic pl-8 pt-4">
+              "Per noi, eseguire qualcosa di difficile è una sfida e vedere i clienti
+              soddisfatti alla fine dei nostri lavori ci spinge a fare sempre di meglio"
+            </blockquote>
+            <p className="text-right text-[#666666] text-sm mt-4">
+              — Marco Bianchi, Fondatore
+            </p>
           </div>
         </div>
       </div>
