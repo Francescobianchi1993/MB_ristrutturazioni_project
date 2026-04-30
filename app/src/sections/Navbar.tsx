@@ -3,13 +3,12 @@ import { Menu, X, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navLinks = [
-  { name: 'Home', href: '#home', highlight: false },
-  { name: 'Chi Siamo', href: '#chi-siamo', highlight: false },
-  { name: 'Servizi', href: '#servizi', highlight: false },
-  { name: 'Modelli 3D', href: '#modelli-3d', highlight: true },
-  { name: 'Preventivo', href: '#preventivo', highlight: true },
-  { name: 'Crea il tuo 3D', href: '#crea-3d', highlight: true },
-  { name: 'Contatti', href: '#contatti', highlight: false },
+  { name: 'Home', href: '#home' },
+  { name: 'Chi Siamo', href: '#chi-siamo' },
+  { name: 'Servizi', href: '#servizi' },
+  { name: 'Modelli 3D', href: '#modelli-3d' },
+  { name: 'Crea il tuo 3D', href: '#crea-3d' },
+  { name: 'Contatti', href: '#contatti' },
 ];
 
 export default function Navbar() {
@@ -78,9 +77,7 @@ export default function Navbar() {
                 }}
                 className="text-[#1A1A1A] hover:text-[#F5B800] font-medium text-[15px] transition-colors relative group flex items-center gap-1.5"
               >
-                {link.highlight && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#F5B800]" />
-                )}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F5B800]" />
                 {link.name}
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#F5B800] transition-all group-hover:w-full" />
               </a>
@@ -93,7 +90,7 @@ export default function Navbar() {
               onClick={() => scrollToSection('#preventivo')}
               className="bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-6 py-2 rounded-full transition-all hover:scale-105 hover:shadow-lg text-sm"
             >
-              Richiedi Preventivo
+              Preventivo Immediato
             </Button>
           </div>
 
@@ -130,9 +127,7 @@ export default function Navbar() {
               }}
               className="flex items-center gap-2 text-[#1A1A1A] hover:text-[#F5B800] font-medium py-3 px-3 rounded-xl hover:bg-[#F8F8F8] transition-colors min-h-[48px]"
             >
-              {link.highlight && (
-                <span className="w-2 h-2 rounded-full bg-[#F5B800]" />
-              )}
+              <span className="w-2 h-2 rounded-full bg-[#F5B800]" />
               {link.name}
             </a>
           ))}
@@ -140,7 +135,7 @@ export default function Navbar() {
             onClick={() => scrollToSection('#preventivo')}
             className="w-full bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold py-3 rounded-full mt-4"
           >
-            Richiedi Preventivo
+            Preventivo Immediato
           </Button>
         </div>
       </div>

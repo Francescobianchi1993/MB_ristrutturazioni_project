@@ -1,16 +1,30 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowRight, Phone, CheckCircle, Quote } from 'lucide-react';
+import { ArrowRight, Phone, CheckCircle, Quote, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 gsap.registerPlugin(ScrollTrigger);
+
+const slides = [
+  { type: 'image' as const, src: '/marco-bianchi.png', caption: 'Marco Bianchi', subtitle: 'Fondatore & Artigiano' },
+  { type: 'placeholder' as const, caption: 'I Nostri Lavori', subtitle: 'Roma e provincia' },
+  { type: 'placeholder' as const, caption: 'Artigianato Italiano', subtitle: 'Dal 1989' },
+];
 
 export default function Hero() {
   const heroRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % slides.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -136,24 +150,58 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Image (right) */}
+          {/* Carousel (right) */}
           <div ref={imageRef} className="relative">
             <div className="relative aspect-[4/5] lg:aspect-[3/4] max-w-lg mx-auto">
               {/* Background shape */}
               <div className="absolute inset-0 bg-gradient-to-br from-[#F5B800]/20 to-[#F5B800]/5 rounded-3xl transform rotate-3" />
 
-              {/* Image container */}
+              {/* Slides */}
               <div className="relative overflow-hidden rounded-3xl shadow-2xl h-full">
-                <img
-                  src="/marco-bianchi.png"
-                  alt="Marco Bianchi - Fondatore MB Ristrutturazioni"
-                  className="w-full h-full object-cover object-top"
-                />
+                {slides.map((slide, i) => (
+                  <div
+                    key={i}
+                    className={`absolute inset-0 transition-opacity duration-700 ${i === currentSlide ? 'opacity-100' : 'opacity-0'}`}
+                  >
+                    {slide.type === 'image' ? (
+                      <img
+                        src={slide.src}
+                        alt={slide.caption}
+                        className="w-full h-full object-cover object-top"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-[#F5F5F5] to-[#E8E8E8] flex flex-col items-center justify-center gap-4">
+                        <div className="w-20 h-20 rounded-2xl bg-[#F5B800]/20 flex items-center justify-center">
+                          <ImageIcon className="w-10 h-10 text-[#F5B800]" />
+                        </div>
+                        <p className="text-[#BBBBBB] text-sm font-medium">Foto in arrivo</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
                 {/* Caption overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/60 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/60 via-transparent to-transparent pointer-events-none" />
                 <div className="absolute bottom-6 left-6 right-6">
-                  <p className="text-white font-display text-xl font-semibold">Marco Bianchi</p>
-                  <p className="text-white/80 text-sm">Fondatore & Artigiano</p>
+                  <p className="text-white font-display text-xl font-semibold transition-all duration-500">
+                    {slides[currentSlide].caption}
+                  </p>
+                  <p className="text-white/80 text-sm">{slides[currentSlide].subtitle}</p>
+                </div>
+
+                {/* Dot indicators */}
+                <div className="absolute top-4 right-4 flex gap-1.5">
+                  {slides.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentSlide(i)}
+                      className={`rounded-full transition-all duration-300 ${
+                        i === currentSlide
+                          ? 'w-6 h-2 bg-[#F5B800]'
+                          : 'w-2 h-2 bg-white/60 hover:bg-white'
+                      }`}
+                    />
+                  ))}
                 </div>
               </div>
 
