@@ -200,41 +200,43 @@ export default function Contact() {
   return (
     <section id="contatti" ref={sectionRef} className="py-16 lg:py-20 bg-[#F8F8F8]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-stretch">
 
           {/* Left — info */}
-          <div ref={contentRef} className="space-y-8">
-            <div>
-              <div className="inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm uppercase tracking-wider mb-4">
-                <div className="w-8 h-0.5 bg-[#F5B800]" />
-                Contattaci
+          <div ref={contentRef} className="flex flex-col justify-between gap-8">
+            <div className="space-y-8">
+              <div>
+                <div className="inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm uppercase tracking-wider mb-4">
+                  <div className="w-8 h-0.5 bg-[#F5B800]" />
+                  Contattaci
+                </div>
+                <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] mb-4">
+                  Pronto a trasformare{' '}
+                  <span className="text-[#F5B800]">la tua casa?</span>
+                </h2>
+                <p className="text-[#666666] text-lg">
+                  Prenota un sopralluogo gratuito. I nostri esperti vengono da te,
+                  valutano il progetto e ti consegnano il preventivo sul posto.
+                </p>
               </div>
-              <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] mb-4">
-                Pronto a trasformare{' '}
-                <span className="text-[#F5B800]">la tua casa?</span>
-              </h2>
-              <p className="text-[#666666] text-lg">
-                Prenota un sopralluogo gratuito. I nostri esperti vengono da te,
-                valutano il progetto e ti consegnano il preventivo sul posto.
-              </p>
-            </div>
 
-            <div className="space-y-4">
-              {contactInfo.map((info, index) => (
-                <a
-                  key={index}
-                  href={info.href}
-                  className="flex items-start gap-4 bg-white p-5 rounded-2xl hover:shadow-lg transition-all duration-300 group"
-                >
-                  <div className="w-12 h-12 bg-[#F5B800]/10 group-hover:bg-[#F5B800] rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-300">
-                    <info.icon className="w-6 h-6 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#1A1A1A] mb-1">{info.title}</p>
-                    <p className="text-[#666666]">{info.content}</p>
-                  </div>
-                </a>
-              ))}
+              <div className="space-y-4">
+                {contactInfo.map((info, index) => (
+                  <a
+                    key={index}
+                    href={info.href}
+                    className="flex items-start gap-4 bg-white p-5 rounded-2xl hover:shadow-lg transition-all duration-300 group"
+                  >
+                    <div className="w-12 h-12 bg-[#F5B800]/10 group-hover:bg-[#F5B800] rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-300">
+                      <info.icon className="w-6 h-6 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-[#1A1A1A] mb-1">{info.title}</p>
+                      <p className="text-[#666666]">{info.content}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
             </div>
 
             <div className="bg-[#1A1A1A] rounded-2xl p-6 text-white">
@@ -248,8 +250,8 @@ export default function Contact() {
           </div>
 
           {/* Right — form */}
-          <div ref={formRef}>
-            <div className="bg-white rounded-3xl p-8 shadow-lg">
+          <div ref={formRef} className="flex flex-col h-full">
+            <div className="bg-white rounded-3xl p-8 shadow-lg flex flex-col flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-[#F5B800]/10 rounded-xl flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-[#F5B800]" />

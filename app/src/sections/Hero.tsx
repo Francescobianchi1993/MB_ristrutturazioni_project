@@ -239,24 +239,22 @@ export default function Hero() {
 
           {/* Paragraphs */}
           <p className="text-[#666666] leading-relaxed">
-            <strong className="text-[#1A1A1A]">MB Ristrutturazioni</strong> è un nome che viene portato
-            avanti da oltre <strong className="text-[#1A1A1A]">35 anni</strong> di lavoro, di passione e
-            di esperienza nel vero artigianato del settore edile Italiano.
+            Dietro a <strong className="text-[#1A1A1A]">MB Ristrutturazioni</strong> ci sono oltre{' '}
+            <strong className="text-[#1A1A1A]">35 anni</strong> di lavoro, passione ed esperienza nel
+            vero artigianato edile italiano.
           </p>
 
           <p className="text-[#666666] leading-relaxed">
-            Fondata da <strong className="text-[#1A1A1A]">Marco Bianchi</strong> che ormai da decenni
-            soddisfa i suoi clienti e porta avanti gli insegnamenti del padre,{' '}
-            <strong className="text-[#1A1A1A]">Romano</strong>, trasformando le idee delle persone in
-            fantastica realtà.
+            L'azienda nasce da <strong className="text-[#1A1A1A]">Marco Bianchi</strong>, che da decenni
+            raccoglie gli insegnamenti del padre <strong className="text-[#1A1A1A]">Romano</strong> e li
+            mette al servizio dei suoi clienti, trasformando ogni idea in un progetto realizzato su misura.
           </p>
 
           {/* Quote */}
           <div className="bg-[#FFF8E7] rounded-2xl p-6 mt-6 relative">
             <Quote className="w-8 h-8 text-[#F5B800]/30 absolute top-4 left-4" />
             <blockquote className="text-[#1A1A1A] font-medium italic pl-8 pt-4">
-              "Per noi, eseguire qualcosa di difficile è una sfida e vedere i clienti
-              soddisfatti alla fine dei nostri lavori ci spinge a fare sempre di meglio"
+              "Ogni lavoro difficile è una sfida. La soddisfazione dei nostri clienti è un'ulteriore ricompensa, e la spinta a migliorare ogni giorno"
             </blockquote>
             <p className="text-right text-[#666666] text-sm mt-4">
               — Marco Bianchi, Fondatore
