@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowRight, Phone, Star, CheckCircle, Quote } from 'lucide-react';
+import { ArrowRight, Phone, CheckCircle, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -89,15 +89,9 @@ export default function Hero() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
         {/* TOP — Hero block (2 colonne: testo + immagine) */}
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           {/* Content (left) */}
-          <div ref={contentRef} className="space-y-6">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-[#F5B800]/10 text-[#1A1A1A] px-4 py-2 rounded-full text-sm font-medium">
-              <Star className="w-4 h-4 text-[#F5B800]" />
-              Da 35 anni, l'artigianato Italiano
-            </div>
-
+          <div ref={contentRef} className="flex flex-col">
             {/* Title */}
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1A1A1A] leading-tight">
               Trasformiamo la tua casa nei{' '}
@@ -105,13 +99,14 @@ export default function Hero() {
             </h1>
 
             {/* Description */}
-            <p className="text-lg text-[#666666] max-w-xl leading-relaxed">
-              Ristrutturazioni complete a Roma e provincia. Qualità, affidabilità
-              e passione artigiana dal 1989. La tua casa merita il meglio.
-            </p>
+            <div className="text-xl text-[#666666] max-w-xl leading-relaxed mt-[60px] lg:mt-[72px] space-y-2">
+              <p>Ristrutturazioni complete a Roma e provincia.</p>
+              <p>Qualità, affidabilità e passione artigiana dal 1989.</p>
+              <p>La tua casa merita il meglio.</p>
+            </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row gap-4 mt-[60px] lg:mt-[72px]">
               <Button
                 onClick={() => scrollToSection('#preventivo')}
                 className="bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-8 py-6 rounded-full text-base transition-all hover:scale-105 hover:shadow-xl group"
@@ -129,14 +124,14 @@ export default function Hero() {
             </div>
 
             {/* Trust indicators */}
-            <div className="flex items-center gap-6 pt-4">
+            <div className="flex items-center gap-6 mt-8 lg:mt-10">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-[#F5B800]" />
                 <span className="text-sm text-[#666666]">Consulenza gratuita</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-[#F5B800]" />
-                <span className="text-sm text-[#666666]">Preventivo in 24h</span>
+                <span className="text-sm text-[#666666]">Preventivo immediato</span>
               </div>
             </div>
           </div>
@@ -209,7 +204,7 @@ export default function Hero() {
           </p>
 
           {/* Quote */}
-          <div className="bg-[#F8F8F8] rounded-2xl p-6 mt-6 relative">
+          <div className="bg-[#FFF8E7] rounded-2xl p-6 mt-6 relative">
             <Quote className="w-8 h-8 text-[#F5B800]/30 absolute top-4 left-4" />
             <blockquote className="text-[#1A1A1A] font-medium italic pl-8 pt-4">
               "Per noi, eseguire qualcosa di difficile è una sfida e vedere i clienti

@@ -12,8 +12,9 @@ import { ProgettoProvider } from './state';
 import Hub from './Hub';
 import LivelloRapido from './LivelloRapido';
 import LivelloDettaglio from './LivelloDettaglio';
+import LivelloIntervento from './LivelloIntervento';
 
-type Modalita = 'hub' | 'rapida' | 'esperto';
+type Modalita = 'hub' | 'rapida' | 'esperto' | 'intervento';
 
 export default function PreventivoV2() {
   const [modalita, setModalita] = useState<Modalita>('hub');
@@ -23,7 +24,7 @@ export default function PreventivoV2() {
       <Toaster richColors position="top-center" />
       <section
         id="preventivo"
-        className="py-16 lg:py-24 bg-gradient-to-b from-[#FFF8E7]/40 to-white"
+        className="pt-16 pb-10 lg:pt-24 lg:pb-12 bg-gradient-to-b from-[#FFF8E7]/40 to-white"
       >
         {modalita === 'hub' && <Hub onScegli={setModalita} />}
         {modalita === 'rapida' && (
@@ -37,6 +38,9 @@ export default function PreventivoV2() {
             onTorna={() => setModalita('hub')}
             onPassaARapida={() => setModalita('rapida')}
           />
+        )}
+        {modalita === 'intervento' && (
+          <LivelloIntervento onTorna={() => setModalita('hub')} />
         )}
       </section>
     </ProgettoProvider>

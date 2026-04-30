@@ -123,7 +123,7 @@ export default function Contact() {
     <section
       id="contatti"
       ref={sectionRef}
-      className="py-24 lg:py-32 bg-[#F8F8F8]"
+      className="py-16 lg:py-20 bg-[#F8F8F8]"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">

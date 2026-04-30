@@ -5,9 +5,8 @@ import Navbar from './sections/Navbar';
 import Hero from './sections/Hero';
 import Services from './sections/Services';
 import WhyChooseUs from './sections/WhyChooseUs';
-import Modelli3D from './sections/Modelli3D';
+import Sezione3D from './sections/Sezione3D';
 import PreventivoV2 from './sections/preventivo-v2';
-import Crea3D from './sections/Crea3D';
 import Contact from './sections/Contact';
 import Footer from './sections/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
@@ -38,9 +37,8 @@ function App() {
         <Hero />
         <Services />
         <WhyChooseUs />
-        <Modelli3D />
+        <Sezione3D />
         <PreventivoV2 />
-        <Crea3D />
         <Contact />
       </main>
       <Footer />

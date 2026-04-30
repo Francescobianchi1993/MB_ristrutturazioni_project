@@ -88,7 +88,7 @@ export default function WhyChooseUs() {
   return (
     <section
       ref={sectionRef}
-      className="py-24 lg:py-32 bg-white overflow-hidden"
+      className="py-16 lg:py-20 bg-white overflow-hidden"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
@@ -110,7 +110,7 @@ export default function WhyChooseUs() {
               un risultato garantito.
             </p>
 
-            <div className="bg-[#F8F8F8] rounded-2xl p-6">
+            <div className="bg-[#FFF8E7] rounded-2xl p-6">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-[#F5B800] rounded-full flex items-center justify-center flex-shrink-0">
                   <Check className="w-6 h-6 text-[#1A1A1A]" />
@@ -131,9 +131,9 @@ export default function WhyChooseUs() {
             <div className="relative mt-8 hidden lg:block">
               <div className="absolute -left-8 top-1/2 -translate-y-1/2 w-64 h-64 bg-[#F5B800]/10 rounded-full blur-3xl" />
               <img
-                src="/marco-bianchi.png"
+                src="/logo-mbr.png"
                 alt="MB Ristrutturazioni"
-                className="relative rounded-2xl shadow-lg w-48 h-48 object-cover object-top"
+                className="relative rounded-2xl shadow-lg w-full h-40 object-contain bg-[#FFF8E7] p-4"
               />
             </div>
           </div>

@@ -105,11 +105,11 @@ export default function Services() {
     <section
       id="servizi"
       ref={sectionRef}
-      className="pb-24 lg:pb-32 bg-[#F8F8F8]"
+      className="pb-16 lg:pb-20 bg-[#F8F8F8]"
     >
       {/* Stats dark band — full-width edge-to-edge, riempie lo spazio sopra
           l'header e fa da social-proof prima del titolo Servizi */}
-      <div className="bg-[#1A1A1A] py-8 lg:py-10 mb-16 lg:mb-20">
+      <div className="bg-[#1A1A1A] py-5 lg:py-6 mb-10 lg:mb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Stats />
         </div>
@@ -117,7 +117,7 @@ export default function Services() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div ref={headerRef} className="text-center max-w-3xl mx-auto mb-16">
+        <div ref={headerRef} className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm uppercase tracking-wider mb-4">
             <div className="w-8 h-0.5 bg-[#F5B800]" />
             I Nostri Servizi

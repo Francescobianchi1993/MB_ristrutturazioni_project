@@ -160,7 +160,7 @@ export default function About() {
             </div>
 
             {/* Quote */}
-            <div className="bg-[#F8F8F8] rounded-2xl p-6 mt-6 relative">
+            <div className="bg-[#FFF8E7] rounded-2xl p-6 mt-6 relative">
               <Quote className="w-8 h-8 text-[#F5B800]/30 absolute top-4 left-4" />
               <blockquote className="text-[#1A1A1A] font-medium italic pl-8 pt-4">
                 "Per noi, eseguire qualcosa di difficile è una sfida e vedere i clienti 

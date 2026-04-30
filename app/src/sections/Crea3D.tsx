@@ -2,7 +2,6 @@ import { useState, type ChangeEvent, type DragEvent } from 'react';
 import {
   Upload,
   FileText,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   Check,
@@ -86,13 +85,9 @@ export default function Crea3D() {
   const tonoSel = TONI.find((t) => t.id === tono)!;
 
   return (
-    <section id="crea-3d" className="py-20 lg:py-28 bg-gradient-to-b from-white to-[#FFF8E7]/40">
+    <section id="crea-3d" className="py-12 lg:py-16 bg-gradient-to-b from-white to-[#FFF8E7]/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 bg-[#F5B800]/10 text-[#1A1A1A] px-4 py-2 rounded-full text-sm font-medium mb-4">
-            <Sparkles className="w-4 h-4 text-[#F5B800]" />
-            Render personalizzato gratuito
-          </div>
           <h2 className="font-display text-4xl sm:text-5xl font-bold mb-4">
             Crea il tuo <span className="text-[#F5B800]">render 3D</span>
           </h2>

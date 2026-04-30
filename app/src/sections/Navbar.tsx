@@ -26,9 +26,15 @@ export default function Navbar() {
   }, []);
 
   const scrollToSection = (href: string) => {
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+    // Per i due link della Sezione3D accorpata: dispatch evento e poi scroll dopo il re-render
+    const isSezione3D = href === '#modelli-3d' || href === '#crea-3d';
+    if (isSezione3D) {
+      window.dispatchEvent(new CustomEvent('sezione3d-tab-change', { detail: href }));
+      setTimeout(() => {
+        document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
+      }, 80);
+    } else {
+      document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
     }
     setIsMobileMenuOpen(false);
   };

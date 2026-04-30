@@ -1,7 +1,6 @@
 import { useState, useRef, type MouseEvent, type TouchEvent } from 'react';
 import {
   LayoutGrid,
-  Search,
   Filter,
   X,
   Box,
@@ -443,43 +442,20 @@ function ProjectModal({
 // ────────────────────────────────────────────────────────────────────────────
 export default function Modelli3D() {
   const [cat, setCat] = useState<(typeof CATEGORIES)[number]>('Tutti');
-  const [q, setQ] = useState('');
   const [active, setActive] = useState<Project | null>(null);
 
-  const filtered = PROJECTS.filter(
-    (p) =>
-      (cat === 'Tutti' || p.category === cat) &&
-      (q === '' ||
-        p.title.toLowerCase().includes(q.toLowerCase()) ||
-        p.city.toLowerCase().includes(q.toLowerCase()))
-  );
+  const filtered = PROJECTS.filter((p) => cat === 'Tutti' || p.category === cat);
 
   return (
-    <section id="modelli-3d" className="py-20 lg:py-28 bg-[#F8F8F8]">
+    <section id="modelli-3d" className="pt-6 pb-12 lg:pt-8 lg:pb-16 bg-[#F8F8F8]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-[#F5B800]/10 text-[#1A1A1A] px-4 py-2 rounded-full text-sm font-medium mb-4">
-              <Box className="w-4 h-4 text-[#F5B800]" /> Vetrina dei progetti
-            </div>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold leading-tight">
-              I nostri <span className="text-[#F5B800]">modelli 3D</span>
-            </h2>
-            <p className="text-[#666666] text-lg mt-3">
-              Esplora i progetti realizzati: tour 360°, prima/dopo e dettagli costruttivi.
-            </p>
-          </div>
-
-          <div className="relative w-full md:w-72">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#666666]" />
-            <input
-              type="text"
-              placeholder="Cerca per nome o città..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-full border border-[#E5E5E5] bg-white text-sm focus:border-[#F5B800] outline-none"
-            />
-          </div>
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <h2 className="font-display text-4xl sm:text-5xl font-bold leading-tight">
+            I nostri <span className="text-[#F5B800]">modelli 3D</span>
+          </h2>
+          <p className="text-[#666666] text-lg mt-3">
+            Esplora i progetti realizzati: tour 360°, prima/dopo e dettagli costruttivi.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-8">
@@ -503,7 +479,7 @@ export default function Modelli3D() {
 
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-[#666666]">
-            Nessun progetto trovato per "{q}".
+            Nessun progetto in questa categoria.
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
