@@ -113,14 +113,14 @@ export default function Hero() {
             </h1>
 
             {/* Description */}
-            <div className="text-xl text-[#666666] max-w-xl leading-relaxed mt-[60px] lg:mt-[72px] space-y-2">
+            <div className="text-xl text-[#666666] max-w-xl leading-relaxed mt-6 lg:mt-[72px] space-y-2">
               <p>Ristrutturazioni complete a Roma e provincia.</p>
               <p>Qualità, affidabilità e passione artigiana dal 1989.</p>
               <p>La tua casa merita il meglio.</p>
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 mt-[60px] lg:mt-[72px]">
+            <div className="flex flex-col sm:flex-row gap-4 mt-6 lg:mt-[60px]">
               <Button
                 onClick={() => scrollToSection('#preventivo')}
                 className="bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-8 py-6 rounded-full text-base transition-all hover:scale-105 hover:shadow-xl group"
@@ -206,7 +206,7 @@ export default function Hero() {
               </div>
 
               {/* Floating phone badge */}
-              <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
+              <div className="absolute bottom-2 left-2 sm:-bottom-4 sm:-left-4 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
                 <div className="w-12 h-12 bg-[#F5B800] rounded-full flex items-center justify-center">
                   <Phone className="w-6 h-6 text-[#1A1A1A]" />
                 </div>
@@ -223,7 +223,7 @@ export default function Hero() {
         <div
           id="chi-siamo"
           ref={aboutRef}
-          className="max-w-3xl mx-auto mt-20 lg:mt-28 pt-16 border-t border-[#E5E5E5] space-y-6 scroll-mt-24"
+          className="max-w-3xl mx-auto mt-10 lg:mt-28 pt-10 lg:pt-16 border-t border-[#E5E5E5] space-y-6 scroll-mt-24"
         >
           {/* Section label */}
           <div className="inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm uppercase tracking-wider">

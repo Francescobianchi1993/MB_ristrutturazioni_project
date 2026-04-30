@@ -16,7 +16,7 @@ import {
   mqTotali,
   mqPerTipo,
 } from '@/lib/preventivoModel';
-import { Home, Bath, ChefHat, Bed, Ruler, Hammer } from 'lucide-react';
+import { Home, Bath, ChefHat, Bed, Ruler } from 'lucide-react';
 import { useProgetto } from './state';
 import EditorAmbienti from './EditorAmbienti';
 
@@ -44,8 +44,6 @@ export default function Dimensioni() {
     !!state.macroSlot.tinteggiatura?.attivo;
 
   const haInfissi = !!state.macroSlot.infissi?.attivo;
-  const haPiccolo = !!state.macroSlot.piccolo?.attivo;
-
   // ── Modalità 1: ristrutturazione completa
   if (completaAttiva) {
     return (
@@ -77,20 +75,7 @@ export default function Dimensioni() {
 
         {haInfissi && <DimensioneInfissi />}
 
-        {haPiccolo && (
-          <div className="bg-[#FFF8E7] border border-[#F5B800]/30 rounded-2xl p-5 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#F5B800] flex items-center justify-center flex-shrink-0">
-              <Hammer className="w-4 h-4 text-[#1A1A1A]" />
-            </div>
-            <div className="text-sm">
-              <strong>Piccolo intervento</strong> — questo intervento è valutato a corpo (€ 200 –
-              1.500). Nessuna dimensione richiesta. Il preventivo definitivo arriva dopo
-              sopralluogo.
-            </div>
-          </div>
-        )}
-
-        {stanzeAttive.length === 0 && !haTrasversali && !haInfissi && !haPiccolo && (
+        {stanzeAttive.length === 0 && !haTrasversali && !haInfissi && (
           <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 text-center text-[#666] text-sm">
             Torna allo step precedente e seleziona almeno un intervento.
           </div>
@@ -125,7 +110,7 @@ function DimensioneStanza({ tipo }: { tipo: AmbienteTipo }) {
         </div>
         <div>
           <div className="text-[10px] font-mono uppercase tracking-wider text-[#666]">
-            Intervento puntuale
+            Intervento
           </div>
           <div className="font-semibold">Quanto è grande {LABEL_AMBIENTE[tipo].toLowerCase()}?</div>
         </div>

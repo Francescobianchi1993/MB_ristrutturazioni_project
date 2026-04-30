@@ -7,7 +7,7 @@ export default function WhatsAppButton() {
     const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 flex flex-col items-end pointer-events-none">
             {/* Pop-up (Tooltip) */}
             <div
                 className={`mb-3 bg-white text-[#1A1A1A] px-4 py-2 rounded-xl shadow-xl border border-gray-100 font-semibold text-sm transition-all duration-300 transform ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
@@ -25,7 +25,7 @@ export default function WhatsAppButton() {
                 rel="noopener noreferrer"
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                className="w-16 h-16 hover:scale-110 transition-transform duration-300 drop-shadow-2xl flex items-center justify-center bg-[#25D366] rounded-full text-white"
+                className="w-16 h-16 hover:scale-110 transition-transform duration-300 drop-shadow-2xl flex items-center justify-center bg-[#25D366] rounded-full text-white pointer-events-auto"
                 aria-label="Chat on WhatsApp"
             >
                 <svg

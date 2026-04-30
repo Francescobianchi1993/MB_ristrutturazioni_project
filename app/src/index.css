@@ -58,6 +58,14 @@
 }
 
 @layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
@@ -93,4 +101,21 @@
 ::selection {
   background-color: rgba(245, 184, 0, 0.3);
   color: #1A1A1A;
+}
+
+/* Accordion slide-down: animates max-height from 0 to content height */
+@keyframes slide-down {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 2400px;
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.25s ease-out forwards;
+  overflow: hidden;
 }

@@ -375,7 +375,7 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       <div className="text-center max-w-2xl mx-auto mb-8">
         <div className="inline-flex items-center gap-2 bg-[#F5B800]/10 px-4 py-2 rounded-full text-sm font-medium mb-4">
           <Wrench className="w-4 h-4 text-[#F5B800]" />
-          Intervento puntuale
+          Intervento
         </div>
         <h2 className="font-display text-3xl sm:text-4xl font-bold leading-tight">
           Cosa ti serve <span className="text-[#F5B800]">oggi</span>?
@@ -406,8 +406,8 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
         )}
       </div>
 
-      {/* Chips area */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+      {/* Chips area — scroll orizzontale su mobile, wrap su desktop */}
+      <div className="flex overflow-x-auto sm:flex-wrap sm:justify-center gap-2 mb-3 pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
         <Chip label="Tutti" attivo={filtroArea === null} onClick={() => setFiltroArea(null)} />
         {AREE.map((a) => (
           <Chip key={a} label={a} attivo={filtroArea === a} onClick={() => setFiltroArea(a)} />
@@ -415,12 +415,15 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       </div>
 
       {/* Chips ambiente */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-        <span className="text-xs text-[#666] mr-2 font-mono uppercase tracking-wider">Ambiente:</span>
-        <Chip label="Tutti" piccolo attivo={filtroAmbiente === null} onClick={() => setFiltroAmbiente(null)} />
-        {AMBIENTI.map((a) => (
-          <Chip key={a} label={a} piccolo attivo={filtroAmbiente === a} onClick={() => setFiltroAmbiente(a)} />
-        ))}
+      <div className="mb-8">
+        <span className="block sm:hidden text-xs text-[#666] font-mono uppercase tracking-wider mb-1.5">Ambiente</span>
+        <div className="flex overflow-x-auto sm:flex-wrap sm:items-center sm:justify-center gap-2 pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+          <span className="hidden sm:inline text-xs text-[#666] mr-2 font-mono uppercase tracking-wider shrink-0">Ambiente:</span>
+          <Chip label="Tutti" piccolo attivo={filtroAmbiente === null} onClick={() => setFiltroAmbiente(null)} />
+          {AMBIENTI.map((a) => (
+            <Chip key={a} label={a} piccolo attivo={filtroAmbiente === a} onClick={() => setFiltroAmbiente(a)} />
+          ))}
+        </div>
       </div>
 
       {/* Header risultati */}
@@ -536,7 +539,7 @@ function Chip({
   return (
     <button
       onClick={onClick}
-      className={`${base} rounded-full border-2 transition font-medium ${
+      className={`${base} rounded-full border-2 transition font-medium shrink-0 ${
         attivo
           ? 'bg-[#F5B800] border-[#F5B800] text-[#1A1A1A]'
           : 'bg-white border-[#E5E5E5] text-[#666] hover:border-[#F5B800] hover:text-[#1A1A1A]'
@@ -584,8 +587,8 @@ function GruppoAccordion({
           <Icona className={`w-4 h-4 ${evidenziato ? 'fill-current' : ''}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="w-1/2 flex items-baseline justify-between gap-4">
-            <span className="font-display text-base font-bold truncate">{titolo}</span>
+          <div className="w-full flex items-baseline justify-between gap-4">
+            <span className="font-display text-base font-bold">{titolo}</span>
             {evidenziato && (
               <span className="text-[11px] font-mono uppercase tracking-wider text-[#F5B800] flex-shrink-0">
                 Tutto incluso

@@ -47,7 +47,6 @@ export type MacroSlotId =
   | 'cucina'
   | 'bagno'
   | 'camera'
-  | 'piccolo'
   | 'elettrico'
   | 'idraulico'
   | 'termico'

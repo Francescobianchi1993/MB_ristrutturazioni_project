@@ -54,7 +54,7 @@ export default function EditorAmbienti() {
             <Building2 className="w-3 h-3" />
             Piano
           </div>
-          <div className="text-[10px] font-mono text-[#999] flex items-center gap-1">
+          <div className="hidden sm:flex text-[10px] font-mono text-[#999] items-center gap-1">
             <Info className="w-3 h-3" />
             moltiplicatore costo: <span className="text-[#F5B800]">da inserire (DB)</span>
           </div>

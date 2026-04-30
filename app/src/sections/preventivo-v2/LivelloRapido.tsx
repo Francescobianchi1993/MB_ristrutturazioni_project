@@ -10,7 +10,7 @@
  * Tutti gli step leggono e scrivono su `useProgetto()`.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Check, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProgetto } from './state';
@@ -43,12 +43,20 @@ export default function LivelloRapido({ onTorna, onPassaAEsperto }: LivelloRapid
   const [step, setStep] = useState(1);
   const { state } = useProgetto();
   const result = calcolaPrezzo(state);
+  const topRef = useRef<HTMLDivElement>(null);
+
+  // Quando il wizard monta, scrolla in cima (offset 88px per la navbar fissa da 80px)
+  useEffect(() => {
+    if (!topRef.current) return;
+    const y = topRef.current.getBoundingClientRect().top + window.scrollY - 88;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+  }, []);
 
   const haAlmenoUnIntervento = Object.values(state.macroSlot).some((s) => s?.attivo);
   const canNext = step === 1 ? haAlmenoUnIntervento : step === 2 ? state.ambienti.length > 0 : true;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div ref={topRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
       <button
         onClick={onTorna}
         className="text-sm text-[#666] hover:text-[#1A1A1A] mb-6 flex items-center gap-1"
@@ -57,6 +65,11 @@ export default function LivelloRapido({ onTorna, onPassaAEsperto }: LivelloRapid
       </button>
 
       <Stepper step={step} />
+      {/* Mobile: indicatore step semplice, sostituisce lo stepper grafico nascosto sotto sm */}
+      <div className="sm:hidden text-center text-sm text-[#666] mb-2">
+        Step <strong className="text-[#1A1A1A]">{step}</strong> di {STEPS.length} —{' '}
+        <strong className="text-[#F5B800]">{STEPS[step - 1].label}</strong>
+      </div>
 
       <div className="bg-white border border-[#E5E5E5] rounded-3xl shadow-sm p-6 lg:p-10 mt-8">
         {step === 1 && <StepInterventi />}
@@ -149,7 +162,6 @@ function StepInterventi() {
   const completaAttiva = isCompletaAttiva(state);
 
   function handleToggle(slot: MacroSlot) {
-    console.log('[DEBUG] click su card:', slot.id, '| completaAttiva:', completaAttiva, '| disabilitatoSeCompleta:', slot.disabilitatoSeCompleta);
     if (completaAttiva && slot.disabilitatoSeCompleta) {
       toast.warning('Già incluso', {
         description: `${slot.label} è compreso nella Ristrutturazione completa.`,
@@ -157,7 +169,6 @@ function StepInterventi() {
       return;
     }
     dispatch({ type: 'TOGGLE_MACRO_SLOT', slot: slot.id });
-    console.log('[DEBUG] dispatch eseguito per', slot.id);
   }
 
   const macroSlot = MACRO_SLOT.filter((s) => s.gruppo === 'macro');
@@ -217,8 +228,10 @@ function CardIntervento({
         : '';
 
   return (
+    /* self-start: la card non si allunga per riempire la riga del grid —
+       elimina l'area vuota "non cliccabile" che appariva accanto a card aperte */
     <div
-      className={`rounded-2xl border-2 transition ${
+      className={`rounded-2xl border-2 transition self-start ${
         attivo
           ? 'border-[#F5B800] bg-[#F5B800]/5'
           : disabled
@@ -226,10 +239,12 @@ function CardIntervento({
             : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]/40'
       }`}
     >
+      {/* Solo questo button toglia la card. Nessun onClick su div. */}
       <button
-        onClick={() => onToggle(slot)}
-        className="w-full text-left p-4"
+        type="button"
         disabled={disabled}
+        onClick={() => onToggle(slot)}
+        className={`w-full text-left p-4 select-none ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
       >
         <div className="flex items-start gap-3">
           <div
@@ -502,10 +517,6 @@ function DimensioniRiepilogo() {
     const c = state.macroSlot.infissi;
     dettagli.push(`${c.numPorte ?? 0} porte · ${c.numFinestre ?? 0} finestre`);
   }
-  if (state.macroSlot.piccolo?.attivo) {
-    dettagli.push('Piccolo intervento (a corpo)');
-  }
-
   return (
     <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5">
       <div className="text-[10px] font-mono uppercase text-[#666] mb-1">Dimensioni</div>

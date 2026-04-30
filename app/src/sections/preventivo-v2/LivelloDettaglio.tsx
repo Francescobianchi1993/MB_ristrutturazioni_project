@@ -15,7 +15,7 @@
  * Stato: chiave (voceId, ambienteId).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -199,6 +199,14 @@ function vociPerMacroArea(voci: VocePrezzario[], area: MacroArea): VocePrezzario
 
 export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDettaglioProps) {
   const { state, dispatch } = useProgetto();
+  const topRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!topRef.current) return;
+    const y = topRef.current.getBoundingClientRect().top + window.scrollY - 88;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+  }, []);
+
   const [prezzario, setPrezzario] = useState<{
     loading: boolean;
     categorie: CategoriaConVoci[];
@@ -257,7 +265,7 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
     if (!ambienteAperto) return;
     const el = document.getElementById(`scheda-amb-${ambienteAperto}`);
     if (el) {
-      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
     }
   }, [ambienteAperto]);
 
@@ -280,7 +288,7 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div ref={topRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
       <button
         onClick={onTorna}
         className="text-sm text-[#666] hover:text-[#1A1A1A] mb-6 flex items-center gap-1"
@@ -551,8 +559,8 @@ function SchedaAmbiente({
           </div>
         </button>
 
-        {/* mq editabile inline */}
-        <div className="flex items-center gap-1">
+        {/* mq editabile inline — visibile solo su sm+ */}
+        <div className="hidden sm:flex items-center gap-1">
           <input
             type="number"
             min={1}
@@ -590,7 +598,7 @@ function SchedaAmbiente({
       </div>
 
       {aperta && (
-        <div className="border-t border-[#E5E5E5]">
+        <div className="border-t border-[#E5E5E5] animate-slide-down">
           {/* TABS macro-aree */}
           <TabsMacroAree
             areaAttiva={areaAttiva}
@@ -696,8 +704,8 @@ function TabsMacroAree({
   }
 
   return (
-    <div className="bg-white border-b border-[#E5E5E5] overflow-x-auto">
-      <div className="flex min-w-max">
+    <div className="bg-white border-b border-[#E5E5E5]">
+      <div className="grid grid-cols-2 sm:grid-cols-4">
         {MACRO_AREE.map((area) => {
           const stats = statsPerArea(area);
           const sel = areaAttiva === area.id;
@@ -705,14 +713,14 @@ function TabsMacroAree({
             <button
               key={area.id}
               onClick={() => setAreaAttiva(area.id)}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition ${
+              className={`flex items-center justify-center gap-1.5 px-2 py-2 border-b-2 transition ${
                 sel
                   ? 'border-[#F5B800] bg-[#FFFEF5] font-semibold'
                   : 'border-transparent hover:bg-[#FAFAFA]'
               }`}
             >
-              <span className="text-base">{area.emoji}</span>
-              <span className="text-sm">{area.label}</span>
+              <span className="text-sm">{area.emoji}</span>
+              <span className="text-xs">{area.label}</span>
               <span className="text-[10px] text-[#666] font-mono">({stats.tot})</span>
               {stats.scelte > 0 && (
                 <span className="bg-[#F5B800] text-[#1A1A1A] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
@@ -834,31 +842,21 @@ function CategoriaVociCollapsable({
     <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden">
       <button
         onClick={() => setAperta((v) => !v)}
-        className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-[#FAFAFA] text-left transition ${
+        className={`w-full px-3 py-2 flex items-center gap-2 hover:bg-[#FAFAFA] text-left transition ${
           aperta ? 'bg-[#FFFEF5]' : ''
         }`}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <div
-            className={`w-2 h-2 rounded-full ${numAttive > 0 ? 'bg-[#F5B800]' : 'bg-[#E5E5E5]'}`}
-          />
-          <div className="min-w-0">
-            <div className="text-sm font-medium">{categoria.categoria}</div>
-            <div className="text-[10px] text-[#666] mt-0.5">
-              {categoria.voci.length} voci
-              {numAttive > 0 && (
-                <>
-                  {' · '}
-                  <span className="text-[#1A1A1A] font-semibold">{numAttive}</span>
-                  {' · '}
-                  <span className="text-[#F5B800] font-semibold">{fmt(subtotale)}</span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${numAttive > 0 ? 'bg-[#F5B800]' : 'bg-[#E5E5E5]'}`} />
+        <span className="text-sm font-medium flex-1 min-w-0">{categoria.categoria}</span>
+        <span className="text-[10px] font-mono flex-shrink-0">
+          {numAttive > 0 ? (
+            <span className="text-[#F5B800] font-semibold">{numAttive} sel · {fmt(subtotale)}</span>
+          ) : (
+            <span className="text-[#999]">{categoria.voci.length}</span>
+          )}
+        </span>
         <ChevronDown
-          className={`w-4 h-4 text-[#999] transition-transform ${aperta ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-[#999] flex-shrink-0 transition-transform ${aperta ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -934,7 +932,7 @@ function RigaVoce({ voce, ambienteId }: { voce: VocePrezzario; ambienteId: strin
 
   return (
     <div
-      className={`grid grid-cols-[20px_1fr_70px_70px_70px] sm:grid-cols-[20px_1fr_60px_80px_80px_80px] gap-2 items-center px-2 py-1.5 rounded-lg ${
+      className={`grid grid-cols-[20px_1fr_52px] sm:grid-cols-[20px_1fr_60px_60px_70px_80px] gap-x-2 items-center px-2 py-1.5 rounded-lg ${
         flagged ? 'bg-[#FFFEF5]' : 'hover:bg-[#FAFAFA]'
       }`}
     >
@@ -945,9 +943,9 @@ function RigaVoce({ voce, ambienteId }: { voce: VocePrezzario; ambienteId: strin
         className="w-4 h-4 accent-[#F5B800]"
       />
       <div className="min-w-0">
-        <div className="text-sm font-medium leading-tight">{voce.voce}</div>
+        <div className="text-xs sm:text-sm font-medium leading-snug">{voce.voce}</div>
         {voce.descrizione_breve && voce.descrizione_breve !== voce.voce && (
-          <div className="text-[10px] text-[#666] mt-0.5 line-clamp-1">
+          <div className="text-[10px] text-[#666] mt-0.5 line-clamp-1 hidden sm:block">
             {voce.descrizione_breve}
           </div>
         )}
@@ -969,7 +967,7 @@ function RigaVoce({ voce, ambienteId }: { voce: VocePrezzario; ambienteId: strin
         className="w-full text-right p-1 border border-[#E5E5E5] rounded font-mono text-xs focus:border-[#F5B800] outline-none disabled:bg-transparent disabled:border-transparent disabled:text-[#bbb]"
       />
       <div
-        className={`text-right font-mono text-xs ${
+        className={`text-right font-mono text-xs hidden sm:block ${
           flagged ? 'font-semibold text-[#1A1A1A]' : 'text-[#bbb]'
         }`}
       >
@@ -1052,7 +1050,7 @@ function SchedaCorpoCasa({
       </button>
 
       {aperta && (
-        <>
+        <div className="animate-slide-down">
           <SottoSezioneVociFlat
             voci={voci}
             ambienteId={ID_COMUNI}
@@ -1077,7 +1075,7 @@ function SchedaCorpoCasa({
             </div>
             <div />
           </div>
-        </>
+        </div>
       )}
     </div>
   );

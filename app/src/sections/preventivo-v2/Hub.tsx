@@ -18,7 +18,7 @@ export default function Hub({ onScegli }: HubProps) {
           Calcola il tuo preventivo
         </div>
         <h1 className="font-display text-4xl sm:text-5xl leading-tight font-bold">
-          Ristrutturazione completa o <span className="text-[#F5B800]">intervento puntuale</span>?
+          Ristrutturazione completa o <span className="text-[#F5B800]">intervento</span>?
         </h1>
         <p className="text-[#666] text-lg mt-4">
           Scegli la modalità adatta al tuo bisogno. Puoi cambiare in qualsiasi momento.
@@ -28,7 +28,7 @@ export default function Hub({ onScegli }: HubProps) {
       <div className="grid md:grid-cols-3 gap-5">
         <button
           onClick={() => onScegli('intervento')}
-          className="group text-left bg-white border-2 border-[#E5E5E5] hover:border-[#F5B800] rounded-3xl p-8 transition shadow-sm hover:shadow-md"
+          className="group text-left bg-white border-2 border-[#E5E5E5] hover:border-[#F5B800] rounded-2xl sm:rounded-3xl p-5 sm:p-8 transition shadow-sm hover:shadow-md"
         >
           <div className="flex items-center justify-between mb-5">
             <div className="w-14 h-14 rounded-2xl bg-[#F5B800]/10 group-hover:bg-[#F5B800] flex items-center justify-center transition">
@@ -38,7 +38,7 @@ export default function Hub({ onScegli }: HubProps) {
               ~ 1 minuto
             </span>
           </div>
-          <div className="font-display text-2xl font-bold mb-2">Intervento puntuale</div>
+          <div className="font-display text-xl sm:text-2xl font-bold mb-2">Intervento</div>
           <p className="text-sm text-[#666] mb-5">
             Un singolo lavoro, riparazione o manutenzione. Cerca, aggiungi al carrello e scarica il preventivo.
           </p>
@@ -55,7 +55,7 @@ export default function Hub({ onScegli }: HubProps) {
 
         <button
           onClick={() => onScegli('rapida')}
-          className="group text-left bg-[#F5B800]/[0.03] border-2 border-[#E5E5E5] hover:border-[#F5B800] rounded-3xl p-8 transition shadow-sm hover:shadow-md"
+          className="group text-left bg-[#F5B800]/[0.03] border-2 border-[#E5E5E5] hover:border-[#F5B800] rounded-2xl sm:rounded-3xl p-5 sm:p-8 transition shadow-sm hover:shadow-md"
         >
           <div className="flex items-center justify-between mb-5">
             <div className="w-14 h-14 rounded-2xl bg-[#F5B800]/50 group-hover:bg-[#F5B800] flex items-center justify-center transition">
@@ -65,7 +65,7 @@ export default function Hub({ onScegli }: HubProps) {
               ~ 2 minuti
             </span>
           </div>
-          <div className="font-display text-2xl font-bold mb-2">Stima rapida</div>
+          <div className="font-display text-xl sm:text-2xl font-bold mb-2">Stima rapida</div>
           <p className="text-sm text-[#666] mb-5">
             Pochi parametri, range di prezzo realistico per orientarti subito. Ideale come primo passo.
           </p>
@@ -82,7 +82,7 @@ export default function Hub({ onScegli }: HubProps) {
 
         <button
           onClick={() => onScegli('esperto')}
-          className="group relative text-left bg-[#F5B800]/[0.07] border-2 border-[#F5B800]/40 hover:border-[#F5B800] rounded-3xl p-8 transition shadow-sm hover:shadow-md"
+          className="group relative text-left bg-[#F5B800]/[0.07] border-2 border-[#F5B800]/40 hover:border-[#F5B800] rounded-2xl sm:rounded-3xl p-5 sm:p-8 transition shadow-sm hover:shadow-md"
         >
           <div className="absolute -top-3 right-6 bg-[#F5B800] text-[#1A1A1A] text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
             <Star className="w-3 h-3 fill-current" /> Più completo
@@ -95,7 +95,7 @@ export default function Hub({ onScegli }: HubProps) {
               ~ 10 minuti
             </span>
           </div>
-          <div className="font-display text-2xl font-bold mb-2">Preventivo dettagliato</div>
+          <div className="font-display text-xl sm:text-2xl font-bold mb-2">Preventivo dettagliato</div>
           <p className="text-sm text-[#666] mb-5">
             Componi il preventivo voce per voce dal listino MB. Prezzi reali per unità, calcolati sul DB.
           </p>

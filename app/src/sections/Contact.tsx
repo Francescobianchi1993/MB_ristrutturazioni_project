@@ -225,14 +225,14 @@ export default function Contact() {
                   <a
                     key={index}
                     href={info.href}
-                    className="flex items-start gap-4 bg-white p-5 rounded-2xl hover:shadow-lg transition-all duration-300 group"
+                    className="flex items-center gap-4 bg-white p-5 rounded-2xl hover:shadow-lg transition-all duration-300 group"
                   >
                     <div className="w-12 h-12 bg-[#F5B800]/10 group-hover:bg-[#F5B800] rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-300">
                       <info.icon className="w-6 h-6 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
                       <p className="font-semibold text-[#1A1A1A] mb-1">{info.title}</p>
-                      <p className="text-[#666666]">{info.content}</p>
+                      <p className="text-[#666666] text-sm">{info.content}</p>
                     </div>
                   </a>
                 ))}
@@ -251,7 +251,7 @@ export default function Contact() {
 
           {/* Right — form */}
           <div ref={formRef} className="flex flex-col h-full">
-            <div className="bg-white rounded-3xl p-8 shadow-lg flex flex-col flex-1">
+            <div className="bg-white rounded-3xl p-5 sm:p-8 shadow-lg flex flex-col flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-[#F5B800]/10 rounded-xl flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-[#F5B800]" />
@@ -340,7 +340,8 @@ export default function Contact() {
                       >
                         <Upload className="w-6 h-6 text-[#BBBBBB] mx-auto mb-2" />
                         <p className="text-sm text-[#555]">
-                          <span className="font-semibold text-[#F5B800]">Carica file</span> o trascina qui
+                          <span className="font-semibold text-[#F5B800]">Tocca o carica file</span>
+                          <span className="hidden sm:inline"> · trascina qui</span>
                         </p>
                         <p className="text-xs text-[#999] mt-1">
                           JPG · PNG · PDF · DOCX · MP4 · MOV — max {MAX_FILES} file · {MAX_MB} MB cad.

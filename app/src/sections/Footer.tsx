@@ -33,23 +33,23 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Main row */}
-        <div className="py-6 flex flex-col lg:flex-row items-center justify-between gap-6">
+        <div className="py-6 flex flex-col lg:flex-row items-center justify-between gap-5">
 
-          {/* Logo + social verticale affiancati */}
-          <div className="flex items-center gap-3">
+          {/* Logo + social: su mobile logo a sx, social a dx nella stessa riga */}
+          <div className="flex items-center justify-between w-full lg:w-auto gap-3">
             <a
               href="#home"
               onClick={(e) => { e.preventDefault(); scrollToSection('#home'); }}
               className="flex items-center gap-2"
             >
-              <div className="w-10 h-10 bg-[#F5B800] rounded-lg flex items-center justify-center shrink-0">
-                <Home className="w-5 h-5 text-[#1A1A1A]" />
+              <div className="w-9 h-9 bg-[#F5B800] rounded-lg flex items-center justify-center shrink-0">
+                <Home className="w-4 h-4 text-[#1A1A1A]" />
               </div>
-              <span className="font-display font-bold text-xl">
+              <span className="font-display font-bold text-base lg:text-xl">
                 MB<span className="text-[#F5B800]">Ristrutturazioni</span>
               </span>
             </a>
-            <div className="flex flex-row gap-3 ml-6">
+            <div className="flex flex-row gap-2">
               {socialLinks.map((s) => (
                 <a
                   key={s.label}
@@ -65,14 +65,14 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Nav links orizzontali */}
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+          {/* Nav links: una sola riga su mobile con font ridotto */}
+          <nav className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 lg:gap-x-6">
             {quickLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
                 onClick={(e) => { e.preventDefault(); scrollToSection(link.href); }}
-                className="text-white/60 hover:text-[#F5B800] transition-colors text-sm"
+                className="text-white/60 hover:text-[#F5B800] transition-colors text-xs lg:text-sm"
               >
                 {link.name}
               </a>
@@ -103,13 +103,13 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-white/10 py-5 flex flex-col md:flex-row justify-between items-center gap-3">
-          <p className="text-white/40 text-xs text-center md:text-left">
-            © {new Date().getFullYear()} MB Ristrutturazioni. Tutti i diritti riservati.
+        <div className="border-t border-white/10 py-4 flex flex-row flex-wrap justify-between items-center gap-x-4 gap-y-1">
+          <p className="text-white/40 text-xs">
+            © {new Date().getFullYear()} MB Ristrutturazioni.
           </p>
-          <div className="flex gap-6">
-            <a href="/privacy-policy" className="text-white/40 hover:text-[#F5B800] text-xs transition-colors">Privacy Policy</a>
-            <a href="/cookie-policy" className="text-white/40 hover:text-[#F5B800] text-xs transition-colors">Cookie Policy</a>
+          <div className="flex gap-4">
+            <a href="/privacy-policy" className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Privacy Policy</a>
+            <a href="/cookie-policy" className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Cookie Policy</a>
           </div>
         </div>
 
