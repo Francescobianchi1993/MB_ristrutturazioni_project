@@ -119,7 +119,7 @@ export default function RiepilogoSticky({
         {onSwitchModalita && (
           <button
             onClick={onSwitchModalita}
-            className="w-full border border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white text-[#1A1A1A] font-medium py-2 rounded-full text-xs transition-colors"
+            className="w-full bg-[#1A1A1A] hover:bg-black text-white font-semibold py-2.5 rounded-full text-xs leading-tight px-3"
           >
             {switchLabel ?? 'Aggiungi o rimuovi voci specifiche →'}
           </button>

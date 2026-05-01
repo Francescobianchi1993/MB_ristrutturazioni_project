@@ -78,25 +78,24 @@ export default function LivelloRapido({ onTorna, onPassaAEsperto, initialStep = 
         {step === 3 && <StepFiniture />}
         {step === 4 && <StepRiepilogo onPassaAEsperto={onPassaAEsperto} />}
 
-        {step < 4 && (
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-[#E5E5E5] gap-3">
-            <button
-              onClick={() => setStep(step - 1)}
-              disabled={step === 1}
-              className="flex items-center gap-2 px-5 py-3 rounded-full border border-[#E5E5E5] hover:bg-[#F8F8F8] text-sm disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <ArrowLeft className="w-4 h-4" /> Indietro
-            </button>
+        <div className="flex items-center justify-between mt-8 pt-6 border-t border-[#E5E5E5] gap-3">
+          <button
+            onClick={() => (step === 1 ? onTorna() : setStep(step - 1))}
+            className="flex items-center gap-2 px-5 py-3 rounded-full border border-[#E5E5E5] hover:bg-[#F8F8F8] text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" /> {step === 1 ? 'Cambia modalità' : 'Indietro'}
+          </button>
 
-            {result.totale > 0 && (
-              <div className="hidden md:flex flex-col items-end mr-2">
-                <div className="text-[10px] font-mono uppercase text-[#666]">Stima preliminare</div>
-                <div className="font-display text-xl font-bold text-[#F5B800]">
-                  {fmt(result.totale)}
-                </div>
+          {result.totale > 0 && step < 4 && (
+            <div className="hidden md:flex flex-col items-end mr-2">
+              <div className="text-[10px] font-mono uppercase text-[#666]">Stima preliminare</div>
+              <div className="font-display text-xl font-bold text-[#F5B800]">
+                {fmt(result.totale)}
               </div>
-            )}
+            </div>
+          )}
 
+          {step < 4 && (
             <button
               onClick={() => setStep(step + 1)}
               disabled={!canNext}
@@ -104,8 +103,8 @@ export default function LivelloRapido({ onTorna, onPassaAEsperto, initialStep = 
             >
               Continua <ArrowRight className="w-4 h-4" />
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
