@@ -215,7 +215,6 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
   const [ambienteAperto, setAmbienteAperto] = useState<string | null>(null);
   const [filtro, setFiltro] = useState('');
   const [preCompilato, setPreCompilato] = useState(false);
-  const autoApertoRef = useRef(false);
 
   useEffect(() => {
     caricaPrezzario().then((r) => {
@@ -248,24 +247,6 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
 
   const smistato = useMemo(() => smistaVoci(prezzario.categorie), [prezzario.categorie]);
 
-  // Apri il primo ambiente con voci selezionate UNA SOLA VOLTA al pre-popolamento.
-  // Senza il ref, ogni chiusura manuale (ambienteAperto -> null) farebbe scattare
-  // di nuovo l'auto-apertura, dando la sensazione che il box "non si chiuda".
-  useEffect(() => {
-    if (autoApertoRef.current) return;
-    if (ambienteAperto !== null || state.vociDettagliate.length === 0) return;
-    for (const a of state.ambienti) {
-      const ne = state.vociDettagliate.some(
-        (v) => v.ambienteId === a.id && v.quantita > 0
-      );
-      if (ne) {
-        setAmbienteAperto(a.id);
-        autoApertoRef.current = true;
-        return;
-      }
-    }
-  }, [state.vociDettagliate, state.ambienti, ambienteAperto]);
-
   useEffect(() => {
     if (!ambienteAperto) return;
     const el = document.getElementById(`scheda-amb-${ambienteAperto}`);
@@ -296,7 +277,7 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
     <div ref={topRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
       <button
         onClick={onTorna}
-        className="text-sm text-[#666] hover:text-[#1A1A1A] mb-6 flex items-center gap-1"
+        className="text-sm text-[#1A1A1A] hover:text-black font-bold mb-6 flex items-center gap-1"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Cambia modalità
       </button>
@@ -839,11 +820,6 @@ function CategoriaVociCollapsable({
   );
   const subtotale = sel.reduce((s, v) => s + v.prezzoUnitario * v.quantita, 0);
   const numAttive = sel.filter((v) => v.quantita > 0).length;
-
-  useEffect(() => {
-    if (numAttive > 0) setAperta(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden">

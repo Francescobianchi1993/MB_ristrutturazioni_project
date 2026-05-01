@@ -1,7 +1,5 @@
 import emailjs from '@emailjs/browser';
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useRef, useState, useCallback } from 'react';
 import {
   MapPin, Phone, Mail, Calendar, CheckCircle,
   Upload, X, FileText, Image, Film, Paperclip,
@@ -11,8 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
-
-gsap.registerPlugin(ScrollTrigger);
 
 // Supabase Storage: crea il bucket "sopralluogo-files" con accesso pubblico
 // Dashboard → Storage → New bucket → Name: sopralluogo-files → Public: ON
@@ -73,29 +69,9 @@ export default function Contact() {
   const [files, setFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
 
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      if (contentRef.current) {
-        gsap.fromTo(contentRef.current.children,
-          { opacity: 0, x: -30 },
-          {
-            opacity: 1, x: 0, duration: 0.6, stagger: 0.1, ease: 'power3.out',
-            scrollTrigger: { trigger: sectionRef.current, start: 'top 70%', toggleActions: 'play none none none' },
-          }
-        );
-      }
-      if (formRef.current) {
-        gsap.fromTo(formRef.current,
-          { opacity: 0, x: 30 },
-          {
-            opacity: 1, x: 0, duration: 0.6, ease: 'power3.out',
-            scrollTrigger: { trigger: sectionRef.current, start: 'top 70%', toggleActions: 'play none none none' },
-          }
-        );
-      }
-    }, sectionRef);
-    return () => ctx.revert();
-  }, []);
+  // Animazioni GSAP rimosse: causavano transform residui (translateX) sui box
+  // su mobile quando lo ScrollTrigger non scattava esattamente come previsto.
+  // Il fade-in CSS è sufficiente per la sezione Contact.
 
   const addFiles = useCallback((incoming: FileList | File[]) => {
     setFileError('');
@@ -230,9 +206,9 @@ export default function Contact() {
                     <div className="w-12 h-12 bg-[#F5B800]/10 group-hover:bg-[#F5B800] rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-300">
                       <info.icon className="w-6 h-6 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
                     </div>
-                    <div className="min-w-0 flex-1 text-center sm:text-left">
+                    <div className="min-w-0 flex-1 text-left">
                       <p className="font-semibold text-[#1A1A1A] mb-1">{info.title}</p>
-                      <p className="text-[#666666] text-sm">{info.content}</p>
+                      <p className="text-[#666666] text-sm break-words">{info.content}</p>
                     </div>
                   </a>
                 ))}

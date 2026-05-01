@@ -36,20 +36,20 @@ export default function Footer() {
         <div className="py-6 flex flex-col lg:flex-row items-center justify-between gap-5">
 
           {/* Logo + social: su mobile logo a sx, social a dx nella stessa riga */}
-          <div className="flex items-center justify-between w-full lg:w-auto gap-3">
+          <div className="flex items-center justify-between w-full lg:w-auto gap-2 min-w-0">
             <a
               href="#home"
               onClick={(e) => { e.preventDefault(); scrollToSection('#home'); }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 min-w-0 flex-shrink"
             >
               <div className="w-9 h-9 bg-[#F5B800] rounded-lg flex items-center justify-center shrink-0">
                 <Home className="w-4 h-4 text-[#1A1A1A]" />
               </div>
-              <span className="font-display font-bold text-base lg:text-xl">
+              <span className="font-display font-bold text-sm lg:text-xl truncate">
                 MB<span className="text-[#F5B800]">Ristrutturazioni</span>
               </span>
             </a>
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-row gap-1.5 flex-shrink-0">
               {socialLinks.map((s) => (
                 <a
                   key={s.label}
@@ -80,8 +80,8 @@ export default function Footer() {
           </nav>
 
           {/* Contatti */}
-          <ul className="flex flex-col items-center lg:items-end gap-3">
-            <li>
+          <ul className="flex flex-col items-center lg:items-end gap-3 max-w-full min-w-0">
+            <li className="max-w-full min-w-0">
               <a
                 href="tel:+393391268722"
                 className="flex items-center gap-2 text-white/60 hover:text-[#F5B800] transition-colors text-sm"
@@ -90,13 +90,13 @@ export default function Footer() {
                 +39 339 126 8722
               </a>
             </li>
-            <li>
+            <li className="max-w-full min-w-0">
               <a
                 href="mailto:mbristrutturazioniroma@gmail.com"
-                className="flex items-center gap-2 text-white/60 hover:text-[#F5B800] transition-colors text-sm"
+                className="flex items-center gap-2 text-white/60 hover:text-[#F5B800] transition-colors text-xs sm:text-sm max-w-full min-w-0"
               >
                 <Mail className="w-4 h-4 text-[#F5B800] shrink-0" />
-                mbristrutturazioniroma@gmail.com
+                <span className="truncate">mbristrutturazioniroma@gmail.com</span>
               </a>
             </li>
           </ul>

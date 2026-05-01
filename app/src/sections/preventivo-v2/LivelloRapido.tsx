@@ -60,7 +60,7 @@ export default function LivelloRapido({ onTorna, onPassaAEsperto, initialStep = 
     <div ref={topRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
       <button
         onClick={onTorna}
-        className="text-sm text-[#666] hover:text-[#1A1A1A] mb-6 flex items-center gap-1"
+        className="text-sm text-[#1A1A1A] hover:text-black font-bold mb-6 flex items-center gap-1"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Cambia modalità
       </button>

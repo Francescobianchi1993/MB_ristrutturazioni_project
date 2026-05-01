@@ -3,7 +3,7 @@
  * Stima rapida (L1) o Preventivo dettagliato (L2).
  */
 
-import { Zap, ClipboardCheck, Sparkles, Wrench, Star } from 'lucide-react';
+import { Zap, ClipboardCheck, Wrench, Star } from 'lucide-react';
 
 interface HubProps {
   onScegli: (modalita: 'rapida' | 'esperto' | 'intervento') => void;
@@ -13,10 +13,6 @@ export default function Hub({ onScegli }: HubProps) {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="text-center max-w-2xl mx-auto mb-12">
-        <div className="inline-flex items-center gap-2 bg-[#F5B800]/10 px-4 py-2 rounded-full text-sm font-medium mb-4">
-          <Sparkles className="w-4 h-4 text-[#F5B800]" />
-          Calcola il tuo preventivo
-        </div>
         <h1 className="font-display text-4xl sm:text-5xl leading-tight font-bold">
           Ristrutturazione completa o <span className="text-[#F5B800]">intervento</span>?
         </h1>

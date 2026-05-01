@@ -21,6 +21,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import ConfirmDialog from './ConfirmDialog';
 import {
   ArrowLeft,
   Search,
@@ -29,6 +30,8 @@ import {
   Minus,
   Trash2,
   Download,
+  Mail,
+  Share2,
   Star,
   X,
   ChevronDown,
@@ -296,8 +299,7 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   const [search, setSearch] = useState('');
   const [filtroArea, setFiltroArea] = useState<Area | null>(null);
   const [filtroAmbiente, setFiltroAmbiente] = useState<Ambiente | null>(null);
-  const [aperti, setAperti] = useState<Set<GruppoKey>>(new Set(['Pacchetti']));
-  const [carrelloAperto, setCarrelloAperto] = useState(false);
+  const [aperti, setAperti] = useState<Set<GruppoKey>>(new Set());
 
   const cart = useCart();
 
@@ -338,8 +340,8 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       setAperti(new Set<GruppoKey>([filtroArea]));
       return;
     }
-    // Reset ai default quando non c'è filtro area né search
-    setAperti(new Set<GruppoKey>(['Pacchetti']));
+    // Reset: nessun accordion aperto se non ci sono filtri attivi.
+    setAperti(new Set<GruppoKey>());
   }, [filtroArea, search, vociPerGruppo]);
 
   const toggleGruppo = (key: GruppoKey) => {
@@ -363,10 +365,10 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   const gruppiVisibili = filtroArea === null ? GRUPPI : GRUPPI.filter((g) => g.key === filtroArea || g.key === 'Pacchetti');
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <button
         onClick={onTorna}
-        className="text-sm text-[#666] hover:text-[#1A1A1A] mb-6 flex items-center gap-1"
+        className="text-sm text-[#1A1A1A] hover:text-black font-bold mb-6 flex items-center gap-1"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Cambia modalità
       </button>
@@ -510,12 +512,10 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
         );
       })()}
 
-      {/* Carrello sticky in fondo (sempre visibile) */}
-      <CarrelloSticky
-        cart={cart}
-        aperto={carrelloAperto}
-        onToggle={() => setCarrelloAperto((v) => !v)}
-      />
+      {/* Riepilogo carrello — card inline coerente con RiepilogoSticky */}
+      <div className="mt-10">
+        <RiepilogoCarrello cart={cart} />
+      </div>
     </div>
   );
 }
@@ -684,112 +684,204 @@ function CardVoce({
   );
 }
 
-function CarrelloSticky({
-  cart,
-  aperto,
-  onToggle,
-}: {
-  cart: ReturnType<typeof useCart>;
-  aperto: boolean;
-  onToggle: () => void;
-}) {
+function RiepilogoCarrello({ cart }: { cart: ReturnType<typeof useCart> }) {
   const haVoci = cart.items.length > 0;
+  // ID della voce in attesa di conferma rimozione (dal cestino o "−" da 1 a 0).
+  const [pendingDelete, setPendingDelete] = useState<number | null>(null);
+  const pendingVoce = pendingDelete !== null ? VOCE_BY_ID.get(pendingDelete) : null;
+  // Conferma per "Svuota carrello" (azzera tutte le voci).
+  const [confermaSvuota, setConfermaSvuota] = useState(false);
+
+  function chiediRimozione(voceId: number) {
+    setPendingDelete(voceId);
+  }
+
+  function confermaRimozione() {
+    if (pendingDelete !== null) cart.rimuovi(pendingDelete);
+    setPendingDelete(null);
+  }
+
+  // Subtotali per area, coerenti con il blocco "subtotali per slot" della
+  // RiepilogoSticky usata in stima rapida e preventivo dettagliato.
+  const subtotaliPerArea = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of cart.items) {
+      const v = VOCE_BY_ID.get(item.voceId);
+      if (!v) continue;
+      const key = v.pacchetto ? 'Pacchetti' : v.area;
+      map.set(key, (map.get(key) ?? 0) + v.prezzo * item.qty);
+    }
+    return Array.from(map.entries());
+  }, [cart.items]);
+
+  async function condividi() {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Preventivo MB', url });
+      } catch {
+        // user dismissed
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copiato');
+    }
+  }
+
+  // Stato vuoto: card placeholder coerente come stile con RiepilogoSticky
+  if (!haVoci) {
+    return (
+      <div className="bg-white border-2 border-dashed border-[#E5E5E5] rounded-3xl p-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-[#F5B800]/10 flex items-center justify-center mx-auto mb-3">
+          <Wrench className="w-5 h-5 text-[#F5B800]" />
+        </div>
+        <div className="font-display text-lg font-bold mb-1">Carrello vuoto</div>
+        <p className="text-sm text-[#666]">
+          Apri una categoria qui sopra e tocca <strong>+ Aggiungi</strong> sulle voci che ti interessano.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-[#F5B800] shadow-2xl">
-      {/* Pannello dettaglio carrello (collassabile) */}
-      {aperto && haVoci && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 max-h-72 overflow-y-auto border-b border-[#E5E5E5]">
-          <div className="space-y-2">
-            {cart.items.map((item) => {
-              const v = VOCE_BY_ID.get(item.voceId);
-              if (!v) return null;
-              const sub = v.prezzo * item.qty;
-              return (
-                <div
-                  key={item.voceId}
-                  className="flex items-center gap-3 py-2 border-b border-[#F0F0F0] last:border-0"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{v.voce}</div>
-                    <div className="text-xs text-[#666]">
-                      €{v.prezzo} × {item.qty} {v.unita} = <strong>€{sub}</strong>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => cart.sottrai(item.voceId)}
-                      className="w-7 h-7 rounded-full border border-[#E5E5E5] hover:border-[#F5B800] flex items-center justify-center"
-                      aria-label="Diminuisci"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="w-8 text-center font-semibold text-sm">{item.qty}</span>
-                    <button
-                      onClick={() => cart.aggiungi(item.voceId)}
-                      className="w-7 h-7 rounded-full bg-[#F5B800] hover:bg-[#D9A200] flex items-center justify-center"
-                      aria-label="Aumenta"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => cart.rimuovi(item.voceId)}
-                      className="w-7 h-7 rounded-full text-[#999] hover:text-red-600 hover:bg-red-50 flex items-center justify-center ml-1"
-                      aria-label="Rimuovi"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {cart.items.length > 0 && (
-            <button
-              onClick={cart.svuota}
-              className="text-xs text-[#999] hover:text-red-600 mt-3 flex items-center gap-1"
+    <>
+    <div className="bg-white border-2 border-[#F5B800] rounded-3xl p-6 shadow-sm">
+      <div className="text-[10px] font-mono uppercase tracking-wider text-[#666]">
+        Totale dettagliato
+      </div>
+      <div className="font-display text-4xl font-bold text-[#F5B800] mt-1 transition-all">
+        € {cart.totale.toFixed(2)}
+      </div>
+      <div className="text-xs text-[#666] mt-1">
+        {cart.numVoci} {cart.numVoci === 1 ? 'voce' : 'voci'} nel carrello
+      </div>
+
+      {/* Lista voci con +/- */}
+      <div className="mt-5 space-y-2">
+        {cart.items.map((item) => {
+          const v = VOCE_BY_ID.get(item.voceId);
+          if (!v) return null;
+          const sub = v.prezzo * item.qty;
+          return (
+            <div
+              key={item.voceId}
+              className="flex items-center gap-3 py-2 border-b border-[#F0F0F0] last:border-0"
             >
-              <Trash2 className="w-3 h-3" /> Svuota carrello
-            </button>
-          )}
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate">{v.voce}</div>
+                <div className="text-xs text-[#666]">
+                  €{v.prezzo} × {item.qty} {v.unita} = <strong>€{sub}</strong>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() =>
+                    item.qty <= 1 ? chiediRimozione(item.voceId) : cart.sottrai(item.voceId)
+                  }
+                  className="w-7 h-7 rounded-full border border-[#E5E5E5] hover:border-[#F5B800] flex items-center justify-center"
+                  aria-label="Diminuisci"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-8 text-center font-semibold text-sm">{item.qty}</span>
+                <button
+                  onClick={() => cart.aggiungi(item.voceId)}
+                  className="w-7 h-7 rounded-full bg-[#F5B800] hover:bg-[#D9A200] flex items-center justify-center"
+                  aria-label="Aumenta"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => chiediRimozione(item.voceId)}
+                  className="w-7 h-7 rounded-full text-[#999] hover:text-red-600 hover:bg-red-50 flex items-center justify-center ml-1"
+                  aria-label="Rimuovi"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={() => setConfermaSvuota(true)}
+        className="text-xs text-[#999] hover:text-red-600 mt-3 flex items-center gap-1"
+      >
+        <Trash2 className="w-3 h-3" /> Svuota carrello
+      </button>
+
+      {/* Subtotali per area (analogo ai subtotali per slot di RiepilogoSticky) */}
+      {subtotaliPerArea.length > 1 && (
+        <div className="mt-5 space-y-1.5 text-sm">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1">
+            Subtotali per area
+          </div>
+          {subtotaliPerArea.map(([area, sub]) => (
+            <div key={area} className="flex justify-between gap-2">
+              <span className="text-[#666]">{area}</span>
+              <span className="font-mono">€ {sub.toFixed(2)}</span>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Barra principale */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
-        <button
-          onClick={onToggle}
-          disabled={!haVoci}
-          className="flex items-center gap-3 flex-1 min-w-0 disabled:cursor-default"
-        >
-          <div className="relative w-12 h-12 rounded-full bg-[#F5B800] flex items-center justify-center flex-shrink-0">
-            <Wrench className="w-5 h-5 text-[#1A1A1A]" />
-            {haVoci && (
-              <span className="absolute -top-1 -right-1 bg-[#1A1A1A] text-[#F5B800] text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                {cart.numVoci}
-              </span>
-            )}
-          </div>
-          <div className="text-left flex-1 min-w-0">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-[#666]">
-              {haVoci ? (aperto ? 'Tocca per chiudere' : 'Tocca per dettagli') : 'Carrello vuoto'}
-            </div>
-            <div className="font-display text-xl font-bold truncate">
-              {haVoci ? `€ ${cart.totale.toFixed(2)}` : 'Aggiungi un intervento'}
-            </div>
-          </div>
+      {/* CTAs identiche a RiepilogoSticky */}
+      <div className="border-t border-[#E5E5E5] mt-5 pt-5 space-y-2">
+        <button className="w-full bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold py-3 rounded-full text-sm">
+          Prenota un appuntamento
         </button>
 
-        <button
-          onClick={() => scaricaPreventivo(cart.items, cart.totale)}
-          disabled={!haVoci}
-          className="flex items-center gap-2 bg-[#1A1A1A] hover:bg-black disabled:bg-[#E5E5E5] disabled:text-[#999] disabled:cursor-not-allowed text-white font-semibold px-4 sm:px-6 py-3 rounded-full text-sm transition"
-          title={haVoci ? 'Scarica il preventivo come .txt' : 'Aggiungi almeno un intervento'}
-        >
-          <Download className="w-4 h-4" />
-          <span className="hidden sm:inline">Scarica preventivo</span>
-        </button>
+        <p className="text-[11px] text-[#666] pt-1 leading-snug">
+          Stima orientativa. Il preventivo definitivo viene confermato dopo sopralluogo gratuito con MB.
+        </p>
+
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <button
+            onClick={() => scaricaPreventivo(cart.items, cart.totale)}
+            className="flex flex-col items-center gap-1 py-3 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs"
+          >
+            <Download className="w-4 h-4" />
+            Scarica
+          </button>
+          <button
+            onClick={() => toast.info('Email', { description: 'Invio via Resend in arrivo' })}
+            className="flex flex-col items-center gap-1 py-3 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs"
+          >
+            <Mail className="w-4 h-4" />
+            Email
+          </button>
+          <button
+            onClick={condividi}
+            className="flex flex-col items-center gap-1 py-3 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs"
+          >
+            <Share2 className="w-4 h-4" />
+            Condividi
+          </button>
+        </div>
       </div>
     </div>
+    <ConfirmDialog
+      open={pendingDelete !== null}
+      title="Stai eliminando una voce"
+      description={
+        pendingVoce
+          ? `"${pendingVoce.voce}" verrà rimossa dal carrello.`
+          : undefined
+      }
+      onConfirm={confermaRimozione}
+      onCancel={() => setPendingDelete(null)}
+    />
+    <ConfirmDialog
+      open={confermaSvuota}
+      title="Eliminare previsioni?"
+      description="Tutte le voci nel carrello verranno rimosse."
+      onConfirm={() => {
+        cart.svuota();
+        setConfermaSvuota(false);
+      }}
+      onCancel={() => setConfermaSvuota(false)}
+    />
+    </>
   );
 }
