@@ -79,12 +79,22 @@ export default function LivelloRapido({ onTorna, onPassaAEsperto, initialStep = 
         {step === 4 && <StepRiepilogo onPassaAEsperto={onPassaAEsperto} />}
 
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-[#E5E5E5] gap-3">
-          <button
-            onClick={() => (step === 1 ? onTorna() : setStep(step - 1))}
-            className="flex items-center gap-2 px-5 py-3 rounded-full border border-[#E5E5E5] hover:bg-[#F8F8F8] text-sm"
-          >
-            <ArrowLeft className="w-4 h-4" /> {step === 1 ? 'Cambia modalità' : 'Indietro'}
-          </button>
+          {step === 1 ? (
+            // Step 1: il back è già coperto dal "← Cambia modalità" in alto.
+            // Placeholder vuoto per mantenere "Continua →" allineato a destra.
+            <div />
+          ) : (
+            <button
+              onClick={() => setStep(step - 1)}
+              className={
+                step === 4
+                  ? 'flex items-center gap-2 px-5 py-3 rounded-full bg-[#1A1A1A] hover:bg-black text-white font-semibold text-sm'
+                  : 'flex items-center gap-2 px-5 py-3 rounded-full border border-[#E5E5E5] hover:bg-[#F8F8F8] text-sm'
+              }
+            >
+              <ArrowLeft className="w-4 h-4" /> Indietro
+            </button>
+          )}
 
           {result.totale > 0 && step < 4 && (
             <div className="hidden md:flex flex-col items-end mr-2">

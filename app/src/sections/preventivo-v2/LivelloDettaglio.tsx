@@ -322,6 +322,8 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
               icon={<Sparkles className="w-4 h-4 text-[#1A1A1A]" />}
               title="Preventivo pre-compilato dalla stima rapida"
               text="Affina le quantità ambiente per ambiente."
+              linkLabel="← Torna alla stima rapida"
+              onLinkClick={onPassaARapida}
               onReset={resetPreventivo}
             />
           ) : (
