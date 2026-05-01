@@ -215,6 +215,7 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
   const [ambienteAperto, setAmbienteAperto] = useState<string | null>(null);
   const [filtro, setFiltro] = useState('');
   const [preCompilato, setPreCompilato] = useState(false);
+  const autoApertoRef = useRef(false);
 
   useEffect(() => {
     caricaPrezzario().then((r) => {
@@ -247,8 +248,11 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
 
   const smistato = useMemo(() => smistaVoci(prezzario.categorie), [prezzario.categorie]);
 
-  // Apri il primo ambiente con voci selezionate al pre-popolamento
+  // Apri il primo ambiente con voci selezionate UNA SOLA VOLTA al pre-popolamento.
+  // Senza il ref, ogni chiusura manuale (ambienteAperto -> null) farebbe scattare
+  // di nuovo l'auto-apertura, dando la sensazione che il box "non si chiuda".
   useEffect(() => {
+    if (autoApertoRef.current) return;
     if (ambienteAperto !== null || state.vociDettagliate.length === 0) return;
     for (const a of state.ambienti) {
       const ne = state.vociDettagliate.some(
@@ -256,6 +260,7 @@ export default function LivelloDettaglio({ onTorna, onPassaARapida }: LivelloDet
       );
       if (ne) {
         setAmbienteAperto(a.id);
+        autoApertoRef.current = true;
         return;
       }
     }

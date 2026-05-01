@@ -37,10 +37,11 @@ const STEPS = [
 interface LivelloRapidoProps {
   onTorna: () => void;
   onPassaAEsperto: () => void;
+  initialStep?: number;
 }
 
-export default function LivelloRapido({ onTorna, onPassaAEsperto }: LivelloRapidoProps) {
-  const [step, setStep] = useState(1);
+export default function LivelloRapido({ onTorna, onPassaAEsperto, initialStep = 1 }: LivelloRapidoProps) {
+  const [step, setStep] = useState(initialStep);
   const { state } = useProgetto();
   const result = calcolaPrezzo(state);
   const topRef = useRef<HTMLDivElement>(null);

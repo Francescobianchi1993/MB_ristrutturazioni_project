@@ -18,6 +18,20 @@ type Modalita = 'hub' | 'rapida' | 'esperto' | 'intervento';
 
 export default function PreventivoV2() {
   const [modalita, setModalita] = useState<Modalita>('hub');
+  // Step iniziale di LivelloRapido. Tornando da "esperto" si rientra al
+  // riepilogo (step 4): i dati erano già preservati nel context, ma l'utente
+  // ripartendo da step 1 aveva la sensazione di aver perso le selezioni.
+  const [rapidaInitialStep, setRapidaInitialStep] = useState(1);
+
+  function vaiAHub() {
+    setRapidaInitialStep(1);
+    setModalita('hub');
+  }
+
+  function vaiARapida(step: number) {
+    setRapidaInitialStep(step);
+    setModalita('rapida');
+  }
 
   return (
     <ProgettoProvider>
@@ -26,17 +40,18 @@ export default function PreventivoV2() {
         id="preventivo"
         className="pt-16 pb-10 lg:pt-24 lg:pb-12 bg-gradient-to-b from-[#FFF8E7]/40 to-white"
       >
-        {modalita === 'hub' && <Hub onScegli={setModalita} />}
+        {modalita === 'hub' && <Hub onScegli={(m) => { setRapidaInitialStep(1); setModalita(m); }} />}
         {modalita === 'rapida' && (
           <LivelloRapido
-            onTorna={() => setModalita('hub')}
+            onTorna={vaiAHub}
             onPassaAEsperto={() => setModalita('esperto')}
+            initialStep={rapidaInitialStep}
           />
         )}
         {modalita === 'esperto' && (
           <LivelloDettaglio
-            onTorna={() => setModalita('hub')}
-            onPassaARapida={() => setModalita('rapida')}
+            onTorna={vaiAHub}
+            onPassaARapida={() => vaiARapida(4)}
           />
         )}
         {modalita === 'intervento' && (
