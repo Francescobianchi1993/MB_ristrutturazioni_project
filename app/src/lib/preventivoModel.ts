@@ -251,7 +251,15 @@ export function caricaDaLocalStorage(): ProgettoState | null {
       localStorage.removeItem(LS_KEY);
       return null;
     }
-    return parsed;
+    // Rimuove key orfani (macro-slot rimossi in aggiornamenti precedenti)
+    const validIds = new Set<string>([
+      'completa','cucina','bagno','camera','elettrico',
+      'idraulico','termico','infissi','tinteggiatura',
+    ]);
+    const macroSlotSanificato = Object.fromEntries(
+      Object.entries(parsed.macroSlot ?? {}).filter(([id]) => validIds.has(id))
+    ) as ProgettoState['macroSlot'];
+    return { ...parsed, macroSlot: macroSlotSanificato };
   } catch {
     return null;
   }

@@ -72,16 +72,15 @@ export default function RiepilogoSticky({
       )}
 
       <div className="border-t border-[#E5E5E5] mt-5 pt-5 space-y-2">
-        {onSwitchModalita && (
-          <button
-            onClick={onSwitchModalita}
-            className="w-full bg-[#1A1A1A] hover:bg-black text-white font-semibold py-3 rounded-full text-sm"
-          >
-            {switchLabel ?? 'Vai al preventivo dettagliato →'}
-          </button>
-        )}
+        <button className="w-full bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold py-3 rounded-full text-sm">
+          Richiedi sopralluogo gratuito
+        </button>
 
-        <div className="grid grid-cols-3 gap-2">
+        <p className="text-[11px] text-[#666] pt-1 leading-snug">
+          Stima orientativa. Il preventivo definitivo viene confermato dopo sopralluogo gratuito con MB.
+        </p>
+
+        <div className="grid grid-cols-3 gap-2 pt-1">
           <button
             onClick={() => toast.info('PDF', { description: 'Generazione PDF in arrivo (jsPDF)' })}
             className="flex flex-col items-center gap-1 py-3 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs"
@@ -117,14 +116,15 @@ export default function RiepilogoSticky({
           </button>
         </div>
 
-        <button className="w-full bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold py-3 rounded-full text-sm">
-          Richiedi sopralluogo gratuito
-        </button>
+        {onSwitchModalita && (
+          <button
+            onClick={onSwitchModalita}
+            className="w-full bg-[#1A1A1A] hover:bg-black text-white font-semibold py-3 rounded-full text-sm"
+          >
+            {switchLabel ?? 'Aggiungi o rimuovi voci specifiche →'}
+          </button>
+        )}
       </div>
-
-      <p className="text-[11px] text-[#666] mt-4 leading-snug">
-        Stima orientativa. Il preventivo definitivo viene confermato dopo sopralluogo gratuito con MB.
-      </p>
     </div>
   );
 }

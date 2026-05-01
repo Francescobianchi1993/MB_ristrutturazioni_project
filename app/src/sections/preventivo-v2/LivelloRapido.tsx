@@ -228,8 +228,6 @@ function CardIntervento({
         : '';
 
   return (
-    /* self-start: la card non si allunga per riempire la riga del grid —
-       elimina l'area vuota "non cliccabile" che appariva accanto a card aperte */
     <div
       className={`rounded-2xl border-2 transition self-start ${
         attivo
@@ -239,7 +237,6 @@ function CardIntervento({
             : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]/40'
       }`}
     >
-      {/* Solo questo button toglia la card. Nessun onClick su div. */}
       <button
         type="button"
         disabled={disabled}

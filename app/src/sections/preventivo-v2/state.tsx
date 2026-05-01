@@ -170,7 +170,7 @@ function reducer(state: ProgettoState, action: ProgettoAction): ProgettoState {
         if (action.slot === 'completa') {
           for (const id of Object.keys(newMacro) as MacroSlotId[]) {
             const meta = MACRO_SLOT_BY_ID[id];
-            if (meta.disabilitatoSeCompleta && newMacro[id]) {
+            if (meta?.disabilitatoSeCompleta && newMacro[id]) {
               newMacro[id] = { ...newMacro[id]!, attivo: false };
             }
           }
