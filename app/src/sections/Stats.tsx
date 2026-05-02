@@ -48,7 +48,7 @@ function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
   return (
     <span
       ref={numberRef}
-      className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-[#F5B800]"
+      className="font-display text-3xl xs:text-4xl sm:text-5xl lg:text-6xl font-bold text-[#F5B800]"
     >
       {count}
       {suffix}

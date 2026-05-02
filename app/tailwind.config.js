@@ -4,6 +4,13 @@ module.exports = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      // Breakpoint custom xs:360px per gestire phone molto stretti
+      // (Galaxy Z Fold 5 chiuso ≈ 344px). Sotto 360 si applicano i font
+      // ridotti (classi base senza prefisso); da 360 in su (Galaxy S8,
+      // iPhone SE 375, ecc.) restano i font attuali via `xs:`.
+      screens: {
+        xs: '360px',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

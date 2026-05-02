@@ -123,7 +123,7 @@ export default function Services() {
             I Nostri Servizi
             <div className="w-8 h-0.5 bg-[#F5B800]" />
           </div>
-          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] mb-4">
+          <h2 className="font-display text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] mb-4">
             Soluzioni complete per{' '}
             <span className="text-[#F5B800]">ogni esigenza</span>
           </h2>
@@ -145,7 +145,7 @@ export default function Services() {
                 <service.icon className="w-7 h-7 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
               </div>
 
-              <h3 className="font-display text-xl font-semibold text-[#1A1A1A] mb-3 whitespace-pre-line">
+              <h3 className="font-display text-lg xs:text-xl font-semibold text-[#1A1A1A] mb-3 whitespace-pre-line">
                 {service.title}
               </h3>
               <p className="text-[#666666] text-sm leading-relaxed mb-4 whitespace-pre-line">

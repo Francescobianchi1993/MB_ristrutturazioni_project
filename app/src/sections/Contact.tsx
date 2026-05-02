@@ -179,14 +179,14 @@ export default function Contact() {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-stretch">
 
           {/* Left — info */}
-          <div ref={contentRef} className="flex flex-col justify-between gap-8">
+          <div ref={contentRef} className="flex flex-col justify-between gap-8 min-w-0">
             <div className="space-y-8">
               <div>
                 <div className="inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm uppercase tracking-wider mb-4">
                   <div className="w-8 h-0.5 bg-[#F5B800]" />
                   Contattaci
                 </div>
-                <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] mb-4">
+                <h2 className="font-display text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] mb-4">
                   Pronto a trasformare{' '}
                   <span className="text-[#F5B800]">la tua casa?</span>
                 </h2>
@@ -208,7 +208,7 @@ export default function Contact() {
                     </div>
                     <div className="min-w-0 flex-1 text-left">
                       <p className="font-semibold text-[#1A1A1A] mb-1">{info.title}</p>
-                      <p className="text-[#666666] text-sm break-words">{info.content}</p>
+                      <p className="text-[#666666] text-sm break-all">{info.content}</p>
                     </div>
                   </a>
                 ))}
@@ -226,7 +226,7 @@ export default function Contact() {
           </div>
 
           {/* Right — form */}
-          <div ref={formRef} className="flex flex-col h-full">
+          <div ref={formRef} className="flex flex-col h-full min-w-0">
             <div className="bg-white rounded-3xl p-5 sm:p-8 shadow-lg flex flex-col flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-[#F5B800]/10 rounded-xl flex items-center justify-center">

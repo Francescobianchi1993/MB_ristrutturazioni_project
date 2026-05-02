@@ -107,23 +107,24 @@ export default function Hero() {
           {/* Content (left) */}
           <div ref={contentRef} className="flex flex-col">
             {/* Title */}
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1A1A1A] leading-tight">
+            <h1 className="font-display text-3xl xs:text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1A1A1A] leading-tight">
               Trasformiamo la tua casa nei{' '}
               <span className="text-[#F5B800]">tuoi sogni</span>
             </h1>
 
             {/* Description */}
-            <div className="text-xl text-[#666666] max-w-xl leading-relaxed mt-6 lg:mt-[72px] space-y-2">
+            <div className="text-lg xs:text-xl text-[#666666] max-w-xl leading-relaxed mt-6 lg:mt-[72px] space-y-2">
               <p>Ristrutturazioni complete a Roma e provincia.</p>
               <p>Qualità, affidabilità e passione artigiana dal 1989.</p>
               <p>La tua casa merita il meglio.</p>
             </div>
 
-            {/* CTA Buttons */}
+            {/* CTA Buttons — w-full su mobile, flex-1 su tablet (1 colonna),
+                naturale su desktop (2 colonne, basta lo spazio della colonna) */}
             <div className="flex flex-col sm:flex-row gap-4 mt-6 lg:mt-[60px]">
               <Button
                 onClick={() => scrollToSection('#preventivo')}
-                className="bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-8 py-6 rounded-full text-base transition-all hover:scale-105 hover:shadow-xl group"
+                className="w-full sm:flex-1 lg:flex-initial bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-8 py-6 rounded-full text-base transition-all hover:scale-105 hover:shadow-xl group"
               >
                 Calcola il tuo preventivo
                 <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
@@ -131,7 +132,7 @@ export default function Hero() {
               <Button
                 onClick={() => scrollToSection('#servizi')}
                 variant="outline"
-                className="border-2 border-[#1A1A1A] text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white font-semibold px-8 py-6 rounded-full text-base transition-all"
+                className="w-full sm:flex-1 lg:flex-initial border-2 border-[#1A1A1A] text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white font-semibold px-8 py-6 rounded-full text-base transition-all"
               >
                 Scopri i Nostri Servizi
               </Button>
@@ -205,15 +206,17 @@ export default function Hero() {
                 </div>
               </div>
 
-              {/* Floating phone badge */}
-              <div className="absolute bottom-2 left-2 sm:-bottom-4 sm:-left-4 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
-                <div className="w-12 h-12 bg-[#F5B800] rounded-full flex items-center justify-center">
-                  <Phone className="w-6 h-6 text-[#1A1A1A]" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#666666]">Chiamaci ora</p>
-                  <p className="font-semibold text-[#1A1A1A]">339 126 8722</p>
-                </div>
+            </div>
+
+            {/* Phone badge: SEMPRE sotto al carosello, mai in overlay
+                (l'overlay copriva la caption Marco Bianchi / Fondatore) */}
+            <div className="mt-6 mx-auto w-fit bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
+              <div className="w-12 h-12 bg-[#F5B800] rounded-full flex items-center justify-center flex-shrink-0">
+                <Phone className="w-6 h-6 text-[#1A1A1A]" />
+              </div>
+              <div>
+                <p className="text-xs text-[#666666]">Chiamaci ora</p>
+                <p className="font-semibold text-[#1A1A1A]">339 126 8722</p>
               </div>
             </div>
           </div>
@@ -232,7 +235,7 @@ export default function Hero() {
           </div>
 
           {/* Title */}
-          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] leading-tight">
+          <h2 className="font-display text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A] leading-tight">
             Una vera casa è costruita con{' '}
             <span className="text-[#F5B800]">Amore & Sogni</span>
           </h2>
