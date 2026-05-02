@@ -162,7 +162,10 @@ function DimensioneStanza({ tipo }: { tipo: AmbienteTipo }) {
 
 function DimensioneMqTotali() {
   const { state, dispatch } = useProgetto();
-  const totale = mqTotali(state);
+  // Mostra il valore dichiarato dall'utente. Se non c'è ancora, fallback alla
+  // somma degli ambienti (utile se arriva da preset). Se anche quella è 0,
+  // usa 80 come default sensato per appartamento medio.
+  const totale = state.mqTotaliDichiarati || mqTotali(state) || 80;
 
   return (
     <div className="bg-white border border-[#E5E5E5] rounded-2xl overflow-hidden">
