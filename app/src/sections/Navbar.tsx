@@ -6,8 +6,6 @@ const navLinks = [
   { name: 'Home', href: '#home' },
   { name: 'Chi Siamo', href: '#chi-siamo' },
   { name: 'Servizi', href: '#servizi' },
-  { name: 'Modelli 3D', href: '#modelli-3d' },
-  { name: 'Crea il tuo 3D', href: '#crea-3d' },
   { name: 'Contatti', href: '#contatti' },
 ];
 
@@ -25,16 +23,7 @@ export default function Navbar() {
   }, []);
 
   const scrollToSection = (href: string) => {
-    // Per i due link della Sezione3D accorpata: dispatch evento e poi scroll dopo il re-render
-    const isSezione3D = href === '#modelli-3d' || href === '#crea-3d';
-    if (isSezione3D) {
-      window.dispatchEvent(new CustomEvent('sezione3d-tab-change', { detail: href }));
-      setTimeout(() => {
-        document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
-      }, 80);
-    } else {
-      document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
-    }
+    document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
     setIsMobileMenuOpen(false);
   };
 

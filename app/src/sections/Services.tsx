@@ -5,7 +5,6 @@ import {
   Home,
   MessageCircle,
   Wrench,
-  Box,
   ArrowRight,
 } from 'lucide-react';
 import Stats from './Stats';
@@ -22,14 +21,6 @@ const services = [
     features: ['Tutto online, in pochi minuti', 'Costi visibili in anticipo', 'Dal piccolo intervento alla grande ristrutturazione'],
     cta: 'Calcola il tuo preventivo',
     href: '#preventivo',
-  },
-  {
-    icon: Box,
-    title: 'Progettazione & Render 3D',
-    description: 'Esplora i nostri progetti realizzati con tour 360° o ricevi un render fotorealistico della tua planimetria in 48h.',
-    features: ['Tour 360° dei progetti', 'Render della tua casa', 'Before / After'],
-    cta: 'Vedi progetti & render',
-    href: '#modelli-3d',
   },
   {
     icon: MessageCircle,
@@ -134,7 +125,7 @@ export default function Services() {
         </div>
 
         {/* Services Grid — ogni card è un link diretto alla sezione corrispondente. */}
-        <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.map((service, index) => (
             <a
               key={index}

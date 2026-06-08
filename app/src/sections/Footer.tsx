@@ -12,7 +12,6 @@ const quickLinks = [
   { name: 'Home', href: '#home' },
   { name: 'Chi Siamo', href: '#chi-siamo' },
   { name: 'Servizi', href: '#servizi' },
-  { name: 'Modelli 3D', href: '#modelli-3d' },
   { name: 'Preventivo', href: '#preventivo' },
 ];
 
