@@ -38,6 +38,7 @@ import {
   Info,
   Search,
   X,
+  Phone,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { VOCI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
@@ -525,6 +526,16 @@ function StepIntervento({
         {selezionati.length > 0 && <strong>{selezionati.length} selezionati</strong>}
       </p>
 
+      {/* Banner: costo chiamata sempre incluso (ben visibile sopra ai prezzi) */}
+      <div className="max-w-xl mx-auto mb-5 flex items-center gap-3 rounded-2xl border-2 border-[#F5B800] bg-[#FFF8E7] px-4 py-3">
+        <div className="w-9 h-9 rounded-full bg-[#F5B800] flex items-center justify-center flex-shrink-0">
+          <Phone className="w-4 h-4 text-[#1A1A1A]" />
+        </div>
+        <p className="text-sm font-semibold text-[#1A1A1A] leading-snug">
+          Nel prezzo è sempre incluso il costo della chiamata.
+        </p>
+      </div>
+
       {/* Ricerca */}
       <div className="relative max-w-xl mx-auto mb-4">
         <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-[#999]" />
@@ -550,7 +561,7 @@ function StepIntervento({
         {filtrate.length} {filtrate.length === 1 ? 'intervento' : 'interventi'}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-3">
         {filtrate.map((v) => (
           <CardIntervento
             key={v.id}
