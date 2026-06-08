@@ -45,7 +45,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import emailjs from '@emailjs/browser';
 import { supabase } from '@/lib/supabase';
 import { VOCI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
 
@@ -62,16 +61,6 @@ const VOCE_BY_ID = new Map(VOCI_INTERVENTO.map((v) => [v.id, v]));
 
 /** Supplemento applicato al totale quando l'urgenza è "Alta" (prezzario: +30%). */
 const SUPPLEMENTO_URGENZA_ALTA = 0.3;
-
-/** EmailJS — stesse credenziali del form contatti (Contact.tsx). */
-const EMAILJS_SERVICE = 'service_rqko90m';
-const EMAILJS_PUBLIC_KEY = 'nipzQBUhrUoZz04UK';
-/**
- * Template di CONFERMA al cliente (su EmailJS il campo "To Email" deve essere
- * {{email}}). Configurabile via env, default sensato.
- */
-const EMAILJS_TEMPLATE_CONFERMA =
-  (import.meta.env.VITE_EMAILJS_TEMPLATE_CONFERMA as string | undefined) ?? 'template_conferma';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function emailValida(v: string): boolean {
@@ -202,37 +191,6 @@ async function creaPrenotazione(p: PrenotazioneRiepilogo): Promise<EsitoPrenotaz
     return { ok: Boolean(data?.ok) };
   } catch {
     return { ok: false };
-  }
-}
-
-/**
- * Invia al cliente l'email di conferma prenotazione (EmailJS, best-effort).
- * Su EmailJS il template `EMAILJS_TEMPLATE_CONFERMA` deve avere "To Email" =
- * {{email}}. Se non configurato o l'invio fallisce, la prenotazione resta
- * comunque valida (l'evento è già sul calendario MB).
- */
-async function inviaConfermaEmail(p: PrenotazioneRiepilogo): Promise<void> {
-  if (!p.email) return;
-  const tipo = p.categoria === 'idro' ? 'Idraulico' : 'Elettricista';
-  try {
-    await emailjs.send(
-      EMAILJS_SERVICE,
-      EMAILJS_TEMPLATE_CONFERMA,
-      {
-        email: p.email,
-        to_email: p.email,
-        name: p.nome ?? 'Cliente',
-        tipo,
-        data: formatDataLeggibile(p.data),
-        ora: p.ora,
-        telefono: p.telefono ?? '',
-        totale: `€ ${p.totale.toFixed(2)}`,
-        dettaglio: dettaglioTesto(p),
-      },
-      EMAILJS_PUBLIC_KEY,
-    );
-  } catch (err) {
-    console.warn('[conferma] email cliente non inviata:', err);
   }
 }
 
@@ -417,8 +375,8 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       setStep(3);
       return;
     }
-    // Conferma al cliente: email automatica (il WhatsApp parte lato server).
-    await inviaConfermaEmail(riepilogo);
+    // Conferme al cliente (email + WhatsApp) partono lato server da
+    // crea-prenotazione: qui mostriamo solo l'esito.
     setInviando(false);
     setConfermato(true);
   }

@@ -12,6 +12,7 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { getAccessToken, getBusy } from '../_shared/google.ts';
 import { SLOT_DURATA_MIN, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
 import { inviaWhatsApp } from '../_shared/whatsapp.ts';
+import { inviaEmailConferma } from '../_shared/email.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 interface Voce {
@@ -112,7 +113,20 @@ Deno.serve(async (req) => {
       .single();
     if (error) console.error('[crea-prenotazione] insert fallita:', error.message);
 
-    // 4. conferma WhatsApp al cliente (best-effort; non blocca la prenotazione)
+    // 4. conferme al cliente (best-effort; non bloccano la prenotazione)
+    if (p.email) {
+      await inviaEmailConferma({
+        email: p.email,
+        nome: p.nome ?? '',
+        tipo,
+        urgenza: p.urgenza,
+        voci: p.voci,
+        vociCustom: p.vociCustom,
+        dataISO: p.data,
+        ora: p.ora,
+        totale: p.totale,
+      });
+    }
     if (p.telefono) {
       await inviaWhatsApp({
         telefono: p.telefono,
