@@ -33,6 +33,7 @@ import {
   CalendarPlus,
   MessageCircle,
   ChevronLeft,
+  ChevronRight,
   Gauge,
   RotateCcw,
   Info,
@@ -67,6 +68,12 @@ const WHATSAPP_NUMERO = '393391268722';
 /** Slot orari prenotabili. */
 const SLOT_ORARI = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 
+const MESI = [
+  'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
+];
+const GIORNI_SETT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+
 // ────────────────────────────────────────────────────────────────────────────
 // Step del wizard
 // ────────────────────────────────────────────────────────────────────────────
@@ -90,8 +97,7 @@ function formatDataLeggibile(data: string): string {
   return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-function oggiISO(): string {
-  const d = new Date();
+function toISODate(d: Date): string {
   const off = d.getTimezoneOffset();
   return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10);
 }
@@ -438,7 +444,7 @@ function StepCategoria({
         <CategoriaCard
           attivo={categoria === 'idro'}
           icona={Droplet}
-          titolo="Idro"
+          titolo="Idraulico"
           sottotitolo="Idraulica · perdite · scarichi · sanitari"
           colore="#3B9ED8"
           onClick={() => onScegli('idro')}
@@ -830,6 +836,96 @@ function CardIntervento({
   );
 }
 
+function CalendarioInline({
+  valore,
+  onSelect,
+}: {
+  valore: string;
+  onSelect: (iso: string) => void;
+}) {
+  const oggi = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const [mese, setMese] = useState(() => new Date(oggi.getFullYear(), oggi.getMonth(), 1));
+
+  const anno = mese.getFullYear();
+  const m = mese.getMonth();
+  const offset = (new Date(anno, m, 1).getDay() + 6) % 7; // griglia lunedì-prima
+  const giorniNelMese = new Date(anno, m + 1, 0).getDate();
+
+  const celle: (Date | null)[] = [];
+  for (let i = 0; i < offset; i++) celle.push(null);
+  for (let g = 1; g <= giorniNelMese; g++) celle.push(new Date(anno, m, g));
+
+  const puoIndietro = anno > oggi.getFullYear() || (anno === oggi.getFullYear() && m > oggi.getMonth());
+
+  return (
+    <div className="rounded-2xl border-2 border-[#E5E5E5] bg-white p-3 sm:p-4">
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={() => puoIndietro && setMese(new Date(anno, m - 1, 1))}
+          disabled={!puoIndietro}
+          aria-label="Mese precedente"
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#F0F0F0] disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <span className="font-display font-bold text-base">
+          {MESI[m]} {anno}
+        </span>
+        <button
+          type="button"
+          onClick={() => setMese(new Date(anno, m + 1, 1))}
+          aria-label="Mese successivo"
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#F0F0F0]"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {GIORNI_SETT.map((g) => (
+          <div key={g} className="text-center text-[11px] font-mono uppercase text-[#999] py-1">
+            {g}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {celle.map((d, i) => {
+          if (!d) return <div key={`vuoto-${i}`} />;
+          const iso = toISODate(d);
+          const passato = d < oggi;
+          const sel = iso === valore;
+          const isOggi = d.getTime() === oggi.getTime();
+          return (
+            <button
+              key={iso}
+              type="button"
+              disabled={passato}
+              onClick={() => onSelect(iso)}
+              className={`aspect-square rounded-lg text-sm font-semibold flex items-center justify-center transition ${
+                sel
+                  ? 'bg-[#1A1A1A] text-white'
+                  : passato
+                    ? 'text-[#CCC] cursor-not-allowed'
+                    : isOggi
+                      ? 'bg-[#F5B800]/15 text-[#1A1A1A] hover:bg-[#F5B800]/30'
+                      : 'text-[#1A1A1A] hover:bg-[#FFF8E7]'
+              }`}
+            >
+              {d.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function StepDataOra({
   data,
   ora,
@@ -852,21 +948,11 @@ function StepDataOra({
 
       <div className="max-w-md mx-auto space-y-6">
         <div>
-          <label htmlFor="data-intervento" className="block text-xs font-mono uppercase tracking-wider text-[#666] mb-2">
-            Giorno
-          </label>
-          <div className="relative">
-            <CalendarDays className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-[#999] pointer-events-none" />
-            <input
-              id="data-intervento"
-              type="date"
-              value={data}
-              min={oggiISO()}
-              onChange={(e) => onData(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-2 border-[#E5E5E5] focus:border-[#F5B800] focus:outline-none text-base"
-            />
-          </div>
-          {data && <p className="text-sm text-[#666] mt-2 capitalize">{formatDataLeggibile(data)}</p>}
+          <span className="block text-xs font-mono uppercase tracking-wider text-[#666] mb-2">Giorno</span>
+          <CalendarioInline valore={data} onSelect={onData} />
+          {data && (
+            <p className="text-sm text-[#666] mt-2 capitalize text-center">{formatDataLeggibile(data)}</p>
+          )}
         </div>
 
         <div>
