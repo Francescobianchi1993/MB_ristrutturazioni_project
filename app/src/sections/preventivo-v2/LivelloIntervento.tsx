@@ -20,7 +20,7 @@
  * Voci e prezzi arrivano dal prezzario reale MB (`interventiData.ts`).
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -43,6 +43,7 @@ import {
   HelpCircle,
   Sparkles,
   Plus,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -114,31 +115,68 @@ interface PrenotazioneRiepilogo {
   data: string;
   ora: string;
   totale: number;
+  nome?: string;
+  telefono?: string;
+}
+
+/** Mappa disponibilità: { 'YYYY-MM-DD': { '08:00': true, ... } } — true = libero. */
+type Disponibilita = Record<string, Record<string, boolean>>;
+
+/**
+ * Legge gli slot liberi dal Google Calendar società (Edge Function
+ * `disponibilita`) per l'intervallo [from, to]. Best-effort: se il backend
+ * non è raggiungibile/configurato restituisce mappa vuota (tutti gli slot
+ * restano selezionabili, come prima dell'integrazione).
+ */
+async function caricaDisponibilita(from: string, to: string): Promise<Disponibilita> {
+  if (!supabase) return {};
+  try {
+    const { data, error } = await supabase.functions.invoke('disponibilita', {
+      body: { from, to },
+    });
+    if (error || !data?.giorni) return {};
+    return data.giorni as Disponibilita;
+  } catch {
+    return {};
+  }
+}
+
+interface EsitoPrenotazione {
+  ok: boolean;
+  slotOccupato?: boolean;
 }
 
 /**
- * Salva la prenotazione su Supabase (best-effort). Se il client non è
- * configurato o l'insert fallisce, la prenotazione prosegue comunque verso
- * WhatsApp: il DB è un registro, non un blocco del flusso utente.
+ * Crea la prenotazione (Edge Function `crea-prenotazione`): verifica lo slot,
+ * crea l'evento sul Google Calendar società, salva su Supabase.
+ * Distingue il solo caso bloccante (slot appena occupato, 409); per qualsiasi
+ * altro problema si prosegue comunque verso WhatsApp.
  */
-async function salvaPrenotazione(p: PrenotazioneRiepilogo): Promise<void> {
-  if (!supabase) return;
+async function creaPrenotazione(p: PrenotazioneRiepilogo): Promise<EsitoPrenotazione> {
+  if (!supabase) return { ok: false };
   try {
-    const { error } = await supabase.from('prenotazioni_intervento').insert({
-      categoria: p.categoria,
-      urgenza: p.urgenza,
-      data_intervento: p.data || null,
-      ora_intervento: p.ora || null,
-      voci: p.voci.map((v) => ({ id: v.id, voce: v.voce, prezzo: v.prezzo })),
-      voci_custom: p.vociCustom,
-      totale_stimato: p.totale,
+    const { data, error } = await supabase.functions.invoke('crea-prenotazione', {
+      body: {
+        categoria: p.categoria,
+        urgenza: p.urgenza,
+        data: p.data,
+        ora: p.ora,
+        voci: p.voci.map((v) => ({ id: v.id, voce: v.voce, prezzo: v.prezzo })),
+        vociCustom: p.vociCustom,
+        totale: p.totale,
+        nome: p.nome,
+        telefono: p.telefono,
+      },
     });
     if (error) {
-      // eslint-disable-next-line no-console
-      console.warn('[prenotazione] salvataggio non riuscito:', error.message);
+      const resp = (error as { context?: Response }).context;
+      if (resp?.status === 409) return { ok: false, slotOccupato: true };
+      return { ok: false };
     }
+    if (data?.error === 'slot_occupato') return { ok: false, slotOccupato: true };
+    return { ok: Boolean(data?.ok) };
   } catch {
-    // rete/DB non raggiungibile: si prosegue comunque
+    return { ok: false };
   }
 }
 
@@ -232,7 +270,10 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   const [vociCustom, setVociCustom] = useState<VoceCustom[]>([]);
   const [data, setData] = useState('');
   const [ora, setOra] = useState('');
+  const [nome, setNome] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [confermato, setConfermato] = useState(false);
+  const [inviando, setInviando] = useState(false);
 
   // Ancora in cima al wizard: a ogni cambio step ci si riposiziona qui, così
   // (es.) la scelta di data/ora resta in vista e non finisce in fondo pagina.
@@ -266,8 +307,10 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       data,
       ora,
       totale: costi.totale,
+      nome: nome.trim() || undefined,
+      telefono: telefono.trim() || undefined,
     };
-  }, [categoria, urgenza, selezionati, vociCustom, data, ora, costi.totale]);
+  }, [categoria, urgenza, selezionati, vociCustom, data, ora, costi.totale, nome, telefono]);
 
   function scegliCategoria(c: Categoria) {
     // Selezione manuale: si evidenzia la scelta, l'avanzamento avviene con
@@ -299,11 +342,28 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
     setVociCustom([]);
     setData('');
     setOra('');
+    setNome('');
+    setTelefono('');
     setConfermato(false);
   }
 
   async function conferma() {
-    if (riepilogo) await salvaPrenotazione(riepilogo);
+    if (!riepilogo || inviando) return;
+    setInviando(true);
+    const esito = await creaPrenotazione(riepilogo);
+    setInviando(false);
+
+    if (esito.slotOccupato) {
+      // Unico caso bloccante: lo slot è stato preso tra la scelta e la conferma.
+      toast.error('Orario non più disponibile', {
+        description: 'Qualcuno ha appena prenotato questa fascia. Scegline un’altra.',
+      });
+      setOra('');
+      setStep(3);
+      return;
+    }
+    // ok — oppure backend non ancora configurato: si prosegue comunque verso
+    // WhatsApp, che resta il canale di conferma.
     setConfermato(true);
   }
 
@@ -358,7 +418,16 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
             )}
             {step === 3 && <StepDataOra data={data} ora={ora} onData={setData} onOra={setOra} />}
             {step === 4 && riepilogo && (
-              <StepRiepilogo riepilogo={riepilogo} costi={costi} onVaiAllaConferma={conferma} />
+              <StepRiepilogo
+                riepilogo={riepilogo}
+                costi={costi}
+                nome={nome}
+                telefono={telefono}
+                onNome={setNome}
+                onTelefono={setTelefono}
+                inviando={inviando}
+                onVaiAllaConferma={conferma}
+              />
             )}
           </div>
 
@@ -839,9 +908,15 @@ function CardIntervento({
 function CalendarioInline({
   valore,
   onSelect,
+  onMeseVisibile,
+  giorniPieni,
 }: {
   valore: string;
   onSelect: (iso: string) => void;
+  /** Chiamata al mount e a ogni cambio mese con l'intervallo visibile (ISO). */
+  onMeseVisibile: (from: string, to: string) => void;
+  /** Date (ISO) senza slot liberi: mostrate disabilitate. */
+  giorniPieni: Set<string>;
 }) {
   const oggi = useMemo(() => {
     const d = new Date();
@@ -854,6 +929,11 @@ function CalendarioInline({
   const m = mese.getMonth();
   const offset = (new Date(anno, m, 1).getDay() + 6) % 7; // griglia lunedì-prima
   const giorniNelMese = new Date(anno, m + 1, 0).getDate();
+
+  // Notifica al genitore l'intervallo visibile, così carica la disponibilità.
+  useEffect(() => {
+    onMeseVisibile(toISODate(new Date(anno, m, 1)), toISODate(new Date(anno, m, giorniNelMese)));
+  }, [anno, m, giorniNelMese, onMeseVisibile]);
 
   const celle: (Date | null)[] = [];
   for (let i = 0; i < offset; i++) celle.push(null);
@@ -899,19 +979,22 @@ function CalendarioInline({
           if (!d) return <div key={`vuoto-${i}`} />;
           const iso = toISODate(d);
           const passato = d < oggi;
+          const pieno = !passato && giorniPieni.has(iso);
+          const disabilitato = passato || pieno;
           const sel = iso === valore;
           const isOggi = d.getTime() === oggi.getTime();
           return (
             <button
               key={iso}
               type="button"
-              disabled={passato}
+              disabled={disabilitato}
               onClick={() => onSelect(iso)}
+              title={pieno ? 'Nessuna fascia disponibile' : undefined}
               className={`aspect-square rounded-lg text-sm font-semibold flex items-center justify-center transition ${
                 sel
                   ? 'bg-[#1A1A1A] text-white'
-                  : passato
-                    ? 'text-[#CCC] cursor-not-allowed'
+                  : disabilitato
+                    ? 'text-[#CCC] cursor-not-allowed line-through decoration-[#E5E5E5]'
                     : isOggi
                       ? 'bg-[#F5B800]/15 text-[#1A1A1A] hover:bg-[#F5B800]/30'
                       : 'text-[#1A1A1A] hover:bg-[#FFF8E7]'
@@ -937,35 +1020,76 @@ function StepDataOra({
   onData: (v: string) => void;
   onOra: (v: string) => void;
 }) {
+  const [disp, setDisp] = useState<Disponibilita>({});
+  const [caricando, setCaricando] = useState(false);
+
+  const caricaMese = useCallback(async (from: string, to: string) => {
+    setCaricando(true);
+    const giorni = await caricaDisponibilita(from, to);
+    setDisp((prev) => ({ ...prev, ...giorni }));
+    setCaricando(false);
+  }, []);
+
+  // Giorni interamente occupati: nessuno slot libero → disabilitati nel calendario.
+  const giorniPieni = useMemo(() => {
+    const set = new Set<string>();
+    for (const [giorno, slots] of Object.entries(disp)) {
+      if (Object.values(slots).every((libero) => !libero)) set.add(giorno);
+    }
+    return set;
+  }, [disp]);
+
+  const slotGiorno = data ? disp[data] : undefined;
+
+  // Se l'orario scelto risulta non più libero dopo l'aggiornamento, lo deseleziono.
+  useEffect(() => {
+    if (ora && slotGiorno && slotGiorno[ora] === false) onOra('');
+  }, [ora, slotGiorno, onOra]);
+
   return (
     <div>
       <h2 className="font-display text-2xl sm:text-3xl font-bold text-center mb-2">
         Scegli <span className="text-[#F5B800]">data e ora</span>
       </h2>
       <p className="text-center text-sm text-[#666] mb-6">
-        Indica quando preferisci. Confermeremo la disponibilità via WhatsApp.
+        Gli orari liberi sono in tempo reale sull'agenda MB. Confermeremo via WhatsApp.
       </p>
 
       <div className="max-w-md mx-auto space-y-6">
         <div>
           <span className="block text-xs font-mono uppercase tracking-wider text-[#666] mb-2">Giorno</span>
-          <CalendarioInline valore={data} onSelect={onData} />
+          <CalendarioInline
+            valore={data}
+            onSelect={onData}
+            onMeseVisibile={caricaMese}
+            giorniPieni={giorniPieni}
+          />
           {data && (
             <p className="text-sm text-[#666] mt-2 capitalize text-center">{formatDataLeggibile(data)}</p>
           )}
         </div>
 
         <div>
-          <span className="block text-xs font-mono uppercase tracking-wider text-[#666] mb-2">Fascia oraria</span>
+          <span className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#666] mb-2">
+            Fascia oraria
+            {caricando && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#999]" />}
+          </span>
           <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
             {SLOT_ORARI.map((slot) => {
               const sel = ora === slot;
+              const occupato = slotGiorno ? slotGiorno[slot] === false : false;
               return (
                 <button
                   key={slot}
-                  onClick={() => onOra(slot)}
+                  onClick={() => !occupato && onOra(slot)}
+                  disabled={occupato}
+                  title={occupato ? 'Fascia non disponibile' : undefined}
                   className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
-                    sel ? 'border-[#F5B800] bg-[#F5B800] text-[#1A1A1A]' : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]'
+                    sel
+                      ? 'border-[#F5B800] bg-[#F5B800] text-[#1A1A1A]'
+                      : occupato
+                        ? 'border-[#EEE] bg-[#F7F7F7] text-[#CCC] cursor-not-allowed line-through'
+                        : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]'
                   }`}
                 >
                   {slot}
@@ -973,6 +1097,11 @@ function StepDataOra({
               );
             })}
           </div>
+          {data && slotGiorno && Object.values(slotGiorno).every((l) => !l) && (
+            <p className="text-sm text-[#C0392B] mt-3 text-center">
+              Nessuna fascia libera in questa data: scegli un altro giorno.
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -982,10 +1111,20 @@ function StepDataOra({
 function StepRiepilogo({
   riepilogo,
   costi,
+  nome,
+  telefono,
+  onNome,
+  onTelefono,
+  inviando,
   onVaiAllaConferma,
 }: {
   riepilogo: PrenotazioneRiepilogo;
   costi: ReturnType<typeof calcolaCosti>;
+  nome: string;
+  telefono: string;
+  onNome: (v: string) => void;
+  onTelefono: (v: string) => void;
+  inviando: boolean;
   onVaiAllaConferma: () => void;
 }) {
   const tipo = riepilogo.categoria === 'idro' ? 'Idraulico' : 'Elettricista';
@@ -1070,11 +1209,49 @@ function StepRiepilogo({
           <span className="font-display text-3xl font-bold text-[#F5B800]">€ {costi.totale.toFixed(2)}</span>
         </div>
 
+        <div className="border-t border-[#E5E5E5] mt-4 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+              Nome
+            </span>
+            <input
+              type="text"
+              value={nome}
+              onChange={(e) => onNome(e.target.value)}
+              placeholder="Mario Rossi"
+              autoComplete="name"
+              className="w-full rounded-xl border-2 border-[#E5E5E5] px-3 py-2.5 text-sm focus:border-[#F5B800] focus:outline-none"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+              Telefono
+            </span>
+            <input
+              type="tel"
+              value={telefono}
+              onChange={(e) => onTelefono(e.target.value)}
+              placeholder="333 1234567"
+              autoComplete="tel"
+              className="w-full rounded-xl border-2 border-[#E5E5E5] px-3 py-2.5 text-sm focus:border-[#F5B800] focus:outline-none"
+            />
+          </label>
+        </div>
+
         <button
           onClick={onVaiAllaConferma}
-          className="w-full mt-6 bg-[#1A1A1A] hover:bg-black text-white font-semibold py-3.5 rounded-full text-sm flex items-center justify-center gap-2 transition"
+          disabled={inviando}
+          className="w-full mt-4 bg-[#1A1A1A] hover:bg-black text-white font-semibold py-3.5 rounded-full text-sm flex items-center justify-center gap-2 transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <Check className="w-4 h-4" /> Conferma prenotazione
+          {inviando ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Invio in corso…
+            </>
+          ) : (
+            <>
+              <Check className="w-4 h-4" /> Conferma prenotazione
+            </>
+          )}
         </button>
         <p className="text-[11px] text-[#666] pt-3 text-center leading-snug">
           Stima orientativa. Il costo definitivo viene confermato dopo sopralluogo gratuito con MB.

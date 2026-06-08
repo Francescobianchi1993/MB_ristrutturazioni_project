@@ -36,3 +36,7 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI temp
+supabase/.temp
+supabase/.branches
