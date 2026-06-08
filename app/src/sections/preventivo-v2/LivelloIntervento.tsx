@@ -39,12 +39,22 @@ import {
   Search,
   X,
   Phone,
+  HelpCircle,
+  Sparkles,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import { VOCI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
 
 type Categoria = CategoriaIntervento;
 type Urgenza = 'normale' | 'alta';
+
+/** Voce inserita dall'utente quando non trova un intervento in listino. */
+interface VoceCustom {
+  id: string;
+  descrizione: string;
+}
 
 const VOCE_BY_ID = new Map(VOCI_INTERVENTO.map((v) => [v.id, v]));
 
@@ -94,9 +104,36 @@ interface PrenotazioneRiepilogo {
   categoria: Categoria;
   urgenza: Urgenza;
   voci: VoceIntervento[];
+  vociCustom: string[];
   data: string;
   ora: string;
   totale: number;
+}
+
+/**
+ * Salva la prenotazione su Supabase (best-effort). Se il client non è
+ * configurato o l'insert fallisce, la prenotazione prosegue comunque verso
+ * WhatsApp: il DB è un registro, non un blocco del flusso utente.
+ */
+async function salvaPrenotazione(p: PrenotazioneRiepilogo): Promise<void> {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase.from('prenotazioni_intervento').insert({
+      categoria: p.categoria,
+      urgenza: p.urgenza,
+      data_intervento: p.data || null,
+      ora_intervento: p.ora || null,
+      voci: p.voci.map((v) => ({ id: v.id, voce: v.voce, prezzo: v.prezzo })),
+      voci_custom: p.vociCustom,
+      totale_stimato: p.totale,
+    });
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn('[prenotazione] salvataggio non riuscito:', error.message);
+    }
+  } catch {
+    // rete/DB non raggiungibile: si prosegue comunque
+  }
 }
 
 function titoloEvento(p: PrenotazioneRiepilogo): string {
@@ -111,13 +148,18 @@ function dettaglioTesto(p: PrenotazioneRiepilogo): string {
     `Tipo: ${tipo}`,
     `Urgenza: ${p.urgenza === 'alta' ? 'Alta (prioritario)' : 'Normale'}`,
     `Quando: ${formatDataLeggibile(p.data)} alle ${p.ora}`,
-    '',
-    'Interventi:',
-    ...p.voci.map((v) => `• ${v.voce} — € ${v.prezzo}`),
-    '',
-    `Totale stimato: € ${p.totale.toFixed(2)}`,
-    'Stima orientativa, confermata dopo sopralluogo gratuito.',
   ];
+  if (p.voci.length > 0) {
+    righe.push('', 'Interventi:', ...p.voci.map((v) => `• ${v.voce} — € ${v.prezzo}`));
+  }
+  if (p.vociCustom.length > 0) {
+    righe.push('', 'Richieste personalizzate (prezzo da definire):', ...p.vociCustom.map((d) => `• ${d}`));
+  }
+  righe.push('', `Totale interventi a listino: € ${p.totale.toFixed(2)}`);
+  if (p.vociCustom.length > 0) {
+    righe.push('NB: il costo delle richieste personalizzate verrà comunicato a parte.');
+  }
+  righe.push('Stima orientativa, confermata dopo sopralluogo gratuito.');
   return righe.join('\n');
 }
 
@@ -181,6 +223,7 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   const [categoria, setCategoria] = useState<Categoria | null>(null);
   const [urgenza, setUrgenza] = useState<Urgenza | null>(null);
   const [selezionati, setSelezionati] = useState<number[]>([]);
+  const [vociCustom, setVociCustom] = useState<VoceCustom[]>([]);
   const [data, setData] = useState('');
   const [ora, setOra] = useState('');
   const [confermato, setConfermato] = useState(false);
@@ -213,15 +256,17 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       categoria,
       urgenza,
       voci: selezionati.map((id) => VOCE_BY_ID.get(id)!).filter(Boolean),
+      vociCustom: vociCustom.map((c) => c.descrizione),
       data,
       ora,
       totale: costi.totale,
     };
-  }, [categoria, urgenza, selezionati, data, ora, costi.totale]);
+  }, [categoria, urgenza, selezionati, vociCustom, data, ora, costi.totale]);
 
   function scegliCategoria(c: Categoria) {
     setCategoria(c);
     setSelezionati([]);
+    setVociCustom([]);
     setStep(1);
   }
 
@@ -229,20 +274,36 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
     setSelezionati((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
+  function aggiungiCustom(descrizione: string) {
+    const d = descrizione.trim();
+    if (!d) return;
+    setVociCustom((prev) => [...prev, { id: crypto.randomUUID(), descrizione: d }]);
+  }
+
+  function rimuoviCustom(id: string) {
+    setVociCustom((prev) => prev.filter((c) => c.id !== id));
+  }
+
   function ricomincia() {
     setStep(0);
     setCategoria(null);
     setUrgenza(null);
     setSelezionati([]);
+    setVociCustom([]);
     setData('');
     setOra('');
     setConfermato(false);
   }
 
+  async function conferma() {
+    if (riepilogo) await salvaPrenotazione(riepilogo);
+    setConfermato(true);
+  }
+
   const puoAvanzare =
     (step === 0 && categoria !== null) ||
     (step === 1 && urgenza !== null) ||
-    (step === 2 && selezionati.length > 0) ||
+    (step === 2 && (selezionati.length > 0 || vociCustom.length > 0)) ||
     (step === 3 && data !== '' && ora !== '') ||
     step === 4;
 
@@ -279,11 +340,18 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
             {step === 0 && <StepCategoria categoria={categoria} onScegli={scegliCategoria} />}
             {step === 1 && <StepUrgenza urgenza={urgenza} onScegli={setUrgenza} />}
             {step === 2 && (
-              <StepIntervento voci={vociCategoria} selezionati={selezionati} onToggle={toggleVoce} />
+              <StepIntervento
+                voci={vociCategoria}
+                selezionati={selezionati}
+                onToggle={toggleVoce}
+                vociCustom={vociCustom}
+                onAddCustom={aggiungiCustom}
+                onRemoveCustom={rimuoviCustom}
+              />
             )}
             {step === 3 && <StepDataOra data={data} ora={ora} onData={setData} onOra={setOra} />}
             {step === 4 && riepilogo && (
-              <StepRiepilogo riepilogo={riepilogo} costi={costi} onVaiAllaConferma={() => setConfermato(true)} />
+              <StepRiepilogo riepilogo={riepilogo} costi={costi} onVaiAllaConferma={conferma} />
             )}
           </div>
 
@@ -502,10 +570,16 @@ function StepIntervento({
   voci,
   selezionati,
   onToggle,
+  vociCustom,
+  onAddCustom,
+  onRemoveCustom,
 }: {
   voci: VoceIntervento[];
   selezionati: number[];
   onToggle: (id: number) => void;
+  vociCustom: VoceCustom[];
+  onAddCustom: (descrizione: string) => void;
+  onRemoveCustom: (id: string) => void;
 }) {
   const [search, setSearch] = useState('');
   const [infoApertoId, setInfoApertoId] = useState<number | null>(null);
@@ -516,6 +590,8 @@ function StepIntervento({
     return voci.filter((v) => v.voce.toLowerCase().includes(q) || v.note.toLowerCase().includes(q));
   }, [voci, search]);
 
+  const totSelezionati = selezionati.length + vociCustom.length;
+
   return (
     <div>
       <h2 className="font-display text-2xl sm:text-3xl font-bold text-center mb-2">
@@ -523,17 +599,22 @@ function StepIntervento({
       </h2>
       <p className="text-center text-sm text-[#666] mb-5">
         Cerca o scorri la lista. Puoi sceglierne più di uno.{' '}
-        {selezionati.length > 0 && <strong>{selezionati.length} selezionati</strong>}
+        {totSelezionati > 0 && <strong>{totSelezionati} selezionati</strong>}
       </p>
 
       {/* Banner: costo chiamata sempre incluso (ben visibile sopra ai prezzi) */}
-      <div className="max-w-xl mx-auto mb-5 flex items-center gap-3 rounded-2xl border-2 border-[#F5B800] bg-[#FFF8E7] px-4 py-3">
+      <div className="max-w-xl mx-auto mb-4 flex items-center gap-3 rounded-2xl border-2 border-[#F5B800] bg-[#FFF8E7] px-4 py-3">
         <div className="w-9 h-9 rounded-full bg-[#F5B800] flex items-center justify-center flex-shrink-0">
           <Phone className="w-4 h-4 text-[#1A1A1A]" />
         </div>
         <p className="text-sm font-semibold text-[#1A1A1A] leading-snug">
           Nel prezzo è sempre incluso il costo della chiamata.
         </p>
+      </div>
+
+      {/* Box voce personalizzata (tra il banner e la ricerca) */}
+      <div className="max-w-xl mx-auto mb-5">
+        <BoxVoceCustom voci={vociCustom} onAdd={onAddCustom} onRemove={onRemoveCustom} />
       </div>
 
       {/* Ricerca */}
@@ -577,6 +658,107 @@ function StepIntervento({
       {filtrate.length === 0 && (
         <div className="text-center text-sm text-[#999] py-8">
           Nessun intervento trovato per “{search}”.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BoxVoceCustom({
+  voci,
+  onAdd,
+  onRemove,
+}: {
+  voci: VoceCustom[];
+  onAdd: (descrizione: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [aperto, setAperto] = useState(false);
+  const [testo, setTesto] = useState('');
+
+  function conferma() {
+    const t = testo.trim();
+    if (!t) return;
+    onAdd(t);
+    setTesto('');
+    setAperto(false);
+  }
+
+  return (
+    <div>
+      {!aperto ? (
+        <button
+          onClick={() => setAperto(true)}
+          className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-[#CFCFCF] hover:border-[#F5B800] bg-white hover:bg-[#FFF8E7] px-4 py-3.5 transition text-left group"
+        >
+          <div className="w-9 h-9 rounded-full bg-[#F5B800]/10 group-hover:bg-[#F5B800] flex items-center justify-center flex-shrink-0 transition">
+            <HelpCircle className="w-5 h-5 text-[#F5B800] group-hover:text-[#1A1A1A]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-[#1A1A1A]">Non trovi la voce per il tuo problema?</div>
+            <div className="text-xs text-[#666]">
+              Descrivilo tu, <span className="text-[#F5B800] font-semibold">clicca qui</span>: il prezzo te lo comunichiamo su WhatsApp.
+            </div>
+          </div>
+        </button>
+      ) : (
+        <div className="rounded-2xl border-2 border-[#F5B800] bg-white p-4">
+          <label htmlFor="voce-custom" className="block text-sm font-semibold text-[#1A1A1A] mb-2">
+            Descrivi il problema
+          </label>
+          <textarea
+            id="voce-custom"
+            value={testo}
+            onChange={(e) => setTesto(e.target.value)}
+            rows={3}
+            autoFocus
+            placeholder="Es. lo scaldabagno perde acqua dal basso e non scalda più…"
+            className="w-full rounded-xl border-2 border-[#E5E5E5] focus:border-[#F5B800] focus:outline-none p-3 text-sm resize-none"
+          />
+          <div className="flex items-center justify-end gap-2 mt-3">
+            <button
+              onClick={() => {
+                setAperto(false);
+                setTesto('');
+              }}
+              className="px-4 py-2 rounded-full text-sm font-semibold text-[#666] hover:bg-[#F0F0F0]"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={conferma}
+              disabled={!testo.trim()}
+              className="px-5 py-2 rounded-full text-sm font-semibold bg-[#1A1A1A] text-white hover:bg-black disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> Aggiungi richiesta
+            </button>
+          </div>
+        </div>
+      )}
+
+      {voci.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {voci.map((c) => (
+            <div
+              key={c.id}
+              className="flex items-start gap-2.5 rounded-xl border-2 border-[#F5B800] bg-[#FFF8E7] p-3"
+            >
+              <Sparkles className="w-4 h-4 text-[#F5B800] flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-[#1A1A1A] leading-snug">{c.descrizione}</p>
+                <span className="inline-block mt-1 text-[10px] font-mono uppercase tracking-wider bg-[#F5B800]/20 text-[#1A1A1A] px-2 py-0.5 rounded-full">
+                  Prezzo su WhatsApp
+                </span>
+              </div>
+              <button
+                onClick={() => onRemove(c.id)}
+                aria-label="Rimuovi richiesta"
+                className="w-7 h-7 rounded-full text-[#999] hover:text-red-600 hover:bg-red-50 flex items-center justify-center flex-shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -734,23 +916,44 @@ function StepRiepilogo({
           <RigaInfo label="Ora" valore={riepilogo.ora} />
         </div>
 
-        <div className="border-t border-[#E5E5E5] pt-4">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-2">
-            Interventi selezionati
+        {riepilogo.voci.length > 0 && (
+          <div className="border-t border-[#E5E5E5] pt-4">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-2">
+              Interventi selezionati
+            </div>
+            <div className="space-y-2">
+              {riepilogo.voci.map((v) => (
+                <div key={v.id} className="flex justify-between gap-3 text-sm">
+                  <span className="text-[#1A1A1A]">{v.voce}</span>
+                  <span className="font-mono text-[#666] whitespace-nowrap">€ {v.prezzo}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-2">
-            {riepilogo.voci.map((v) => (
-              <div key={v.id} className="flex justify-between gap-3 text-sm">
-                <span className="text-[#1A1A1A]">{v.voce}</span>
-                <span className="font-mono text-[#666] whitespace-nowrap">€ {v.prezzo}</span>
-              </div>
-            ))}
+        )}
+
+        {riepilogo.vociCustom.length > 0 && (
+          <div className="border-t border-[#E5E5E5] pt-4 mt-4">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-2">
+              Richieste personalizzate
+            </div>
+            <div className="space-y-2">
+              {riepilogo.vociCustom.map((d, i) => (
+                <div key={i} className="flex justify-between gap-3 text-sm">
+                  <span className="text-[#1A1A1A] flex items-start gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#F5B800] flex-shrink-0 mt-0.5" />
+                    {d}
+                  </span>
+                  <span className="font-mono text-[#999] text-xs whitespace-nowrap">da definire</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="border-t border-[#E5E5E5] mt-4 pt-4 space-y-1.5 text-sm">
           <div className="flex justify-between gap-3">
-            <span className="text-[#666]">Subtotale</span>
+            <span className="text-[#666]">Subtotale interventi a listino</span>
             <span className="font-mono">€ {costi.base.toFixed(2)}</span>
           </div>
           {costi.supplemento > 0 && (
@@ -759,6 +962,18 @@ function StepRiepilogo({
                 Supplemento urgenza (+{Math.round(SUPPLEMENTO_URGENZA_ALTA * 100)}%)
               </span>
               <span className="font-mono">€ {costi.supplemento.toFixed(2)}</span>
+            </div>
+          )}
+
+          {riepilogo.vociCustom.length > 0 && (
+            <div className="flex gap-2 rounded-xl bg-[#FFF8E7] border border-[#F5B800]/50 p-3 mt-2 text-xs text-[#1A1A1A]">
+              <Info className="w-4 h-4 text-[#F5B800] flex-shrink-0 mt-0.5" />
+              <span className="leading-snug">
+                {riepilogo.vociCustom.length === 1
+                  ? 'La richiesta personalizzata che hai descritto non è ancora inclusa nel totale: '
+                  : `Le ${riepilogo.vociCustom.length} richieste personalizzate che hai descritto non sono ancora incluse nel totale: `}
+                il relativo costo ti verrà comunicato quanto prima via WhatsApp o email.
+              </span>
             </div>
           )}
         </div>
