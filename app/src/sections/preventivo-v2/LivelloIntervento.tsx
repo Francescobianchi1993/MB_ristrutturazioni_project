@@ -264,10 +264,11 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   }, [categoria, urgenza, selezionati, vociCustom, data, ora, costi.totale]);
 
   function scegliCategoria(c: Categoria) {
+    // Selezione manuale: si evidenzia la scelta, l'avanzamento avviene con
+    // il pulsante "Avanti" (coerente con tutti gli altri step).
     setCategoria(c);
     setSelezionati([]);
     setVociCustom([]);
-    setStep(1);
   }
 
   function toggleVoce(id: number) {
