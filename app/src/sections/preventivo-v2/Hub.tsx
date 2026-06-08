@@ -34,17 +34,17 @@ export default function Hub({ onScegli }: HubProps) {
               ~ 1 minuto
             </span>
           </div>
-          <div className="font-display text-xl sm:text-2xl font-bold mb-2">Intervento</div>
+          <div className="font-display text-xl sm:text-2xl font-bold mb-2">Prenota intervento</div>
           <p className="text-sm text-[#666] mb-5">
-            Un singolo lavoro, riparazione o manutenzione. Cerca, aggiungi al carrello e scarica il preventivo.
+            Idraulico o elettricista a domicilio. Scegli urgenza, intervento e quando: confermi in un tap su WhatsApp.
           </p>
           <ul className="text-sm space-y-2">
-            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Catalogo a tariffe fisse</li>
-            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Pacchetti tutto incluso</li>
-            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Download immediato del preventivo</li>
+            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Idro & Elettrico a tariffe fisse</li>
+            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Scegli giorno e ora</li>
+            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Conferma WhatsApp + calendario</li>
           </ul>
           <div className="mt-6 inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm">
-            Trova il tuo intervento
+            Prenota il tuo intervento
             <span className="group-hover:translate-x-1 transition">→</span>
           </div>
         </button>
