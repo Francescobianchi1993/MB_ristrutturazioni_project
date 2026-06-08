@@ -31,7 +31,6 @@ import {
   Clock,
   CalendarDays,
   CalendarPlus,
-  MessageCircle,
   ChevronLeft,
   ChevronRight,
   Gauge,
@@ -46,6 +45,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import emailjs from '@emailjs/browser';
 import { supabase } from '@/lib/supabase';
 import { VOCI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
 
@@ -63,8 +63,31 @@ const VOCE_BY_ID = new Map(VOCI_INTERVENTO.map((v) => [v.id, v]));
 /** Supplemento applicato al totale quando l'urgenza è "Alta" (prezzario: +30%). */
 const SUPPLEMENTO_URGENZA_ALTA = 0.3;
 
-/** Numero WhatsApp MB (stesso usato in Contact). */
-const WHATSAPP_NUMERO = '393391268722';
+/** EmailJS — stesse credenziali del form contatti (Contact.tsx). */
+const EMAILJS_SERVICE = 'service_rqko90m';
+const EMAILJS_PUBLIC_KEY = 'nipzQBUhrUoZz04UK';
+/**
+ * Template di CONFERMA al cliente (su EmailJS il campo "To Email" deve essere
+ * {{email}}). Configurabile via env, default sensato.
+ */
+const EMAILJS_TEMPLATE_CONFERMA =
+  (import.meta.env.VITE_EMAILJS_TEMPLATE_CONFERMA as string | undefined) ?? 'template_conferma';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function emailValida(v: string): boolean {
+  return EMAIL_RE.test(v.trim());
+}
+function telefonoValido(v: string): boolean {
+  return v.replace(/\D/g, '').length >= 8;
+}
+
+const ERR_CLS = 'text-[11px] text-[#C0392B] mt-1';
+function campoCls(invalid: boolean): string {
+  const base = 'w-full rounded-xl border-2 px-3 py-2.5 text-sm focus:outline-none';
+  return invalid
+    ? `${base} border-[#C0392B] focus:border-[#C0392B]`
+    : `${base} border-[#E5E5E5] focus:border-[#F5B800]`;
+}
 
 /** Slot orari prenotabili. */
 const SLOT_ORARI = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
@@ -117,6 +140,7 @@ interface PrenotazioneRiepilogo {
   totale: number;
   nome?: string;
   telefono?: string;
+  email?: string;
 }
 
 /** Mappa disponibilità: { 'YYYY-MM-DD': { '08:00': true, ... } } — true = libero. */
@@ -166,6 +190,7 @@ async function creaPrenotazione(p: PrenotazioneRiepilogo): Promise<EsitoPrenotaz
         totale: p.totale,
         nome: p.nome,
         telefono: p.telefono,
+        email: p.email,
       },
     });
     if (error) {
@@ -177,6 +202,37 @@ async function creaPrenotazione(p: PrenotazioneRiepilogo): Promise<EsitoPrenotaz
     return { ok: Boolean(data?.ok) };
   } catch {
     return { ok: false };
+  }
+}
+
+/**
+ * Invia al cliente l'email di conferma prenotazione (EmailJS, best-effort).
+ * Su EmailJS il template `EMAILJS_TEMPLATE_CONFERMA` deve avere "To Email" =
+ * {{email}}. Se non configurato o l'invio fallisce, la prenotazione resta
+ * comunque valida (l'evento è già sul calendario MB).
+ */
+async function inviaConfermaEmail(p: PrenotazioneRiepilogo): Promise<void> {
+  if (!p.email) return;
+  const tipo = p.categoria === 'idro' ? 'Idraulico' : 'Elettricista';
+  try {
+    await emailjs.send(
+      EMAILJS_SERVICE,
+      EMAILJS_TEMPLATE_CONFERMA,
+      {
+        email: p.email,
+        to_email: p.email,
+        name: p.nome ?? 'Cliente',
+        tipo,
+        data: formatDataLeggibile(p.data),
+        ora: p.ora,
+        telefono: p.telefono ?? '',
+        totale: `€ ${p.totale.toFixed(2)}`,
+        dettaglio: dettaglioTesto(p),
+      },
+      EMAILJS_PUBLIC_KEY,
+    );
+  } catch (err) {
+    console.warn('[conferma] email cliente non inviata:', err);
   }
 }
 
@@ -205,10 +261,6 @@ function dettaglioTesto(p: PrenotazioneRiepilogo): string {
   }
   righe.push('Stima orientativa, confermata dopo sopralluogo gratuito.');
   return righe.join('\n');
-}
-
-function linkWhatsApp(p: PrenotazioneRiepilogo): string {
-  return `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(dettaglioTesto(p))}`;
 }
 
 function linkGoogleCalendar(p: PrenotazioneRiepilogo): string {
@@ -272,6 +324,7 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   const [ora, setOra] = useState('');
   const [nome, setNome] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [email, setEmail] = useState('');
   const [confermato, setConfermato] = useState(false);
   const [inviando, setInviando] = useState(false);
 
@@ -309,8 +362,9 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       totale: costi.totale,
       nome: nome.trim() || undefined,
       telefono: telefono.trim() || undefined,
+      email: email.trim() || undefined,
     };
-  }, [categoria, urgenza, selezionati, vociCustom, data, ora, costi.totale, nome, telefono]);
+  }, [categoria, urgenza, selezionati, vociCustom, data, ora, costi.totale, nome, telefono, email]);
 
   function scegliCategoria(c: Categoria) {
     // Selezione manuale: si evidenzia la scelta, l'avanzamento avviene con
@@ -344,6 +398,7 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
     setOra('');
     setNome('');
     setTelefono('');
+    setEmail('');
     setConfermato(false);
   }
 
@@ -351,10 +406,10 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
     if (!riepilogo || inviando) return;
     setInviando(true);
     const esito = await creaPrenotazione(riepilogo);
-    setInviando(false);
 
     if (esito.slotOccupato) {
       // Unico caso bloccante: lo slot è stato preso tra la scelta e la conferma.
+      setInviando(false);
       toast.error('Orario non più disponibile', {
         description: 'Qualcuno ha appena prenotato questa fascia. Scegline un’altra.',
       });
@@ -362,8 +417,9 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       setStep(3);
       return;
     }
-    // ok — oppure backend non ancora configurato: si prosegue comunque verso
-    // WhatsApp, che resta il canale di conferma.
+    // Conferma al cliente: email automatica (il WhatsApp parte lato server).
+    await inviaConfermaEmail(riepilogo);
+    setInviando(false);
     setConfermato(true);
   }
 
@@ -423,8 +479,10 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
                 costi={costi}
                 nome={nome}
                 telefono={telefono}
+                email={email}
                 onNome={setNome}
                 onTelefono={setTelefono}
+                onEmail={setEmail}
                 inviando={inviando}
                 onVaiAllaConferma={conferma}
               />
@@ -1052,7 +1110,7 @@ function StepDataOra({
         Scegli <span className="text-[#F5B800]">data e ora</span>
       </h2>
       <p className="text-center text-sm text-[#666] mb-6">
-        Gli orari liberi sono in tempo reale sull'agenda MB. Confermeremo via WhatsApp.
+        Gli orari liberi sono in tempo reale sull'agenda MB. Ti invieremo la conferma via email e WhatsApp.
       </p>
 
       <div className="max-w-md mx-auto space-y-6">
@@ -1113,8 +1171,10 @@ function StepRiepilogo({
   costi,
   nome,
   telefono,
+  email,
   onNome,
   onTelefono,
+  onEmail,
   inviando,
   onVaiAllaConferma,
 }: {
@@ -1122,12 +1182,22 @@ function StepRiepilogo({
   costi: ReturnType<typeof calcolaCosti>;
   nome: string;
   telefono: string;
+  email: string;
   onNome: (v: string) => void;
   onTelefono: (v: string) => void;
+  onEmail: (v: string) => void;
   inviando: boolean;
   onVaiAllaConferma: () => void;
 }) {
   const tipo = riepilogo.categoria === 'idro' ? 'Idraulico' : 'Elettricista';
+
+  // Per mostrare l'errore solo dopo che l'utente ha interagito col campo.
+  const [toccato, setToccato] = useState({ nome: false, telefono: false, email: false });
+  const nomeOk = nome.trim().length >= 2;
+  const telOk = telefonoValido(telefono);
+  const emailOk = emailValida(email);
+  const formValido = nomeOk && telOk && emailOk;
+
   return (
     <div>
       <h2 className="font-display text-2xl sm:text-3xl font-bold text-center mb-6">
@@ -1209,37 +1279,75 @@ function StepRiepilogo({
           <span className="font-display text-3xl font-bold text-[#F5B800]">€ {costi.totale.toFixed(2)}</span>
         </div>
 
-        <div className="border-t border-[#E5E5E5] mt-4 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
-              Nome
-            </span>
-            <input
-              type="text"
-              value={nome}
-              onChange={(e) => onNome(e.target.value)}
-              placeholder="Mario Rossi"
-              autoComplete="name"
-              className="w-full rounded-xl border-2 border-[#E5E5E5] px-3 py-2.5 text-sm focus:border-[#F5B800] focus:outline-none"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
-              Telefono
-            </span>
-            <input
-              type="tel"
-              value={telefono}
-              onChange={(e) => onTelefono(e.target.value)}
-              placeholder="333 1234567"
-              autoComplete="tel"
-              className="w-full rounded-xl border-2 border-[#E5E5E5] px-3 py-2.5 text-sm focus:border-[#F5B800] focus:outline-none"
-            />
-          </label>
+        <div className="border-t border-[#E5E5E5] mt-4 pt-4">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-3">
+            I tuoi dati <span className="text-[#C0392B]">— obbligatori</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="block sm:col-span-2">
+              <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+                Nome e cognome *
+              </span>
+              <input
+                type="text"
+                value={nome}
+                onChange={(e) => onNome(e.target.value)}
+                onBlur={() => setToccato((t) => ({ ...t, nome: true }))}
+                placeholder="Mario Rossi"
+                autoComplete="name"
+                className={campoCls(toccato.nome && !nomeOk)}
+              />
+              {toccato.nome && !nomeOk && <p className={ERR_CLS}>Inserisci nome e cognome.</p>}
+            </label>
+            <label className="block">
+              <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+                Telefono *
+              </span>
+              <input
+                type="tel"
+                value={telefono}
+                onChange={(e) => onTelefono(e.target.value)}
+                onBlur={() => setToccato((t) => ({ ...t, telefono: true }))}
+                placeholder="333 1234567"
+                autoComplete="tel"
+                className={campoCls(toccato.telefono && !telOk)}
+              />
+              {toccato.telefono && !telOk && <p className={ERR_CLS}>Numero non valido.</p>}
+            </label>
+            <label className="block">
+              <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+                Email *
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => onEmail(e.target.value)}
+                onBlur={() => setToccato((t) => ({ ...t, email: true }))}
+                placeholder="mario.rossi@email.it"
+                autoComplete="email"
+                className={campoCls(toccato.email && !emailOk)}
+              />
+              {toccato.email && !emailOk && <p className={ERR_CLS}>Email non valida.</p>}
+            </label>
+          </div>
+          <p className="text-[11px] text-[#666] mt-2 leading-snug">
+            Ti invieremo la conferma dell'appuntamento via <strong>email</strong> e{' '}
+            <strong>WhatsApp</strong> a questi recapiti.
+          </p>
         </div>
 
         <button
-          onClick={onVaiAllaConferma}
+          onClick={() => {
+            if (inviando) return;
+            if (!formValido) {
+              setToccato({ nome: true, telefono: true, email: true });
+              toast.error('Completa i tuoi dati', {
+                description: 'Nome, telefono ed email sono obbligatori per confermare.',
+              });
+              return;
+            }
+            onVaiAllaConferma();
+          }}
           disabled={inviando}
           className="w-full mt-4 bg-[#1A1A1A] hover:bg-black text-white font-semibold py-3.5 rounded-full text-sm flex items-center justify-center gap-2 transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
@@ -1285,24 +1393,26 @@ function SchermataConferma({
       <div className="w-20 h-20 rounded-full bg-[#F5B800]/15 flex items-center justify-center mx-auto mb-6">
         <CheckCircle2 className="w-11 h-11 text-[#F5B800]" />
       </div>
-      <h2 className="font-display text-3xl font-bold mb-2">Prenotazione registrata!</h2>
+      <h2 className="font-display text-3xl font-bold mb-2">Prenotazione confermata!</h2>
       <p className="text-[#666] mb-1">
         Intervento <strong>{tipo}</strong> · {formatDataLeggibile(riepilogo.data)} alle <strong>{riepilogo.ora}</strong>
       </p>
       <p className="text-[#666] mb-8">
-        Totale stimato <strong className="text-[#F5B800]">€ {riepilogo.totale.toFixed(2)}</strong>.
-        Confermaci l'appuntamento via WhatsApp e aggiungilo al calendario.
+        {riepilogo.email ? (
+          <>
+            Conferma inviata via email a <strong>{riepilogo.email}</strong>. A breve riceverai
+            anche un messaggio WhatsApp con il riepilogo dell'appuntamento.
+          </>
+        ) : (
+          <>Ti contatteremo a breve via email e WhatsApp per confermare l'appuntamento.</>
+        )}
       </p>
 
       <div className="space-y-3">
-        <a
-          href={linkWhatsApp(riepilogo)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full bg-[#25D366] hover:bg-[#1FB855] text-white font-semibold py-3.5 rounded-full text-sm flex items-center justify-center gap-2 transition"
-        >
-          <MessageCircle className="w-4 h-4" /> Conferma su WhatsApp
-        </a>
+        <div className="flex items-start gap-2.5 rounded-2xl bg-[#FFF8E7] border border-[#F5B800]/50 p-4 text-left text-sm text-[#1A1A1A]">
+          <CheckCircle2 className="w-5 h-5 text-[#F5B800] flex-shrink-0 mt-0.5" />
+          <span>Non devi scriverci tu: alla conferma pensiamo noi. Se vuoi, aggiungi intanto l'appuntamento al tuo calendario.</span>
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <a

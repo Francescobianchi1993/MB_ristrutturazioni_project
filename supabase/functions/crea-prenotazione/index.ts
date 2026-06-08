@@ -11,6 +11,7 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { getAccessToken, getBusy } from '../_shared/google.ts';
 import { SLOT_DURATA_MIN, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
+import { inviaWhatsApp } from '../_shared/whatsapp.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 interface Voce {
@@ -29,6 +30,7 @@ interface Payload {
   totale: number;
   nome?: string;
   telefono?: string;
+  email?: string;
 }
 
 function costruisciDescrizione(p: Payload, tipo: string): string {
@@ -39,6 +41,7 @@ function costruisciDescrizione(p: Payload, tipo: string): string {
   ];
   if (p.nome) righe.push(`Cliente: ${p.nome}`);
   if (p.telefono) righe.push(`Telefono: ${p.telefono}`);
+  if (p.email) righe.push(`Email: ${p.email}`);
   if (p.voci.length > 0) {
     righe.push('', 'Interventi:', ...p.voci.map((v) => `• ${v.voce} — € ${v.prezzo}`));
   }
@@ -102,11 +105,23 @@ Deno.serve(async (req) => {
         totale_stimato: p.totale,
         nome: p.nome ?? null,
         telefono: p.telefono ?? null,
+        email: p.email ?? null,
         google_event_id: evento.id,
       })
       .select('id')
       .single();
     if (error) console.error('[crea-prenotazione] insert fallita:', error.message);
+
+    // 4. conferma WhatsApp al cliente (best-effort; non blocca la prenotazione)
+    if (p.telefono) {
+      await inviaWhatsApp({
+        telefono: p.telefono,
+        nome: p.nome ?? 'Cliente',
+        tipo,
+        data: p.data.split('-').reverse().join('/'), // ISO → gg/mm/aaaa
+        ora: p.ora,
+      });
+    }
 
     return jsonResponse({ ok: true, id: row?.id ?? null, eventId: evento.id });
   } catch (e) {
