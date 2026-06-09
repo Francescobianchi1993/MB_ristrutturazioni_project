@@ -25,12 +25,20 @@ const ACCEPTED_TYPES = new Set([
   'video/mp4', 'video/quicktime',
 ]);
 
-const contactInfo = [
+interface ContactInfo {
+  icon: typeof MapPin;
+  title: string;
+  content: string;
+  /** Se assente, la card è informativa e NON cliccabile. */
+  href?: string;
+  external?: boolean;
+}
+
+const contactInfo: ContactInfo[] = [
   {
     icon: MapPin,
-    title: 'Dove Siamo',
+    title: 'Dove Operiamo',
     content: 'Roma e provincia',
-    href: '#',
   },
   {
     icon: Phone,
@@ -205,22 +213,39 @@ export default function Contact() {
               </div>
 
               <div className="space-y-4">
-                {contactInfo.map((info, index) => (
-                  <a
-                    key={index}
-                    href={info.href}
-                    {...(info.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                    className="flex items-center gap-4 bg-white p-5 rounded-2xl hover:shadow-lg transition-all duration-300 group"
-                  >
-                    <div className="w-12 h-12 bg-[#F5B800]/10 group-hover:bg-[#F5B800] rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-300">
-                      <info.icon className="w-6 h-6 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
-                    </div>
-                    <div className="min-w-0 flex-1 text-left">
-                      <p className="font-semibold text-[#1A1A1A] mb-1">{info.title}</p>
-                      <p className="text-[#666666] text-sm break-all">{info.content}</p>
-                    </div>
-                  </a>
-                ))}
+                {contactInfo.map((info, index) => {
+                  const inner = (
+                    <>
+                      <div className="w-12 h-12 bg-[#F5B800]/10 group-hover:bg-[#F5B800] rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-300">
+                        <info.icon className="w-6 h-6 text-[#F5B800] group-hover:text-[#1A1A1A] transition-colors duration-300" />
+                      </div>
+                      <div className="min-w-0 flex-1 text-left">
+                        <p className="font-semibold text-[#1A1A1A] mb-1">{info.title}</p>
+                        <p className="text-[#666666] text-sm break-all">{info.content}</p>
+                      </div>
+                    </>
+                  );
+                  const baseCls = 'flex items-center gap-4 bg-white p-5 rounded-2xl transition-all duration-300 group';
+
+                  // Senza href la card è solo informativa: niente link, niente cursore a mano.
+                  if (!info.href) {
+                    return (
+                      <div key={index} className={baseCls}>
+                        {inner}
+                      </div>
+                    );
+                  }
+                  return (
+                    <a
+                      key={index}
+                      href={info.href}
+                      {...(info.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                      className={`${baseCls} hover:shadow-lg`}
+                    >
+                      {inner}
+                    </a>
+                  );
+                })}
               </div>
             </div>
 
@@ -381,7 +406,7 @@ export default function Contact() {
 
                   <p className="text-xs text-[#666666] text-center">
                     Cliccando su "Prenota Sopralluogo" accetti la nostra{' '}
-                    <a href="#" className="text-[#F5B800] hover:underline">privacy policy</a>
+                    <a href="/privacy-policy" className="text-[#F5B800] hover:underline">privacy policy</a>
                   </p>
                 </form>
               )}
