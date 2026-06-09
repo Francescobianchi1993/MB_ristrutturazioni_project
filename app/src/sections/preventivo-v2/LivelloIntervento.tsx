@@ -70,6 +70,27 @@ function telefonoValido(v: string): boolean {
   return v.replace(/\D/g, '').length >= 8;
 }
 
+const CAP_RE = /^\d{5}$/;
+function capValido(v: string): boolean {
+  return CAP_RE.test(v.trim());
+}
+
+/**
+ * Roma città e provincia hanno CAP che iniziano per "00". Un CAP valido che
+ * non inizia per "00" è considerato fuori dalla zona abituale: mostriamo un
+ * avviso morbido ma la prenotazione prosegue comunque (la marchiamo `fuori_zona`).
+ */
+function fuoriZonaCap(cap: string): boolean {
+  const c = cap.trim();
+  return capValido(c) && !c.startsWith('00');
+}
+
+/** Esempi di ricerca coerenti con la categoria scelta (idraulico vs elettrico). */
+const ESEMPI_RICERCA: Record<Categoria, string> = {
+  idro: 'es. rubinetto, perdita, scarico, WC…',
+  elettrico: 'es. presa, interruttore, lampadario, quadro…',
+};
+
 const ERR_CLS = 'text-[11px] text-[#C0392B] mt-1';
 function campoCls(invalid: boolean): string {
   const base = 'w-full rounded-xl border-2 px-3 py-2.5 text-sm focus:outline-none';
@@ -130,6 +151,10 @@ interface PrenotazioneRiepilogo {
   nome?: string;
   telefono?: string;
   email?: string;
+  indirizzo?: string;
+  cap?: string;
+  citta?: string;
+  fuoriZona?: boolean;
 }
 
 /** Mappa disponibilità: { 'YYYY-MM-DD': { '08:00': true, ... } } — true = libero. */
@@ -180,6 +205,10 @@ async function creaPrenotazione(p: PrenotazioneRiepilogo): Promise<EsitoPrenotaz
         nome: p.nome,
         telefono: p.telefono,
         email: p.email,
+        indirizzo: p.indirizzo,
+        cap: p.cap,
+        citta: p.citta,
+        fuoriZona: p.fuoriZona,
       },
     });
     if (error) {
@@ -201,12 +230,18 @@ function titoloEvento(p: PrenotazioneRiepilogo): string {
 
 function dettaglioTesto(p: PrenotazioneRiepilogo): string {
   const tipo = p.categoria === 'idro' ? 'Idraulico' : 'Elettricista';
+  const indirizzoCompleto = [p.indirizzo, [p.cap, p.citta].filter(Boolean).join(' ')]
+    .filter(Boolean)
+    .join(', ');
   const righe = [
     `Prenotazione intervento — MB Ristrutturazioni`,
     `Tipo: ${tipo}`,
     `Urgenza: ${p.urgenza === 'alta' ? 'Alta (prioritario)' : 'Normale'}`,
     `Quando: ${formatDataLeggibile(p.data)} alle ${p.ora}`,
   ];
+  if (indirizzoCompleto) {
+    righe.push(`Dove: ${indirizzoCompleto}${p.fuoriZona ? ' (FUORI ZONA — da valutare)' : ''}`);
+  }
   if (p.voci.length > 0) {
     righe.push('', 'Interventi:', ...p.voci.map((v) => `• ${v.voce} — € ${v.prezzo}`));
   }
@@ -283,6 +318,9 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   const [nome, setNome] = useState('');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
+  const [indirizzo, setIndirizzo] = useState('');
+  const [cap, setCap] = useState('');
+  const [citta, setCitta] = useState('');
   const [confermato, setConfermato] = useState(false);
   const [inviando, setInviando] = useState(false);
 
@@ -321,8 +359,12 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       nome: nome.trim() || undefined,
       telefono: telefono.trim() || undefined,
       email: email.trim() || undefined,
+      indirizzo: indirizzo.trim() || undefined,
+      cap: cap.trim() || undefined,
+      citta: citta.trim() || undefined,
+      fuoriZona: fuoriZonaCap(cap),
     };
-  }, [categoria, urgenza, selezionati, vociCustom, data, ora, costi.totale, nome, telefono, email]);
+  }, [categoria, urgenza, selezionati, vociCustom, data, ora, costi.totale, nome, telefono, email, indirizzo, cap, citta]);
 
   function scegliCategoria(c: Categoria) {
     // Selezione manuale: si evidenzia la scelta, l'avanzamento avviene con
@@ -357,6 +399,9 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
     setNome('');
     setTelefono('');
     setEmail('');
+    setIndirizzo('');
+    setCap('');
+    setCitta('');
     setConfermato(false);
   }
 
@@ -420,8 +465,9 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
           <div className="mt-8">
             {step === 0 && <StepCategoria categoria={categoria} onScegli={scegliCategoria} />}
             {step === 1 && <StepUrgenza urgenza={urgenza} onScegli={setUrgenza} />}
-            {step === 2 && (
+            {step === 2 && categoria && (
               <StepIntervento
+                categoria={categoria}
                 voci={vociCategoria}
                 selezionati={selezionati}
                 onToggle={toggleVoce}
@@ -438,9 +484,15 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
                 nome={nome}
                 telefono={telefono}
                 email={email}
+                indirizzo={indirizzo}
+                cap={cap}
+                citta={citta}
                 onNome={setNome}
                 onTelefono={setTelefono}
                 onEmail={setEmail}
+                onIndirizzo={setIndirizzo}
+                onCap={setCap}
+                onCitta={setCitta}
                 inviando={inviando}
                 onVaiAllaConferma={conferma}
               />
@@ -659,6 +711,7 @@ function UrgenzaCard({
 }
 
 function StepIntervento({
+  categoria,
   voci,
   selezionati,
   onToggle,
@@ -666,6 +719,7 @@ function StepIntervento({
   onAddCustom,
   onRemoveCustom,
 }: {
+  categoria: Categoria;
   voci: VoceIntervento[];
   selezionati: number[];
   onToggle: (id: number) => void;
@@ -716,7 +770,7 @@ function StepIntervento({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="es. rubinetto, perdita, presa, faretto…"
+          placeholder={ESEMPI_RICERCA[categoria]}
           className="w-full pl-12 pr-12 py-3.5 rounded-2xl border-2 border-[#E5E5E5] focus:border-[#F5B800] focus:outline-none text-base"
         />
         {search && (
@@ -1130,9 +1184,15 @@ function StepRiepilogo({
   nome,
   telefono,
   email,
+  indirizzo,
+  cap,
+  citta,
   onNome,
   onTelefono,
   onEmail,
+  onIndirizzo,
+  onCap,
+  onCitta,
   inviando,
   onVaiAllaConferma,
 }: {
@@ -1141,20 +1201,37 @@ function StepRiepilogo({
   nome: string;
   telefono: string;
   email: string;
+  indirizzo: string;
+  cap: string;
+  citta: string;
   onNome: (v: string) => void;
   onTelefono: (v: string) => void;
   onEmail: (v: string) => void;
+  onIndirizzo: (v: string) => void;
+  onCap: (v: string) => void;
+  onCitta: (v: string) => void;
   inviando: boolean;
   onVaiAllaConferma: () => void;
 }) {
   const tipo = riepilogo.categoria === 'idro' ? 'Idraulico' : 'Elettricista';
 
   // Per mostrare l'errore solo dopo che l'utente ha interagito col campo.
-  const [toccato, setToccato] = useState({ nome: false, telefono: false, email: false });
+  const [toccato, setToccato] = useState({
+    nome: false,
+    telefono: false,
+    email: false,
+    indirizzo: false,
+    cap: false,
+    citta: false,
+  });
   const nomeOk = nome.trim().length >= 2;
   const telOk = telefonoValido(telefono);
   const emailOk = emailValida(email);
-  const formValido = nomeOk && telOk && emailOk;
+  const indirizzoOk = indirizzo.trim().length >= 3;
+  const capOk = capValido(cap);
+  const cittaOk = citta.trim().length >= 2;
+  const fuoriZona = fuoriZonaCap(cap);
+  const formValido = nomeOk && telOk && emailOk && indirizzoOk && capOk && cittaOk;
 
   return (
     <div>
@@ -1239,6 +1316,70 @@ function StepRiepilogo({
 
         <div className="border-t border-[#E5E5E5] mt-4 pt-4">
           <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-3">
+            Indirizzo dell'intervento <span className="text-[#C0392B]">— obbligatorio</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label className="block sm:col-span-3">
+              <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+                Via e numero civico *
+              </span>
+              <input
+                type="text"
+                value={indirizzo}
+                onChange={(e) => onIndirizzo(e.target.value)}
+                onBlur={() => setToccato((t) => ({ ...t, indirizzo: true }))}
+                placeholder="Via Roma 10"
+                autoComplete="street-address"
+                className={campoCls(toccato.indirizzo && !indirizzoOk)}
+              />
+              {toccato.indirizzo && !indirizzoOk && <p className={ERR_CLS}>Inserisci via e numero civico.</p>}
+            </label>
+            <label className="block">
+              <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+                CAP *
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={cap}
+                onChange={(e) => onCap(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                onBlur={() => setToccato((t) => ({ ...t, cap: true }))}
+                placeholder="00100"
+                autoComplete="postal-code"
+                className={campoCls(toccato.cap && !capOk)}
+              />
+              {toccato.cap && !capOk && <p className={ERR_CLS}>CAP di 5 cifre.</p>}
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="block text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+                Città *
+              </span>
+              <input
+                type="text"
+                value={citta}
+                onChange={(e) => onCitta(e.target.value)}
+                onBlur={() => setToccato((t) => ({ ...t, citta: true }))}
+                placeholder="Roma"
+                autoComplete="address-level2"
+                className={campoCls(toccato.citta && !cittaOk)}
+              />
+              {toccato.citta && !cittaOk && <p className={ERR_CLS}>Inserisci la città.</p>}
+            </label>
+          </div>
+          {fuoriZona && (
+            <div className="flex gap-2 rounded-xl bg-[#FFF8E7] border border-[#F5B800] p-3 mt-3 text-xs text-[#1A1A1A]">
+              <Info className="w-4 h-4 text-[#F5B800] flex-shrink-0 mt-0.5" />
+              <span className="leading-snug">
+                Operiamo principalmente su <strong>Roma e provincia</strong> (entro ~40 km). Il tuo indirizzo
+                sembra fuori da questa zona: puoi comunque prenotare, ti <strong>ricontattiamo per valutare
+                la fattibilità</strong> dell'intervento.
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-[#E5E5E5] mt-4 pt-4">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-3">
             I tuoi dati <span className="text-[#C0392B]">— obbligatori</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1298,9 +1439,16 @@ function StepRiepilogo({
           onClick={() => {
             if (inviando) return;
             if (!formValido) {
-              setToccato({ nome: true, telefono: true, email: true });
+              setToccato({
+                nome: true,
+                telefono: true,
+                email: true,
+                indirizzo: true,
+                cap: true,
+                citta: true,
+              });
               toast.error('Completa i tuoi dati', {
-                description: 'Nome, telefono ed email sono obbligatori per confermare.',
+                description: 'Indirizzo, nome, telefono ed email sono obbligatori per confermare.',
               });
               return;
             }

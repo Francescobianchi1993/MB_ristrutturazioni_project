@@ -6,6 +6,7 @@ import Hero from './sections/Hero';
 import Services from './sections/Services';
 import WhyChooseUs from './sections/WhyChooseUs';
 import PreventivoV2 from './sections/preventivo-v2';
+import FAQ from './sections/FAQ';
 import Contact from './sections/Contact';
 import Footer from './sections/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
@@ -37,6 +38,7 @@ function App() {
         <Services />
         <WhyChooseUs />
         <PreventivoV2 />
+        <FAQ />
         <Contact />
       </main>
       <Footer />

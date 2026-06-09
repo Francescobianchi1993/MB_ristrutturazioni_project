@@ -1,10 +1,9 @@
 import { useState } from 'react';
+import { whatsappHref } from '@/lib/contatti';
 
 export default function WhatsAppButton() {
     const [isHovered, setIsHovered] = useState(false);
-    const phone = "393391268722";
-    const message = "Ciao, vorrei informazioni per una ristrutturazione";
-    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = whatsappHref('Ciao, vorrei informazioni per una ristrutturazione');
 
     return (
         <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 flex flex-col items-end pointer-events-none">

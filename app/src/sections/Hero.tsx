@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, Phone, CheckCircle, Quote, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { TEL_DISPLAY, TEL_HREF } from '@/lib/contatti';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -210,15 +211,19 @@ export default function Hero() {
 
             {/* Phone badge: SEMPRE sotto al carosello, mai in overlay
                 (l'overlay copriva la caption Marco Bianchi / Fondatore) */}
-            <div className="mt-6 mx-auto w-fit bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3">
+            <a
+              href={TEL_HREF}
+              aria-label={`Chiama ora il ${TEL_DISPLAY}`}
+              className="mt-6 mx-auto w-fit bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3 transition hover:shadow-2xl hover:-translate-y-0.5"
+            >
               <div className="w-12 h-12 bg-[#F5B800] rounded-full flex items-center justify-center flex-shrink-0">
                 <Phone className="w-6 h-6 text-[#1A1A1A]" />
               </div>
               <div>
                 <p className="text-xs text-[#666666]">Chiamaci ora</p>
-                <p className="font-semibold text-[#1A1A1A]">339 126 8722</p>
+                <p className="font-semibold text-[#1A1A1A]">{TEL_DISPLAY}</p>
               </div>
-            </div>
+            </a>
           </div>
         </div>
 

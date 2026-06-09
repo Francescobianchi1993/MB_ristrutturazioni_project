@@ -1,7 +1,7 @@
 import emailjs from '@emailjs/browser';
 import { useRef, useState, useCallback } from 'react';
 import {
-  MapPin, Phone, Mail, Calendar, CheckCircle,
+  MapPin, Phone, Mail, MessageCircle, Calendar, CheckCircle,
   Upload, X, FileText, Image, Film, Paperclip,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { EMAIL, TEL_DISPLAY, TEL_HREF, whatsappHref } from '@/lib/contatti';
 
 // Supabase Storage: crea il bucket "sopralluogo-files" con accesso pubblico
 // Dashboard → Storage → New bucket → Name: sopralluogo-files → Public: ON
@@ -28,20 +29,27 @@ const contactInfo = [
   {
     icon: MapPin,
     title: 'Dove Siamo',
-    content: 'Roma, Lazio',
+    content: 'Roma e provincia',
     href: '#',
   },
   {
     icon: Phone,
     title: 'Telefono',
-    content: '+39 339 126 8722',
-    href: 'https://wa.me/393391268722?text=Ciao,%20vorrei%20prenotare%20un%20sopralluogo',
+    content: `+39 ${TEL_DISPLAY}`,
+    href: TEL_HREF,
+  },
+  {
+    icon: MessageCircle,
+    title: 'WhatsApp',
+    content: `+39 ${TEL_DISPLAY}`,
+    href: whatsappHref('Ciao, vorrei prenotare un sopralluogo'),
+    external: true,
   },
   {
     icon: Mail,
     title: 'Email',
-    content: 'mbristrutturazioniroma@gmail.com',
-    href: 'mailto:mbristrutturazioniroma@gmail.com',
+    content: EMAIL,
+    href: `mailto:${EMAIL}`,
   },
 ];
 
@@ -201,6 +209,7 @@ export default function Contact() {
                   <a
                     key={index}
                     href={info.href}
+                    {...(info.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     className="flex items-center gap-4 bg-white p-5 rounded-2xl hover:shadow-lg transition-all duration-300 group"
                   >
                     <div className="w-12 h-12 bg-[#F5B800]/10 group-hover:bg-[#F5B800] rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-300">

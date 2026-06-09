@@ -1,4 +1,5 @@
 import { Home, Instagram, Youtube, Phone, Mail } from 'lucide-react';
+import { EMAIL, TEL_DISPLAY, TEL_HREF } from '@/lib/contatti';
 
 function TikTokIcon({ className }: { className?: string }) {
   return (
@@ -82,20 +83,20 @@ export default function Footer() {
           <ul className="flex flex-col items-center lg:items-end gap-3 max-w-full min-w-0">
             <li className="max-w-full min-w-0">
               <a
-                href="tel:+393391268722"
+                href={TEL_HREF}
                 className="flex items-center gap-2 text-white/60 hover:text-[#F5B800] transition-colors text-sm"
               >
                 <Phone className="w-4 h-4 text-[#F5B800] shrink-0" />
-                +39 339 126 8722
+                +39 {TEL_DISPLAY}
               </a>
             </li>
             <li className="max-w-full min-w-0">
               <a
-                href="mailto:mbristrutturazioniroma@gmail.com"
+                href={`mailto:${EMAIL}`}
                 className="flex items-center gap-2 text-white/60 hover:text-[#F5B800] transition-colors text-xs sm:text-sm max-w-full min-w-0"
               >
                 <Mail className="w-4 h-4 text-[#F5B800] shrink-0" />
-                <span className="truncate">mbristrutturazioniroma@gmail.com</span>
+                <span className="truncate">{EMAIL}</span>
               </a>
             </li>
           </ul>

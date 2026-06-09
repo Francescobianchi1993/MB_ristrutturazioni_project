@@ -32,6 +32,10 @@ interface Payload {
   nome?: string;
   telefono?: string;
   email?: string;
+  indirizzo?: string;
+  cap?: string;
+  citta?: string;
+  fuoriZona?: boolean;
 }
 
 function costruisciDescrizione(p: Payload, tipo: string): string {
@@ -43,6 +47,12 @@ function costruisciDescrizione(p: Payload, tipo: string): string {
   if (p.nome) righe.push(`Cliente: ${p.nome}`);
   if (p.telefono) righe.push(`Telefono: ${p.telefono}`);
   if (p.email) righe.push(`Email: ${p.email}`);
+  const indirizzoCompleto = [p.indirizzo, [p.cap, p.citta].filter(Boolean).join(' ')]
+    .filter(Boolean)
+    .join(', ');
+  if (indirizzoCompleto) {
+    righe.push(`Indirizzo: ${indirizzoCompleto}${p.fuoriZona ? ' ⚠️ FUORI ZONA — da valutare' : ''}`);
+  }
   if (p.voci.length > 0) {
     righe.push('', 'Interventi:', ...p.voci.map((v) => `• ${v.voce} — € ${v.prezzo}`));
   }
@@ -107,6 +117,10 @@ Deno.serve(async (req) => {
         nome: p.nome ?? null,
         telefono: p.telefono ?? null,
         email: p.email ?? null,
+        indirizzo: p.indirizzo ?? null,
+        cap: p.cap ?? null,
+        citta: p.citta ?? null,
+        fuori_zona: p.fuoriZona ?? false,
         google_event_id: evento.id,
       })
       .select('id')
