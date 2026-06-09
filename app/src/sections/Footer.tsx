@@ -108,8 +108,8 @@ export default function Footer() {
             © {new Date().getFullYear()} MB Ristrutturazioni.
           </p>
           <div className="flex gap-4">
-            <a href="/privacy-policy" className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Privacy Policy</a>
-            <a href="/cookie-policy" className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Cookie Policy</a>
+            <a href="/privacy-policy.html" className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Privacy Policy</a>
+            <a href="/cookie-policy.html" className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Cookie Policy</a>
           </div>
         </div>
 

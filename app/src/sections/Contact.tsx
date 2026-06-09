@@ -406,7 +406,7 @@ export default function Contact() {
 
                   <p className="text-xs text-[#666666] text-center">
                     Cliccando su "Prenota Sopralluogo" accetti la nostra{' '}
-                    <a href="/privacy-policy" className="text-[#F5B800] hover:underline">privacy policy</a>
+                    <a href="/privacy-policy.html" target="_blank" rel="noopener noreferrer" className="text-[#F5B800] hover:underline">privacy policy</a>
                   </p>
                 </form>
               )}
