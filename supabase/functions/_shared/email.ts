@@ -10,6 +10,7 @@
  * risposte tornano lì. Tutto il contenuto è qui, nessun template esterno.
  */
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+import { romeWallToUTC, SLOT_DURATA_MIN } from './time.ts';
 
 export interface DatiEmail {
   email: string;
@@ -35,8 +36,89 @@ function dataLeggibile(iso: string): string {
   }
 }
 
+/** Titolo dell'evento calendario, generico (vale per intervento o sopralluogo). */
+function titoloEvento(d: DatiEmail): string {
+  return `Appuntamento MB Ristrutturazioni — ${d.tipo}`;
+}
+
+const DESCRIZIONE_EVENTO =
+  'Appuntamento con MB Ristrutturazioni. Ti ricontattiamo a breve per i dettagli.';
+
+/** Formatta una data in UTC compatto per calendari: YYYYMMDDTHHMMSSZ. */
+function fmtCalUTC(dt: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${dt.getUTCFullYear()}${p(dt.getUTCMonth() + 1)}${p(dt.getUTCDate())}` +
+    `T${p(dt.getUTCHours())}${p(dt.getUTCMinutes())}${p(dt.getUTCSeconds())}Z`
+  );
+}
+
+/** Inizio/fine dell'appuntamento (slot da 1h) come istanti UTC. */
+function intervalloEvento(d: DatiEmail): { start: Date; end: Date } {
+  const start = romeWallToUTC(d.dataISO, d.ora);
+  const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
+  return { start, end };
+}
+
+/** Link "Aggiungi a Google Calendar" (apre il calendario del cliente). */
+function buildGoogleCalUrl(d: DatiEmail): string {
+  const { start, end } = intervalloEvento(d);
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: titoloEvento(d),
+    dates: `${fmtCalUTC(start)}/${fmtCalUTC(end)}`,
+    details: DESCRIZIONE_EVENTO,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+/** Data ISO 8601 in UTC senza millisecondi (per i deeplink Outlook/Office365). */
+function fmtISO(dt: Date): string {
+  return dt.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+/** Link "Aggiungi a Outlook/Office365" (host diverso: personale vs lavoro). */
+function buildOutlookUrl(d: DatiEmail, host: string): string {
+  const { start, end } = intervalloEvento(d);
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    rru: 'addevent',
+    subject: titoloEvento(d),
+    startdt: fmtISO(start),
+    enddt: fmtISO(end),
+    body: DESCRIZIONE_EVENTO,
+  });
+  return `https://${host}/calendar/0/deeplink/compose?${params.toString()}`;
+}
+
+/** File .ics da allegare (silenzioso): unica via per Apple/iCloud, niente link web. */
+function buildIcs(d: DatiEmail): string {
+  const { start, end } = intervalloEvento(d);
+  const esc = (s: string) => s.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+  const uid = `${start.getTime()}-${d.email.replace(/[^a-z0-9]/gi, '')}@mb-ristrutturazioni`;
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//MB Ristrutturazioni//Prenotazioni//IT',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${fmtCalUTC(new Date())}`,
+    `DTSTART:${fmtCalUTC(start)}`,
+    `DTEND:${fmtCalUTC(end)}`,
+    `SUMMARY:${esc(titoloEvento(d))}`,
+    `DESCRIPTION:${esc(DESCRIZIONE_EVENTO)}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+}
+
 function corpoHtml(d: DatiEmail): string {
   const quando = dataLeggibile(d.dataISO);
+  const gcal = buildGoogleCalUrl(d);
+  const outlook = buildOutlookUrl(d, 'outlook.live.com');
+  const office365 = buildOutlookUrl(d, 'outlook.office.com');
   const righeVoci = d.voci
     .map((v) => `<tr><td style="padding:2px 0;color:#444">${v.voce}</td><td style="padding:2px 0;text-align:right;color:#666">€ ${v.prezzo}</td></tr>`)
     .join('');
@@ -63,6 +145,12 @@ function corpoHtml(d: DatiEmail): string {
       <span style="color:#888">Totale stimato</span>
       <strong style="color:#F5B800;font-size:18px">€ ${d.totale.toFixed(2)}</strong>
     </div>
+    <div style="margin:20px 0;text-align:center">
+      <p style="color:#444;margin:0 0 10px;font-weight:bold">📅 Aggiungi al tuo calendario</p>
+      <a href="${gcal}" style="display:inline-block;background:#F5B800;color:#1A1A1A;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:10px;margin:4px">Google Calendar</a>
+      <a href="${outlook}" style="display:inline-block;background:#1A1A1A;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:10px;margin:4px">Outlook</a>
+      <a href="${office365}" style="display:inline-block;background:#1A1A1A;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:10px;margin:4px">Office 365</a>
+    </div>
     <p style="color:#444;margin-top:20px">Ti contatteremo a breve per confermare l'appuntamento. Per qualsiasi cosa rispondi pure a questa email.</p>
     <p style="color:#999;font-size:12px;margin-top:24px">Stima orientativa, confermata dopo sopralluogo gratuito. MB Ristrutturazioni · Roma</p>
   </div>
@@ -75,6 +163,8 @@ function corpoTesto(d: DatiEmail): string {
     `Ciao ${d.nome || 'gentile cliente'},`,
     `intervento ${d.tipo} registrato per ${dataLeggibile(d.dataISO)} alle ${d.ora}.`,
     `Totale stimato: € ${d.totale.toFixed(2)}.`,
+    `Aggiungi al calendario — Google: ${buildGoogleCalUrl(d)}`,
+    `Aggiungi al calendario — Outlook: ${buildOutlookUrl(d, 'outlook.live.com')}`,
     'Ti contatteremo a breve per confermare. Grazie!',
   ].join('\n');
 }
@@ -101,6 +191,14 @@ export async function inviaEmailConferma(d: DatiEmail): Promise<void> {
       subject: 'Conferma appuntamento — MB Ristrutturazioni',
       content: corpoTesto(d),
       html: corpoHtml(d),
+      attachments: [
+        {
+          filename: 'appuntamento.ics',
+          content: buildIcs(d),
+          encoding: 'text',
+          contentType: 'text/calendar; charset=utf-8; method=PUBLISH',
+        },
+      ],
     });
   } catch (e) {
     console.error('[email] invio fallito:', e instanceof Error ? e.message : String(e));

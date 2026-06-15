@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       await inviaWhatsApp({
         telefono: p.telefono,
         nome: p.nome ?? 'Cliente',
-        tipo,
+        tipo: `Intervento ${tipo.toLowerCase()}`, // {{2}} es. "Intervento idraulico"
         data: p.data.split('-').reverse().join('/'), // ISO → gg/mm/aaaa
         ora: p.ora,
       });

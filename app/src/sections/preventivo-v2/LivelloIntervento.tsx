@@ -269,6 +269,23 @@ function linkGoogleCalendar(p: PrenotazioneRiepilogo): string {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
+/** Link "Aggiungi a Outlook/Office365" (host: outlook.live.com personale, outlook.office.com lavoro). */
+function linkOutlookCalendar(p: PrenotazioneRiepilogo, host: string): string {
+  const start = new Date(`${p.data}T${p.ora}:00`);
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+  const iso = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    rru: 'addevent',
+    subject: titoloEvento(p),
+    startdt: iso(start),
+    enddt: iso(end),
+    body: dettaglioTesto(p),
+  });
+  return `https://${host}/calendar/0/deeplink/compose?${params.toString()}`;
+}
+
+/** File .ics universale: copre Apple, Yahoo, Thunderbird e qualsiasi altro calendario. */
 function scaricaICS(p: PrenotazioneRiepilogo) {
   const start = new Date(`${p.data}T${p.ora}:00`);
   const end = new Date(start.getTime() + 60 * 60 * 1000);
@@ -291,12 +308,12 @@ function scaricaICS(p: PrenotazioneRiepilogo) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `intervento-mb-${p.data}.ics`;
+  a.download = `appuntamento-mb-${p.data}.ics`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast.success('Evento scaricato', { description: 'Apri il file .ics per aggiungerlo al calendario.' });
+  toast.success('Evento pronto', { description: 'Apri il file per aggiungerlo ad Apple, Yahoo o altri calendari.' });
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1529,11 +1546,27 @@ function SchermataConferma({
           >
             <CalendarPlus className="w-4 h-4" /> Google Calendar
           </a>
+          <a
+            href={linkOutlookCalendar(riepilogo, 'outlook.live.com')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 py-3 rounded-full border-2 border-[#E5E5E5] hover:border-[#F5B800] text-sm font-semibold transition"
+          >
+            <CalendarPlus className="w-4 h-4" /> Outlook
+          </a>
+          <a
+            href={linkOutlookCalendar(riepilogo, 'outlook.office.com')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 py-3 rounded-full border-2 border-[#E5E5E5] hover:border-[#F5B800] text-sm font-semibold transition"
+          >
+            <CalendarPlus className="w-4 h-4" /> Office 365
+          </a>
           <button
             onClick={() => scaricaICS(riepilogo)}
             className="flex items-center justify-center gap-2 py-3 rounded-full border-2 border-[#E5E5E5] hover:border-[#F5B800] text-sm font-semibold transition"
           >
-            <CalendarDays className="w-4 h-4" /> Scarica .ics
+            <CalendarDays className="w-4 h-4" /> Apple
           </button>
         </div>
 
