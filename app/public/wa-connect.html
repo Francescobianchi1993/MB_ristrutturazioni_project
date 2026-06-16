@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>MB Ristrutturazioni — Collega WhatsApp (Coexistence)</title>
+  <style>
+    :root { --mbr: #1f5fbf; --ok: #128c4b; --bg: #0e1116; --card: #171b22; --muted: #9aa4b2; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: var(--bg); color: #eef2f7;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px;
+    }
+    .wrap { width: 100%; max-width: 640px; }
+    .card { background: var(--card); border: 1px solid #232a35; border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p.sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+    ol { padding-left: 20px; line-height: 1.6; font-size: 14px; color: #d6dde6; }
+    button#connect {
+      width: 100%; padding: 14px 16px; font-size: 16px; font-weight: 600; color: #fff;
+      background: var(--mbr); border: 0; border-radius: 10px; cursor: pointer; margin-top: 8px;
+    }
+    button#connect:disabled { opacity: .5; cursor: not-allowed; }
+    .field { margin-top: 14px; }
+    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+    .row { display: flex; gap: 8px; }
+    .row input {
+      flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #2a3240;
+      background: #0c1218; color: #eef2f7; font-family: ui-monospace, Menlo, monospace; font-size: 14px;
+    }
+    .row button {
+      padding: 0 14px; border-radius: 8px; border: 1px solid #2a3240; background: #222b36;
+      color: #eef2f7; cursor: pointer; font-size: 13px;
+    }
+    .result { display: none; }
+    .result.show { display: block; }
+    .badge { display: inline-block; background: rgba(18,140,75,.15); color: #51d88a; border: 1px solid rgba(18,140,75,.4);
+      padding: 4px 10px; border-radius: 999px; font-size: 12px; margin-bottom: 14px; }
+    .log { margin-top: 16px; font-size: 12px; color: var(--muted); white-space: pre-wrap;
+      background: #0c1218; border: 1px solid #232a35; border-radius: 8px; padding: 12px; max-height: 200px; overflow: auto; }
+    .warn { color: #f0b429; font-size: 13px; margin-top: 12px; }
+    code { background: #0c1218; padding: 2px 6px; border-radius: 4px; }
+    a { color: #6db1ff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Collega il numero WhatsApp (Coexistence)</h1>
+      <p class="sub">MB Ristrutturazioni — il numero resta sulla tua app WhatsApp Business e in più viene collegato alla Cloud API.</p>
+      <ol>
+        <li>Premi <b>Connetti WhatsApp</b> qui sotto.</li>
+        <li>Accedi con il <b>Facebook</b> che possiede l'azienda.</li>
+        <li>Quando compare il <b>QR code</b>, aprilo con l'app <b>WhatsApp Business</b> del telefono (col numero 339): <i>Impostazioni → Dispositivi collegati → Collega un dispositivo</i>.</li>
+        <li>Al termine, qui sotto comparirà l'<b>ID del numero</b> da copiare.</li>
+      </ol>
+      <button id="connect" disabled>Caricamento…</button>
+      <p class="warn" id="cfgwarn" style="display:none">⚠️ Manca il <code>config_id</code> nell'indirizzo. Apri la pagina con <code>?config_id=IL_TUO_ID</code>.</p>
+    </div>
+
+    <div class="card result" id="result">
+      <span class="badge">✓ Numero collegato</span>
+      <div class="field">
+        <label>WHATSAPP_PHONE_NUMBER_ID (questo va nel secret di Supabase)</label>
+        <div class="row">
+          <input id="pnid" readonly />
+          <button data-copy="pnid">Copia</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>WhatsApp Business Account ID (WABA)</label>
+        <div class="row">
+          <input id="waba" readonly />
+          <button data-copy="waba">Copia</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="log" id="log">In attesa…</div>
+    </div>
+  </div>
+
+  <script>
+    // ---- Config (sovrascrivibile via querystring, così non serve ridelployare) ----
+    const params = new URLSearchParams(location.search);
+    const APP_ID = params.get('app_id') || '3683524061799865';
+    const CONFIG_ID = params.get('config_id') || '';
+    const FEATURE_TYPE = params.get('feature_type') || 'whatsapp_business_app_onboarding'; // coexistence
+    const GRAPH_VERSION = params.get('v') || 'v21.0';
+
+    const logEl = document.getElementById('log');
+    const btn = document.getElementById('connect');
+    function log(msg) {
+      const t = new Date().toLocaleTimeString('it-IT');
+      logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent;
+    }
+
+    if (!CONFIG_ID) {
+      document.getElementById('cfgwarn').style.display = 'block';
+    }
+
+    // Cattura i dati restituiti dall'Embedded Signup (phone_number_id, waba_id)
+    let captured = { phone_number_id: '', waba_id: '' };
+    window.addEventListener('message', (event) => {
+      if (!event.origin.endsWith('facebook.com')) return;
+      let data;
+      try { data = JSON.parse(event.data); } catch (_) { return; }
+      if (data.type !== 'WA_EMBEDDED_SIGNUP') return;
+      log('Evento Embedded Signup: ' + (data.event || '') + ' ' + JSON.stringify(data.data || {}));
+      if (data.data) {
+        if (data.data.phone_number_id) captured.phone_number_id = data.data.phone_number_id;
+        if (data.data.waba_id) captured.waba_id = data.data.waba_id;
+      }
+      if (data.event === 'FINISH' || data.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' || data.event === 'FINISH_ONLY_WABA') {
+        showResult();
+      }
+    });
+
+    function showResult() {
+      if (!captured.phone_number_id && !captured.waba_id) return;
+      document.getElementById('pnid').value = captured.phone_number_id || '(non ricevuto — vedi log)';
+      document.getElementById('waba').value = captured.waba_id || '(non ricevuto — vedi log)';
+      document.getElementById('result').classList.add('show');
+      log('✅ Fatto. Copia il PHONE_NUMBER_ID e mandamelo.');
+    }
+
+    function launchSignup() {
+      if (!CONFIG_ID) { log('Manca config_id nell\'URL.'); return; }
+      log('Apro il flusso di connessione…');
+      FB.login(function (response) {
+        if (response.authResponse && response.authResponse.code) {
+          log('Login OK. Codice ricevuto (non necessario per l\'invio in uscita).');
+        } else {
+          log('Login annullato o senza codice.');
+        }
+        // il phone_number_id arriva dall\'evento message, non da qui
+        setTimeout(showResult, 500);
+      }, {
+        config_id: CONFIG_ID,
+        response_type: 'code',
+        override_default_response_type: true,
+        extras: {
+          setup: {},
+          featureType: FEATURE_TYPE,
+          sessionInfoVersion: '3',
+        },
+      });
+    }
+
+    // ---- copia negli appunti ----
+    document.querySelectorAll('[data-copy]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const el = document.getElementById(b.getAttribute('data-copy'));
+        el.select();
+        navigator.clipboard.writeText(el.value).then(() => { b.textContent = 'Copiato!'; setTimeout(() => b.textContent = 'Copia', 1500); });
+      });
+    });
+
+    // ---- carica l'SDK di Facebook ----
+    window.fbAsyncInit = function () {
+      FB.init({ appId: APP_ID, autoLogAppEvents: true, xfbml: true, version: GRAPH_VERSION });
+      btn.disabled = !CONFIG_ID;
+      btn.textContent = 'Connetti WhatsApp';
+      log('SDK pronto. App ID: ' + APP_ID + ' · feature: ' + FEATURE_TYPE + (CONFIG_ID ? '' : ' · MANCA config_id'));
+    };
+    btn.addEventListener('click', launchSignup);
+
+    (function (d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = 'https://connect.facebook.net/en_US/sdk.js';
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+  </script>
+</body>
+</html>
