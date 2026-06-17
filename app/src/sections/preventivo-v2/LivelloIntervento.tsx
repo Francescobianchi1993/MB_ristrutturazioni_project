@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import ConfirmDialog from './ConfirmDialog';
 import { VOCI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
 
 type Categoria = CategoriaIntervento;
@@ -179,18 +180,30 @@ async function caricaDisponibilita(from: string, to: string): Promise<Disponibil
   }
 }
 
+interface EsistenteSettimana {
+  id: string;
+  tipo: string;
+  data: string;
+  ora: string;
+}
+
 interface EsitoPrenotazione {
   ok: boolean;
   slotOccupato?: boolean;
+  conflitto?: boolean; // esiste già un appuntamento attivo nella stessa settimana
+  esistente?: EsistenteSettimana;
 }
 
 /**
  * Crea la prenotazione (Edge Function `crea-prenotazione`): verifica lo slot,
- * crea l'evento sul Google Calendar società, salva su Supabase.
- * Distingue il solo caso bloccante (slot appena occupato, 409); per qualsiasi
- * altro problema si prosegue comunque verso WhatsApp.
+ * controlla il doppio appuntamento nella settimana, crea l'evento e salva.
+ * Casi gestiti: slot appena occupato (409), conflitto settimanale (pop-up).
+ * `opts` permette la conferma di sostituzione (confermaSettimana + annullaId).
  */
-async function creaPrenotazione(p: PrenotazioneRiepilogo): Promise<EsitoPrenotazione> {
+async function creaPrenotazione(
+  p: PrenotazioneRiepilogo,
+  opts?: { confermaSettimana?: boolean; annullaId?: string },
+): Promise<EsitoPrenotazione> {
   if (!supabase) return { ok: false };
   try {
     const { data, error } = await supabase.functions.invoke('crea-prenotazione', {
@@ -209,6 +222,8 @@ async function creaPrenotazione(p: PrenotazioneRiepilogo): Promise<EsitoPrenotaz
         cap: p.cap,
         citta: p.citta,
         fuoriZona: p.fuoriZona,
+        confermaSettimana: opts?.confermaSettimana,
+        annullaId: opts?.annullaId,
       },
     });
     if (error) {
@@ -217,6 +232,7 @@ async function creaPrenotazione(p: PrenotazioneRiepilogo): Promise<EsitoPrenotaz
       return { ok: false };
     }
     if (data?.error === 'slot_occupato') return { ok: false, slotOccupato: true };
+    if (data?.conflitto) return { ok: false, conflitto: true, esistente: data.esistente };
     return { ok: Boolean(data?.ok) };
   } catch {
     return { ok: false };
@@ -340,6 +356,7 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   const [citta, setCitta] = useState('');
   const [confermato, setConfermato] = useState(false);
   const [inviando, setInviando] = useState(false);
+  const [conflitto, setConflitto] = useState<EsistenteSettimana | null>(null);
 
   // Ancora in cima al wizard: a ogni cambio step ci si riposiziona qui, così
   // (es.) la scelta di data/ora resta in vista e non finisce in fondo pagina.
@@ -422,14 +439,14 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
     setConfermato(false);
   }
 
-  async function conferma() {
+  async function inviaPrenotazione(opts?: { confermaSettimana?: boolean; annullaId?: string }) {
     if (!riepilogo || inviando) return;
     setInviando(true);
-    const esito = await creaPrenotazione(riepilogo);
+    const esito = await creaPrenotazione(riepilogo, opts);
+    setInviando(false);
 
     if (esito.slotOccupato) {
-      // Unico caso bloccante: lo slot è stato preso tra la scelta e la conferma.
-      setInviando(false);
+      // Slot preso tra la scelta e la conferma.
       toast.error('Orario non più disponibile', {
         description: 'Qualcuno ha appena prenotato questa fascia. Scegline un’altra.',
       });
@@ -437,10 +454,25 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       setStep(3);
       return;
     }
-    // Conferme al cliente (email + WhatsApp) partono lato server da
-    // crea-prenotazione: qui mostriamo solo l'esito.
-    setInviando(false);
+    if (esito.conflitto && esito.esistente) {
+      // Doppio appuntamento nella stessa settimana → chiediamo conferma.
+      setConflitto(esito.esistente);
+      return;
+    }
+    // Conferme al cliente (email + WhatsApp) partono lato server.
     setConfermato(true);
+  }
+
+  // Handler del pulsante "Conferma" (nessun argomento dall'evento click).
+  function conferma() {
+    void inviaPrenotazione();
+  }
+
+  // L'utente nel pop-up sceglie di sostituire il precedente appuntamento.
+  function confermaSostituzione() {
+    const precedente = conflitto;
+    setConflitto(null);
+    if (precedente) void inviaPrenotazione({ confermaSettimana: true, annullaId: precedente.id });
   }
 
   const puoAvanzare =
@@ -459,6 +491,19 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
 
   return (
     <div ref={topRef} className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
+      <ConfirmDialog
+        open={!!conflitto}
+        title="Hai già un appuntamento questa settimana"
+        description={
+          conflitto
+            ? `Risulta già un intervento ${conflitto.tipo} ${formatDataLeggibile(conflitto.data)} alle ${conflitto.ora}. Vuoi sostituirlo con questo nuovo appuntamento (il precedente verrà annullato)?`
+            : undefined
+        }
+        confirmLabel="Sì, sostituisci"
+        cancelLabel="No, mantieni quello"
+        onConfirm={confermaSostituzione}
+        onCancel={() => setConflitto(null)}
+      />
       {confermato && riepilogo ? (
         <SchermataConferma riepilogo={riepilogo} onRicomincia={ricomincia} onTorna={onTorna} />
       ) : (

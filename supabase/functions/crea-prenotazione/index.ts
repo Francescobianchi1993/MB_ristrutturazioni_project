@@ -2,11 +2,18 @@
  * Crea una prenotazione intervento.
  *
  * 1. verifica anti doppia-prenotazione (free/busy sullo slot esatto)
- * 2. crea l'evento sul Google Calendar della società
- * 3. salva la riga su Supabase (service role) con il google_event_id
+ * 2. controllo "doppio appuntamento nella stessa settimana" per lo stesso
+ *    cliente (email O telefono): se ne esiste già uno attivo nella settimana
+ *    e il client non ha confermato, risponde { conflitto, esistente } senza
+ *    creare nulla → il sito mostra il pop-up sostituisci/mantieni.
+ * 3. crea l'evento sul Google Calendar della società
+ * 4. salva la riga su Supabase (service role) con il google_event_id
+ * 5. se è una sostituzione (confermaSettimana + annullaId), annulla il
+ *    precedente DOPO aver creato il nuovo (così non si perde nulla se lo slot
+ *    è occupato).
  *
- * Input (JSON): payload PrenotazioneRiepilogo (vedi frontend).
  * Output: { ok, id, eventId } | { error: 'slot_occupato' } (409)
+ *        | { conflitto: true, esistente: { id, tipo, data, ora } }
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { getAccessToken, getBusy } from '../_shared/google.ts';
@@ -36,6 +43,31 @@ interface Payload {
   cap?: string;
   citta?: string;
   fuoriZona?: boolean;
+  confermaSettimana?: boolean; // true = il cliente ha accettato il doppio appuntamento (sostituzione)
+  annullaId?: string; // id del precedente da annullare in caso di sostituzione
+}
+
+/** Lunedì–domenica (ISO) che contengono la data. */
+function settimanaISO(dateStr: string): { from: string; to: string } {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = (dt.getUTCDay() + 6) % 7; // 0 = lunedì
+  const monday = new Date(dt.getTime() - dow * 86_400_000);
+  const sunday = new Date(monday.getTime() + 6 * 86_400_000);
+  const iso = (x: Date) => x.toISOString().slice(0, 10);
+  return { from: iso(monday), to: iso(sunday) };
+}
+
+/** Normalizza un numero IT in forma confrontabile (toglie il prefisso 39/0039). */
+function normTel(t?: string | null): string {
+  let n = (t ?? '').replace(/\D/g, '');
+  if (n.startsWith('0039')) n = n.slice(4);
+  if (n.length > 10 && n.startsWith('39')) n = n.slice(2);
+  return n;
+}
+
+function tipoLabel(categoria: string): string {
+  return categoria === 'idro' ? 'Idraulico' : 'Elettricista';
 }
 
 function costruisciDescrizione(p: Payload, tipo: string): string {
@@ -76,12 +108,45 @@ Deno.serve(async (req) => {
     const start = romeWallToUTC(p.data, p.ora);
     const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
 
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
     // 1. anti doppia-prenotazione: lo slot deve essere ancora libero
     const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);
     if (busy.length > 0) return jsonResponse({ error: 'slot_occupato' }, 409);
 
-    // 2. crea l'evento sul calendario società
-    const tipo = p.categoria === 'idro' ? 'Idraulico' : 'Elettricista';
+    // 2. controllo doppio appuntamento nella stessa settimana (solo prima conferma)
+    if (!p.confermaSettimana && (p.email || p.telefono)) {
+      const { from, to } = settimanaISO(p.data);
+      const { data: rows } = await supabase
+        .from('prenotazioni_intervento')
+        .select('id, categoria, data_intervento, ora_intervento, email, telefono, stato')
+        .gte('data_intervento', from)
+        .lte('data_intervento', to)
+        .neq('stato', 'annullata');
+      const emailLc = (p.email ?? '').trim().toLowerCase();
+      const telN = normTel(p.telefono);
+      const match = (rows ?? []).find((r) =>
+        (emailLc && (r.email ?? '').trim().toLowerCase() === emailLc) ||
+        (telN && normTel(r.telefono) === telN)
+      );
+      if (match) {
+        return jsonResponse({
+          conflitto: true,
+          esistente: {
+            id: match.id,
+            tipo: tipoLabel(match.categoria),
+            data: match.data_intervento,
+            ora: match.ora_intervento,
+          },
+        });
+      }
+    }
+
+    // 3. crea l'evento sul calendario società
+    const tipo = tipoLabel(p.categoria);
     const summary = `Intervento MB — ${tipo}${p.nome ? ` (${p.nome})` : ''}`;
     const evRes = await fetch(
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
@@ -99,11 +164,7 @@ Deno.serve(async (req) => {
     if (!evRes.ok) throw new Error(`creazione evento fallita: ${evRes.status} ${await evRes.text()}`);
     const evento = await evRes.json();
 
-    // 3. registra su Supabase (service role: bypassa RLS e scrive google_event_id)
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    // 4. registra su Supabase (service role: bypassa RLS e scrive google_event_id)
     const { data: row, error } = await supabase
       .from('prenotazioni_intervento')
       .insert({
@@ -127,7 +188,29 @@ Deno.serve(async (req) => {
       .single();
     if (error) console.error('[crea-prenotazione] insert fallita:', error.message);
 
-    // 4. conferme al cliente (best-effort; non bloccano la prenotazione)
+    // 5. sostituzione: annulla il precedente DOPO aver creato il nuovo
+    if (p.confermaSettimana && p.annullaId) {
+      const { data: prev } = await supabase
+        .from('prenotazioni_intervento')
+        .select('google_event_id, stato')
+        .eq('id', p.annullaId)
+        .single();
+      if (prev && prev.stato !== 'annullata') {
+        if (prev.google_event_id) {
+          try {
+            await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${prev.google_event_id}`,
+              { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+            );
+          } catch {
+            // best-effort
+          }
+        }
+        await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', p.annullaId);
+      }
+    }
+
+    // 6. conferme al cliente (best-effort; non bloccano la prenotazione)
     if (p.email) {
       await inviaEmailConferma({
         email: p.email,
@@ -146,8 +229,8 @@ Deno.serve(async (req) => {
       await inviaWhatsApp({
         telefono: p.telefono,
         nome: p.nome ?? 'Cliente',
-        tipo: `Intervento ${tipo.toLowerCase()}`, // {{2}} es. "Intervento idraulico"
-        data: p.data.split('-').reverse().join('/'), // ISO → gg/mm/aaaa
+        tipo: `Intervento ${tipo.toLowerCase()}`,
+        data: p.data.split('-').reverse().join('/'),
         ora: p.ora,
       });
     }
