@@ -277,6 +277,8 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
       if (error || !res?.ok) {
         if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
         else if (res?.error === 'stesso_orario') setErrMsg('Hai scelto lo stesso orario attuale: scegline uno diverso.');
+        else if (res?.error === 'gia_annullata') setErrMsg('Questo appuntamento risulta annullato: ricarica la pagina per riprenotarlo.');
+        else if (res?.error === 'passato') setErrMsg('Questo appuntamento è già passato e non è più modificabile.');
         else setErrMsg('Non è stato possibile spostare l\'appuntamento. Riprova.');
         setInviando(false);
         return;
