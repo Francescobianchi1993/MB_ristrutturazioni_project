@@ -50,12 +50,12 @@ const FAQS: Faq[] = [
   {
     domanda: 'Come ricevo la conferma della prenotazione?',
     risposta:
-      'Dopo aver prenotato ricevi automaticamente una conferma via email e un messaggio WhatsApp con il riepilogo dell’appuntamento (tipo di intervento, giorno e ora). Per questo nome, telefono ed email sono obbligatori.',
+      'Dopo aver prenotato ricevi automaticamente una conferma via email con il riepilogo dell’appuntamento (tipo di intervento, giorno e ora). Per questo l’email è obbligatoria; nome e telefono ci servono per ricontattarti.',
   },
   {
     domanda: 'Posso modificare o disdire l’appuntamento?',
     risposta:
-      'Certo. Contattaci per telefono o WhatsApp con un minimo di preavviso e riprogrammiamo insieme l’intervento nel primo slot utile.',
+      'Sì, in autonomia: nell’email di conferma trovi i pulsanti “Sposta appuntamento” e “Annulla appuntamento”. Con “Sposta” scegli un nuovo giorno e orario tra quelli liberi in agenda e l’appuntamento si aggiorna da solo; con “Annulla” lo cancelli (e puoi riprenotare quando vuoi). Un po’ di preavviso non è obbligatorio, ma è una cortesia molto apprezzata e ci aiuta a riorganizzare l’agenda.',
   },
 ];
 
