@@ -1,30 +1,20 @@
 /**
  * Riceve una richiesta dal form "Prenota un Sopralluogo", la SALVA su Supabase
  * (tabella lead_sopralluogo) e manda un'email di NOTIFICA all'azienda dalla
- * Gmail aziendale (stessa usata per le conferme). Gli allegati sono già stati
- * caricati dal client nel bucket privato `sopralluogo-files`: qui generiamo i
- * link firmati (1 anno) da mettere nell'email.
+ * Gmail aziendale. L'email è "ibrida": mostra nome/telefono/email/note + numero
+ * allegati, e un bottone "Apri richiesta" che porta al mini-gestionale (?admin)
+ * dove si vede tutto con la galleria allegati.
  *
  * Input (JSON): { nome, email, telefono, note, allegati: [{ nome, path }] }
- * Output: { ok: true } | { error }
- *
- * Filosofia: il DATABASE è l'archivio (niente richieste perse), l'email è solo
- * l'avviso. Tutto via service role → tabella e file restano privati.
+ * Filosofia: DB = archivio, email = avviso. Tutto via service role.
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 
-const BUCKET = 'sopralluogo-files';
-const SCADENZA_SEC = 60 * 60 * 24 * 365; // link validi 1 anno
-
 interface Allegato { nome: string; path: string; }
 interface Body {
-  nome?: string;
-  email?: string;
-  telefono?: string;
-  note?: string;
-  allegati?: Allegato[];
+  nome?: string; email?: string; telefono?: string; note?: string; allegati?: Allegato[];
 }
 
 function esc(s: string): string {
@@ -46,60 +36,48 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // 1. archivio: salva il lead (sorgente di verità)
-    const { error: insErr } = await supabase.from('lead_sopralluogo').insert({
+    const { data: row, error: insErr } = await supabase.from('lead_sopralluogo').insert({
       nome: nome || null,
       email: email || null,
       telefono: telefono || null,
       note: note || null,
       allegati,
-    });
+    }).select('id').single();
     if (insErr) console.error('[sopralluogo] insert fallita:', insErr.message);
+    const id = row?.id ?? null;
 
-    // 2. link firmati per gli allegati
-    const linkAllegati: { nome: string; url: string | null }[] = [];
-    for (const a of allegati) {
-      if (!a?.path) continue;
-      try {
-        const { data } = await supabase.storage.from(BUCKET).createSignedUrl(a.path, SCADENZA_SEC);
-        linkAllegati.push({ nome: a.nome ?? a.path, url: data?.signedUrl ?? null });
-      } catch {
-        linkAllegati.push({ nome: a.nome ?? a.path, url: null });
-      }
-    }
-
-    // 3. email di notifica (best-effort, non blocca il salvataggio)
     const user = Deno.env.get('GMAIL_USER');
     const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
     const destinatario = Deno.env.get('LEAD_EMAIL') ?? user;
+    const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+    const adminUrl = id ? `${base}/?admin=1&lead=${id}` : `${base}/?admin=1`;
+
     if (user && passRaw && destinatario) {
       const password = passRaw.replace(/\s/g, '');
-      const righeAll = linkAllegati.length
-        ? linkAllegati.map((l) => l.url
-            ? `<li><a href='${l.url}'>${esc(l.nome)}</a></li>`
-            : `<li>${esc(l.nome)} (link non disponibile)</li>`).join('')
-        : `<li style='color:#999'>nessun allegato</li>`;
-      const html = `<div style='font-family:Arial,sans-serif;max-width:560px;color:#1A1A1A'>
-        <h2 style='margin:0 0 4px'>Nuova richiesta di sopralluogo</h2>
-        <p style='color:#666;margin:0 0 16px'>dal sito MB Ristrutturazioni</p>
-        <table style='border-collapse:collapse'>
-          <tr><td style='padding:3px 14px 3px 0;color:#888'>Nome</td><td><strong>${esc(nome) || '—'}</strong></td></tr>
-          <tr><td style='padding:3px 14px 3px 0;color:#888'>Email</td><td><a href='mailto:${esc(email)}'>${esc(email) || '—'}</a></td></tr>
-          <tr><td style='padding:3px 14px 3px 0;color:#888'>Telefono</td><td>${esc(telefono) || '—'}</td></tr>
+      const notePreview = note ? (note.length > 140 ? note.slice(0, 140) + '…' : note) : '—';
+      const html = `<div style='font-family:Arial,sans-serif;max-width:520px;color:#1A1A1A'>
+        <h2 style='margin:0 0 2px'>Nuova richiesta di sopralluogo</h2>
+        <p style='color:#666;margin:0 0 16px'>${esc(nome) || 'cliente'}${telefono ? ' · ' + esc(telefono) : ''}</p>
+        <table style='border-collapse:collapse;font-size:14px'>
+          <tr><td style='padding:3px 14px 3px 0;color:#888'>Telefono</td><td><strong>${esc(telefono) || '—'}</strong></td></tr>
+          <tr><td style='padding:3px 14px 3px 0;color:#888'>Email</td><td>${esc(email) || '—'}</td></tr>
+          <tr><td style='padding:3px 14px 3px 0;color:#888'>Allegati</td><td>${allegati.length}</td></tr>
         </table>
-        <p style='margin:16px 0 4px;color:#888'>Note</p>
-        <p style='white-space:pre-wrap;margin:0'>${esc(note) || '—'}</p>
-        <p style='margin:18px 0 4px;color:#888'>Allegati (${linkAllegati.length})</p>
-        <ul style='margin:0'>${righeAll}</ul>
-        <p style='color:#999;font-size:12px;margin-top:20px'>Richiesta salvata nel gestionale. Rispondendo a questa email scrivi direttamente al cliente.</p>
+        <p style='margin:14px 0 4px;color:#888;font-size:14px'>Note</p>
+        <p style='white-space:pre-wrap;margin:0;font-size:14px'>${esc(notePreview)}</p>
+        <div style='margin:22px 0 6px'>
+          <a href='${adminUrl}' style='display:inline-block;background:#1A1A1A;color:#fff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:10px'>Apri richiesta nel gestionale →</a>
+        </div>
+        <p style='color:#999;font-size:12px;margin-top:14px'>Lì trovi tutti i dati e gli allegati. Rispondendo a questa email scrivi direttamente al cliente.</p>
       </div>`;
       const testo = [
         'Nuova richiesta di sopralluogo',
         `Nome: ${nome || '—'}`,
-        `Email: ${email || '—'}`,
         `Telefono: ${telefono || '—'}`,
+        `Email: ${email || '—'}`,
+        `Allegati: ${allegati.length}`,
         `Note: ${note || '—'}`,
-        `Allegati: ${linkAllegati.map((l) => l.url ? `${l.nome}: ${l.url}` : l.nome).join(' | ') || 'nessuno'}`,
+        `Apri nel gestionale: ${adminUrl}`,
       ].join('\n');
 
       const client = new SMTPClient({
