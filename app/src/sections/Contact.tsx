@@ -72,6 +72,39 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Comprime un'immagine nel browser prima dell'upload: ridimensiona a max 1920px
+ * e ricomprime in JPEG ~82%. Riduce molto il peso (foto telefono 3-8MB → ~0.3-0.8MB).
+ * HEIC/HEIF, PDF, DOC e video NON sono toccati (il browser non li sa ridisegnare).
+ * Se per qualunque motivo non migliora o fallisce, ritorna il file originale.
+ */
+async function comprimiImmagine(file: File): Promise<File> {
+  const tipo = file.type;
+  if (!tipo.startsWith('image/') || tipo === 'image/heic' || tipo === 'image/heif') return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const MAX_DIM = 1920;
+    let { width, height } = bitmap;
+    if (width > MAX_DIM || height > MAX_DIM) {
+      const r = Math.min(MAX_DIM / width, MAX_DIM / height);
+      width = Math.round(width * r);
+      height = Math.round(height * r);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.82));
+    if (!blob || blob.size >= file.size) return file; // se non riduce, tieni l'originale
+    const nome = file.name.replace(/\.(png|webp|jpe?g)$/i, '') + '.jpg';
+    return new File([blob], nome, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
 export default function Contact() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -127,37 +160,60 @@ export default function Contact() {
     if (e.dataTransfer.files) addFiles(e.dataTransfer.files);
   };
 
+  // Comprime + carica nel bucket privato. Ritorna i PATH (vuoto se un upload fallisce),
+  // allineati 1:1 con `files`. I link firmati si ottengono poi via edge function.
   const uploadFiles = async (): Promise<string[]> => {
     if (!supabase || files.length === 0) return [];
-    const prefix = `${Date.now()}-${formData.name.replace(/\s+/g, '_').toLowerCase()}`;
-    const urls: string[] = [];
-    for (const file of files) {
+    const prefix = `${Date.now()}-${formData.name.replace(/\s+/g, '_').toLowerCase() || 'anon'}`;
+    const paths: string[] = [];
+    for (const original of files) {
+      const file = await comprimiImmagine(original);
       try {
         const { data, error } = await supabase.storage
           .from(BUCKET)
-          .upload(`${prefix}/${file.name}`, file, { upsert: true });
-        if (!error && data) {
-          const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
-          if (pub.publicUrl) urls.push(pub.publicUrl);
-        }
+          .upload(`${prefix}/${file.name}`, file, { upsert: true, contentType: file.type });
+        paths.push(!error && data ? data.path : '');
       } catch {
-        // upload singolo fallito: si include solo il nome nel messaggio
+        paths.push('');
       }
     }
-    return urls;
+    return paths;
+  };
+
+  // Chiede al server i link firmati (temporanei) per i path caricati.
+  const firmaAllegati = async (paths: string[]): Promise<(string | null)[]> => {
+    const validi = paths.filter(Boolean);
+    if (!supabase || validi.length === 0) return [];
+    try {
+      const { data, error } = await supabase.functions.invoke('firma-allegati', {
+        body: { paths: validi },
+      });
+      if (error || !data?.urls) return [];
+      return data.urls as (string | null)[];
+    } catch {
+      return [];
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const urls = await uploadFiles();
+      const paths = await uploadFiles();
+      const signedUrls = await firmaAllegati(paths);
 
       let fullMessage = formData.message;
       if (files.length > 0) {
-        const lines = files.map((f, i) =>
-          urls[i] ? `${i + 1}. ${f.name}: ${urls[i]}` : `${i + 1}. ${f.name} (non caricato)`
-        );
+        let u = 0;
+        const lines = files.map((f, i) => {
+          if (paths[i]) {
+            const link = signedUrls[u++] ?? null;
+            return link
+              ? `${i + 1}. ${f.name}: ${link}`
+              : `${i + 1}. ${f.name} (caricato, link non disponibile)`;
+          }
+          return `${i + 1}. ${f.name} (non caricato)`;
+        });
         fullMessage += `\n\n--- Allegati (${files.length}) ---\n${lines.join('\n')}`;
       }
 
