@@ -22,6 +22,7 @@ export interface DatiEmail {
   dataISO: string;
   ora: string;
   totale: number;
+  id?: string; // id prenotazione → link self-service "sposta/annulla"
 }
 
 function dataLeggibile(iso: string): string {
@@ -58,6 +59,41 @@ function intervalloEvento(d: DatiEmail): { start: Date; end: Date } {
   const start = romeWallToUTC(d.dataISO, d.ora);
   const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
   return { start, end };
+}
+
+/** Numero WhatsApp aziendale in formato internazionale per i link wa.me (339 126 8722). */
+const WHATSAPP_NUMERO = '393391268722';
+
+/**
+ * Link alla pagina di gestione self-service (sposta/annulla) sul sito.
+ * `do` pre-seleziona l'azione. Base URL da env SITE_URL (default = prod Vercel).
+ */
+function buildManageUrl(d: DatiEmail, azione: 'sposta' | 'annulla'): string | null {
+  if (!d.id) return null;
+  const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+  return `${base}/?gestisci=${encodeURIComponent(d.id)}&do=${azione}`;
+}
+
+/**
+ * Link "click-to-chat": apre il WhatsApp del CLIENTE con un messaggio già
+ * precompilato verso il 339. Nessuna API Meta: è il cliente che invia, quindi
+ * gratis, numero intatto sul telefono, nessun limite.
+ */
+function buildWhatsAppUrl(d: DatiEmail): string {
+  const quando = dataLeggibile(d.dataISO);
+  const testo =
+    `Salve! Vorrei essere ricontattato riguardo al mio appuntamento del ${quando} alle ${d.ora}. Grazie!`;
+  return `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(testo)}`;
+}
+
+/**
+ * Tasto "Apple": link a un endpoint pubblico che genera l'.ics al volo dai
+ * parametri (titolo/data/ora). Su iPhone aprire il link apre l'app Calendario.
+ */
+function buildAppleIcsUrl(d: DatiEmail): string {
+  const base = 'https://pwidhcxyyldtlagjpjkn.supabase.co/functions/v1/ics';
+  const params = new URLSearchParams({ s: titoloEvento(d), d: d.dataISO, o: d.ora });
+  return `${base}?${params.toString()}`;
 }
 
 /** Link "Aggiungi a Google Calendar" (apre il calendario del cliente). */
@@ -118,7 +154,18 @@ function corpoHtml(d: DatiEmail): string {
   const quando = dataLeggibile(d.dataISO);
   const gcal = buildGoogleCalUrl(d);
   const outlook = buildOutlookUrl(d, 'outlook.live.com');
-  const office365 = buildOutlookUrl(d, 'outlook.office.com');
+  const apple = buildAppleIcsUrl(d);
+  const whatsapp = buildWhatsAppUrl(d);
+  const tel = `tel:+${WHATSAPP_NUMERO}`;
+  const spostaUrl = buildManageUrl(d, 'sposta');
+  const annullaUrl = buildManageUrl(d, 'annulla');
+  const bloccoGestione = spostaUrl && annullaUrl
+    ? `<div style="margin:20px 0;text-align:center;border-top:1px solid #eee;padding-top:16px">
+      <p style="color:#444;margin:0 0 10px;font-weight:bold">Hai un imprevisto?</p>
+      <a href="${spostaUrl}" style="display:inline-block;background:#1A1A1A;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 18px;border-radius:10px;margin:4px">📅 Sposta appuntamento</a>
+      <a href="${annullaUrl}" style="display:inline-block;background:#ffffff;color:#C0392B;border:2px solid #C0392B;text-decoration:none;font-weight:bold;padding:8px 18px;border-radius:10px;margin:4px">❌ Annulla appuntamento</a>
+    </div>`
+    : '';
   const righeVoci = d.voci
     .map((v) => `<tr><td style="padding:2px 0;color:#444">${v.voce}</td><td style="padding:2px 0;text-align:right;color:#666">€ ${v.prezzo}</td></tr>`)
     .join('');
@@ -146,11 +193,17 @@ function corpoHtml(d: DatiEmail): string {
       <strong style="color:#F5B800;font-size:18px">€ ${d.totale.toFixed(2)}</strong>
     </div>
     <div style="margin:20px 0;text-align:center">
-      <p style="color:#444;margin:0 0 10px;font-weight:bold">📅 Aggiungi al tuo calendario</p>
-      <a href="${gcal}" style="display:inline-block;background:#F5B800;color:#1A1A1A;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:10px;margin:4px">Google Calendar</a>
+      <p style="color:#444;margin:0 0 10px;font-weight:bold">📅 Aggiungi al calendario</p>
+      <a href="${gcal}" style="display:inline-block;background:#F5B800;color:#1A1A1A;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:10px;margin:4px">Google</a>
       <a href="${outlook}" style="display:inline-block;background:#1A1A1A;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:10px;margin:4px">Outlook</a>
-      <a href="${office365}" style="display:inline-block;background:#1A1A1A;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:10px;margin:4px">Office 365</a>
+      <a href="${apple}" style="display:inline-block;background:#1A1A1A;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:10px;margin:4px">Apple</a>
     </div>
+    <div style="margin:20px 0;text-align:center">
+      <p style="color:#444;margin:0 0 10px;font-weight:bold">Hai bisogno di altro?</p>
+      <a href="${tel}" style="display:inline-block;background:#1A1A1A;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:10px;margin:4px">📞 Chiama</a>
+      <a href="${whatsapp}" style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:10px;margin:4px">💬 Contattaci</a>
+    </div>
+    ${bloccoGestione}
     <p style="color:#444;margin-top:20px">Ti contatteremo a breve per confermare l'appuntamento. Per qualsiasi cosa rispondi pure a questa email.</p>
     <p style="color:#999;font-size:12px;margin-top:24px">Stima orientativa, confermata dopo sopralluogo gratuito. MB Ristrutturazioni · Roma</p>
   </div>
@@ -165,6 +218,15 @@ function corpoTesto(d: DatiEmail): string {
     `Totale stimato: € ${d.totale.toFixed(2)}.`,
     `Aggiungi al calendario — Google: ${buildGoogleCalUrl(d)}`,
     `Aggiungi al calendario — Outlook: ${buildOutlookUrl(d, 'outlook.live.com')}`,
+    `Aggiungi al calendario — Apple: ${buildAppleIcsUrl(d)}`,
+    `Chiamaci: +39 339 126 8722`,
+    `Contattaci su WhatsApp: ${buildWhatsAppUrl(d)}`,
+    ...(d.id
+      ? [
+          `Sposta appuntamento: ${buildManageUrl(d, 'sposta')}`,
+          `Annulla appuntamento: ${buildManageUrl(d, 'annulla')}`,
+        ]
+      : []),
     'Ti contatteremo a breve per confermare. Grazie!',
   ].join('\n');
 }

@@ -1,0 +1,446 @@
+/**
+ * Pagina di gestione self-service dell'appuntamento.
+ *
+ * Si attiva quando l'URL contiene `?gestisci=<id>` (link dai pulsanti nella
+ * mail di conferma). Il cliente può:
+ *   - SPOSTARE l'appuntamento (sceglie nuovo giorno/ora → backend cancella il
+ *     vecchio evento e ne crea uno nuovo sul Google Calendar)
+ *   - ANNULLARE l'appuntamento
+ *
+ * Tutto via Edge Function `gestisci-prenotazione` (service role lato server).
+ * Componente autonomo: niente router, niente dipendenze dal wizard.
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+
+const SLOT_ORARI = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+const GIORNI_SETT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+
+type Disponibilita = Record<string, Record<string, boolean>>;
+
+interface Dettagli {
+  tipo: string;
+  data: string | null;
+  ora: string | null;
+  stato: string;
+}
+
+function toISODate(d: Date): string {
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10);
+}
+
+function formatDataLeggibile(data: string): string {
+  if (!data) return '';
+  const d = new Date(`${data}T00:00:00`);
+  return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+async function caricaDisponibilita(from: string, to: string): Promise<Disponibilita> {
+  if (!supabase) return {};
+  try {
+    const { data, error } = await supabase.functions.invoke('disponibilita', { body: { from, to } });
+    if (error || !data?.giorni) return {};
+    return data.giorni as Disponibilita;
+  } catch {
+    return {};
+  }
+}
+
+// ── calendario inline (versione compatta, stile coerente col wizard) ──────────
+function CalendarioInline({
+  valore,
+  onSelect,
+  onMeseVisibile,
+  giorniPieni,
+}: {
+  valore: string;
+  onSelect: (iso: string) => void;
+  onMeseVisibile: (from: string, to: string) => void;
+  giorniPieni: Set<string>;
+}) {
+  const oggi = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const [mese, setMese] = useState(() => new Date(oggi.getFullYear(), oggi.getMonth(), 1));
+
+  const anno = mese.getFullYear();
+  const m = mese.getMonth();
+  const offset = (new Date(anno, m, 1).getDay() + 6) % 7;
+  const giorniNelMese = new Date(anno, m + 1, 0).getDate();
+
+  useEffect(() => {
+    onMeseVisibile(toISODate(new Date(anno, m, 1)), toISODate(new Date(anno, m, giorniNelMese)));
+  }, [anno, m, giorniNelMese, onMeseVisibile]);
+
+  const celle: (Date | null)[] = [];
+  for (let i = 0; i < offset; i++) celle.push(null);
+  for (let g = 1; g <= giorniNelMese; g++) celle.push(new Date(anno, m, g));
+
+  const puoIndietro = anno > oggi.getFullYear() || (anno === oggi.getFullYear() && m > oggi.getMonth());
+
+  return (
+    <div className="rounded-2xl border-2 border-[#E5E5E5] bg-white p-3 sm:p-4">
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={() => puoIndietro && setMese(new Date(anno, m - 1, 1))}
+          disabled={!puoIndietro}
+          aria-label="Mese precedente"
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#F0F0F0] disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <span className="font-bold text-base">
+          {MESI[m]} {anno}
+        </span>
+        <button
+          type="button"
+          onClick={() => setMese(new Date(anno, m + 1, 1))}
+          aria-label="Mese successivo"
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#F0F0F0]"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {GIORNI_SETT.map((g) => (
+          <div key={g} className="text-center text-[11px] font-mono uppercase text-[#999] py-1">
+            {g}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {celle.map((d, i) => {
+          if (!d) return <div key={`vuoto-${i}`} />;
+          const iso = toISODate(d);
+          const passato = d < oggi;
+          const pieno = !passato && giorniPieni.has(iso);
+          const disabilitato = passato || pieno;
+          const sel = iso === valore;
+          const isOggi = d.getTime() === oggi.getTime();
+          return (
+            <button
+              key={iso}
+              type="button"
+              disabled={disabilitato}
+              onClick={() => onSelect(iso)}
+              title={pieno ? 'Nessuna fascia disponibile' : undefined}
+              className={`aspect-square rounded-lg text-sm font-semibold flex items-center justify-center transition ${
+                sel
+                  ? 'bg-[#1A1A1A] text-white'
+                  : disabilitato
+                    ? 'text-[#CCC] cursor-not-allowed line-through decoration-[#E5E5E5]'
+                    : isOggi
+                      ? 'bg-[#F5B800]/15 text-[#1A1A1A] hover:bg-[#F5B800]/30'
+                      : 'text-[#1A1A1A] hover:bg-[#FFF8E7]'
+              }`}
+            >
+              {d.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── pagina ────────────────────────────────────────────────────────────────--
+type Fase = 'caricamento' | 'menu' | 'sposta' | 'annulla' | 'fatto-sposta' | 'fatto-annulla' | 'errore' | 'non-trovata';
+
+export default function GestioneAppuntamento({ id, azioneIniziale }: { id: string; azioneIniziale?: string }) {
+  const [fase, setFase] = useState<Fase>('caricamento');
+  const [dettagli, setDettagli] = useState<Dettagli | null>(null);
+  const [errMsg, setErrMsg] = useState('');
+
+  // stato "sposta"
+  const [data, setData] = useState('');
+  const [ora, setOra] = useState('');
+  const [disp, setDisp] = useState<Disponibilita>({});
+  const [caricandoSlot, setCaricandoSlot] = useState(false);
+  const [inviando, setInviando] = useState(false);
+
+  // carica i dettagli all'avvio
+  useEffect(() => {
+    let attivo = true;
+    (async () => {
+      if (!supabase) {
+        setFase('errore');
+        setErrMsg('Configurazione non disponibile. Riprova più tardi.');
+        return;
+      }
+      try {
+        const { data: res, error } = await supabase.functions.invoke('gestisci-prenotazione', {
+          body: { azione: 'dettagli', id },
+        });
+        if (!attivo) return;
+        if (error || !res?.ok) {
+          setFase('non-trovata');
+          return;
+        }
+        const det: Dettagli = { tipo: res.tipo, data: res.data, ora: res.ora, stato: res.stato };
+        setDettagli(det);
+        if (det.stato === 'annullata') {
+          setFase('fatto-annulla');
+        } else if (azioneIniziale === 'annulla') {
+          setFase('annulla');
+        } else if (azioneIniziale === 'sposta') {
+          setFase('sposta');
+        } else {
+          setFase('menu');
+        }
+      } catch {
+        if (attivo) setFase('non-trovata');
+      }
+    })();
+    return () => {
+      attivo = false;
+    };
+  }, [id, azioneIniziale]);
+
+  const caricaMese = useCallback(async (from: string, to: string) => {
+    setCaricandoSlot(true);
+    const giorni = await caricaDisponibilita(from, to);
+    setDisp((prev) => ({ ...prev, ...giorni }));
+    setCaricandoSlot(false);
+  }, []);
+
+  const giorniPieni = useMemo(() => {
+    const set = new Set<string>();
+    for (const [giorno, slots] of Object.entries(disp)) {
+      if (Object.values(slots).every((libero) => !libero)) set.add(giorno);
+    }
+    return set;
+  }, [disp]);
+
+  const slotGiorno = data ? disp[data] : undefined;
+
+  useEffect(() => {
+    if (ora && slotGiorno && slotGiorno[ora] === false) setOra('');
+  }, [ora, slotGiorno]);
+
+  async function confermaSposta() {
+    if (!supabase || !data || !ora || inviando) return;
+    setInviando(true);
+    setErrMsg('');
+    try {
+      const { data: res, error } = await supabase.functions.invoke('gestisci-prenotazione', {
+        body: { azione: 'sposta', id, data, ora },
+      });
+      if (error || !res?.ok) {
+        const status = (error as { context?: Response } | null)?.context?.status;
+        if (status === 409 || res?.error === 'slot_occupato') {
+          setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        } else {
+          setErrMsg('Non è stato possibile spostare l\'appuntamento. Riprova.');
+        }
+        setInviando(false);
+        return;
+      }
+      setDettagli((d) => (d ? { ...d, data, ora, stato: 'spostata' } : d));
+      setFase('fatto-sposta');
+    } catch {
+      setErrMsg('Errore di rete. Riprova.');
+    }
+    setInviando(false);
+  }
+
+  async function confermaAnnulla() {
+    if (!supabase || inviando) return;
+    setInviando(true);
+    setErrMsg('');
+    try {
+      const { data: res, error } = await supabase.functions.invoke('gestisci-prenotazione', {
+        body: { azione: 'annulla', id },
+      });
+      if (error || !res?.ok) {
+        setErrMsg('Non è stato possibile annullare. Riprova o contattaci.');
+        setInviando(false);
+        return;
+      }
+      setFase('fatto-annulla');
+    } catch {
+      setErrMsg('Errore di rete. Riprova.');
+    }
+    setInviando(false);
+  }
+
+  return (
+    <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center px-4 py-10">
+      <div className="w-full max-w-lg">
+        <div className="flex items-center gap-2 justify-center mb-6">
+          <span className="text-xl font-bold text-[#1A1A1A]">MB Ristrutturazioni</span>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-[#EEE] shadow-sm p-6 sm:p-8">
+          {fase === 'caricamento' && (
+            <div className="flex flex-col items-center py-12 text-[#666]">
+              <Loader2 className="w-8 h-8 animate-spin mb-3" />
+              Carico il tuo appuntamento…
+            </div>
+          )}
+
+          {fase === 'non-trovata' && (
+            <div className="text-center py-8">
+              <h1 className="text-xl font-bold mb-2">Appuntamento non trovato</h1>
+              <p className="text-[#666]">
+                Il link potrebbe essere scaduto o non valido. Per qualsiasi cosa scrivici o chiamaci.
+              </p>
+            </div>
+          )}
+
+          {fase === 'errore' && (
+            <div className="text-center py-8">
+              <h1 className="text-xl font-bold mb-2">Qualcosa è andato storto</h1>
+              <p className="text-[#666]">{errMsg}</p>
+            </div>
+          )}
+
+          {dettagli && (fase === 'menu' || fase === 'sposta' || fase === 'annulla') && (
+            <>
+              <div className="flex items-center gap-2 text-[#666] text-sm mb-1">
+                <CalendarDays className="w-4 h-4 text-[#F5B800]" /> Il tuo appuntamento
+              </div>
+              <h1 className="text-2xl font-bold mb-1">Intervento {dettagli.tipo}</h1>
+              {dettagli.data && dettagli.ora && (
+                <p className="text-[#444] capitalize mb-6">
+                  {formatDataLeggibile(dettagli.data)} alle <strong>{dettagli.ora}</strong>
+                </p>
+              )}
+
+              {fase === 'menu' && (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setFase('sposta')}
+                    className="w-full flex items-center justify-center gap-2 bg-[#1A1A1A] text-white font-bold py-3 rounded-xl hover:opacity-90 transition"
+                  >
+                    <CalendarDays className="w-4 h-4" /> Sposta appuntamento
+                  </button>
+                  <button
+                    onClick={() => setFase('annulla')}
+                    className="w-full flex items-center justify-center gap-2 bg-white text-[#C0392B] border-2 border-[#C0392B] font-bold py-3 rounded-xl hover:bg-[#C0392B]/5 transition"
+                  >
+                    <X className="w-4 h-4" /> Annulla appuntamento
+                  </button>
+                </div>
+              )}
+
+              {fase === 'sposta' && (
+                <div>
+                  <p className="text-sm text-[#666] mb-4">Scegli il nuovo giorno e orario:</p>
+                  <CalendarioInline valore={data} onSelect={setData} onMeseVisibile={caricaMese} giorniPieni={giorniPieni} />
+                  {data && <p className="text-sm text-[#666] mt-2 capitalize text-center">{formatDataLeggibile(data)}</p>}
+
+                  <div className="mt-5">
+                    <span className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#666] mb-2">
+                      Fascia oraria
+                      {caricandoSlot && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#999]" />}
+                    </span>
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                      {SLOT_ORARI.map((slot) => {
+                        const sel = ora === slot;
+                        const occupato = slotGiorno ? slotGiorno[slot] === false : false;
+                        return (
+                          <button
+                            key={slot}
+                            onClick={() => !occupato && setOra(slot)}
+                            disabled={occupato}
+                            className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
+                              sel
+                                ? 'border-[#F5B800] bg-[#F5B800] text-[#1A1A1A]'
+                                : occupato
+                                  ? 'border-[#EEE] bg-[#F7F7F7] text-[#CCC] cursor-not-allowed line-through'
+                                  : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]'
+                            }`}
+                          >
+                            {slot}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {errMsg && <p className="text-sm text-[#C0392B] mt-4 text-center">{errMsg}</p>}
+
+                  <div className="flex gap-2 mt-6">
+                    <button
+                      onClick={() => setFase('menu')}
+                      className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]"
+                    >
+                      Indietro
+                    </button>
+                    <button
+                      onClick={confermaSposta}
+                      disabled={!data || !ora || inviando}
+                      className="flex-1 flex items-center justify-center gap-2 bg-[#F5B800] text-[#1A1A1A] font-bold py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                    >
+                      {inviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      Conferma spostamento
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {fase === 'annulla' && (
+                <div>
+                  <p className="text-[#444] mb-2">Vuoi davvero annullare questo appuntamento?</p>
+                  <p className="text-sm text-[#999] mb-6">L'operazione non si può annullare: dovrai prenotare di nuovo.</p>
+                  {errMsg && <p className="text-sm text-[#C0392B] mb-4">{errMsg}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setFase('menu')}
+                      className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]"
+                    >
+                      No, torna indietro
+                    </button>
+                    <button
+                      onClick={confermaAnnulla}
+                      disabled={inviando}
+                      className="flex-1 flex items-center justify-center gap-2 bg-[#C0392B] text-white font-bold py-3 rounded-xl disabled:opacity-40 hover:opacity-90"
+                    >
+                      {inviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                      Sì, annulla
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {fase === 'fatto-sposta' && dettagli && (
+            <div className="text-center py-6">
+              <div className="w-14 h-14 rounded-full bg-[#F5B800]/20 flex items-center justify-center mx-auto mb-4">
+                <Check className="w-7 h-7 text-[#1A1A1A]" />
+              </div>
+              <h1 className="text-xl font-bold mb-2">Appuntamento spostato ✅</h1>
+              {dettagli.data && dettagli.ora && (
+                <p className="text-[#444] capitalize">
+                  Nuovo orario: <strong>{formatDataLeggibile(dettagli.data)} alle {dettagli.ora}</strong>
+                </p>
+              )}
+              <p className="text-sm text-[#999] mt-3">Ti ricontatteremo a breve. Grazie!</p>
+            </div>
+          )}
+
+          {fase === 'fatto-annulla' && (
+            <div className="text-center py-6">
+              <div className="w-14 h-14 rounded-full bg-[#C0392B]/10 flex items-center justify-center mx-auto mb-4">
+                <X className="w-7 h-7 text-[#C0392B]" />
+              </div>
+              <h1 className="text-xl font-bold mb-2">Appuntamento annullato</h1>
+              <p className="text-[#666]">Quando vuoi puoi prenotarne uno nuovo dal nostro sito.</p>
+            </div>
+          )}
+        </div>
+
+        <p className="text-center text-xs text-[#AAA] mt-6">MB Ristrutturazioni · Roma</p>
+      </div>
+    </div>
+  );
+}

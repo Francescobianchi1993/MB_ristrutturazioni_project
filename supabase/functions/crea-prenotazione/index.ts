@@ -139,6 +139,7 @@ Deno.serve(async (req) => {
         dataISO: p.data,
         ora: p.ora,
         totale: p.totale,
+        id: row?.id ?? undefined,
       });
     }
     if (p.telefono) {
