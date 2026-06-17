@@ -21,14 +21,14 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { password, azione, tipo, id, paths, stato } = body ?? {};
 
-    const pw = Deno.env.get('ADMIN_PASSWORD');
-    if (!pw) return jsonResponse({ error: 'non_configurato' }, 503);
-    if (password !== pw) return jsonResponse({ error: 'password_errata' }, 401);
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+    const { data: cfg } = await supabase.from('app_config').select('valore').eq('chiave', 'admin_password').single();
+    const pw = cfg?.valore ?? Deno.env.get('ADMIN_PASSWORD');
+    if (!pw) return jsonResponse({ error: 'non_configurato' }, 503);
+    if (password !== pw) return jsonResponse({ error: 'password_errata' }, 401);
 
     if (azione === 'lista') {
       const { data: sopralluoghi } = await supabase

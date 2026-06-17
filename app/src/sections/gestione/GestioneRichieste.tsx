@@ -9,7 +9,7 @@
  * La password resta in localStorage del dispositivo dopo il primo accesso.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Lock, RefreshCw, X, CheckCircle2, FileText, ExternalLink, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Lock, RefreshCw, X, CheckCircle2, FileText, ExternalLink, Eye, EyeOff, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 const PW_KEY = 'mb_admin_pw';
@@ -119,6 +119,12 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     caricaLista(pwInput.trim());
   }
 
+  function esci() {
+    localStorage.removeItem(PW_KEY);
+    setPw(''); setPwInput(''); setAuthed(false);
+    setRighe([]); setSel(null); setRecMsg(''); setErrore('');
+  }
+
   async function recupera() {
     setRecMsg(''); setErrore('');
     if (!supabase) return;
@@ -187,9 +193,14 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
             <h1 className="text-2xl font-bold">Richieste</h1>
             <p className="text-sm text-[#666]">{righe.length} totali · MB Ristrutturazioni</p>
           </div>
-          <button onClick={() => caricaLista(pw)} className="flex items-center gap-2 text-sm font-semibold bg-white border border-[#E5E5E5] rounded-xl px-3 py-2 hover:bg-[#F7F7F7]">
-            <RefreshCw className={`w-4 h-4 ${caricando ? 'animate-spin' : ''}`} /> Aggiorna
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => caricaLista(pw)} className="flex items-center gap-2 text-sm font-semibold bg-white border border-[#E5E5E5] rounded-xl px-3 py-2 hover:bg-[#F7F7F7]">
+              <RefreshCw className={`w-4 h-4 ${caricando ? 'animate-spin' : ''}`} /> Aggiorna
+            </button>
+            <button onClick={esci} title="Esci" className="flex items-center gap-2 text-sm font-semibold bg-white border border-[#E5E5E5] rounded-xl px-3 py-2 hover:bg-[#F7F7F7] text-[#666]">
+              <LogOut className="w-4 h-4" /> Esci
+            </button>
+          </div>
         </div>
 
         {righe.length === 0 && !caricando && (

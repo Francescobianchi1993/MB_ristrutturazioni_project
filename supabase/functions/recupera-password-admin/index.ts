@@ -7,12 +7,18 @@
  * Output: { ok: true } | { error }
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const pw = Deno.env.get('ADMIN_PASSWORD');
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const { data: cfg } = await supabase.from('app_config').select('valore').eq('chiave', 'admin_password').single();
+    const pw = cfg?.valore ?? Deno.env.get('ADMIN_PASSWORD');
     const user = Deno.env.get('GMAIL_USER');
     const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
     const destinatario = Deno.env.get('LEAD_EMAIL') ?? user;
