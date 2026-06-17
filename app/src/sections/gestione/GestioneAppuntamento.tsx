@@ -158,6 +158,96 @@ function CalendarioInline({
   );
 }
 
+// ── selettore data + ora (componente STABILE, top-level) ──────────────────────
+function SelettoreSlot({
+  data,
+  ora,
+  onData,
+  onOra,
+  onMeseVisibile,
+  giorniPieni,
+  slotGiorno,
+  caricandoSlot,
+  noteStessoOrario,
+  errMsg,
+  inviando,
+  bloccato,
+  etichetta,
+  onConferma,
+  onIndietro,
+}: {
+  data: string;
+  ora: string;
+  onData: (v: string) => void;
+  onOra: (v: string) => void;
+  onMeseVisibile: (from: string, to: string) => void;
+  giorniPieni: Set<string>;
+  slotGiorno: Record<string, boolean> | undefined;
+  caricandoSlot: boolean;
+  noteStessoOrario: boolean;
+  errMsg: string;
+  inviando: boolean;
+  bloccato: boolean;
+  etichetta: string;
+  onConferma: () => void;
+  onIndietro: () => void;
+}) {
+  return (
+    <div>
+      <CalendarioInline valore={data} onSelect={onData} onMeseVisibile={onMeseVisibile} giorniPieni={giorniPieni} />
+      {data && <p className="text-sm text-[#666] mt-2 capitalize text-center">{formatDataLeggibile(data)}</p>}
+
+      <div className="mt-5">
+        <span className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#666] mb-2">
+          Fascia oraria
+          {caricandoSlot && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#999]" />}
+        </span>
+        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+          {SLOT_ORARI.map((slot) => {
+            const sel = ora === slot;
+            const occupato = slotGiorno ? slotGiorno[slot] === false : false;
+            return (
+              <button
+                key={slot}
+                onClick={() => !occupato && onOra(slot)}
+                disabled={occupato}
+                className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
+                  sel
+                    ? 'border-[#F5B800] bg-[#F5B800] text-[#1A1A1A]'
+                    : occupato
+                      ? 'border-[#EEE] bg-[#F7F7F7] text-[#CCC] cursor-not-allowed line-through'
+                      : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]'
+                }`}
+              >
+                {slot}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {noteStessoOrario && (
+        <p className="text-sm text-[#999] mt-3 text-center">È lo stesso orario attuale: scegli un giorno o una fascia diversi.</p>
+      )}
+      {errMsg && <p className="text-sm text-[#C0392B] mt-3 text-center">{errMsg}</p>}
+
+      <div className="flex gap-2 mt-6">
+        <button onClick={onIndietro} className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]">
+          Indietro
+        </button>
+        <button
+          onClick={onConferma}
+          disabled={!data || !ora || inviando || bloccato}
+          className="flex-1 flex items-center justify-center gap-2 bg-[#F5B800] text-[#1A1A1A] font-bold py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+        >
+          {inviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          {etichetta}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type Fase =
   | 'caricamento'
   | 'menu'
@@ -176,16 +266,13 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
   const [dettagli, setDettagli] = useState<Dettagli | null>(null);
   const [errMsg, setErrMsg] = useState('');
 
-  // slot scelto (per sposta / riprenota)
   const [data, setData] = useState('');
   const [ora, setOra] = useState('');
   const [disp, setDisp] = useState<Disponibilita>({});
   const [caricandoSlot, setCaricandoSlot] = useState(false);
   const [inviando, setInviando] = useState(false);
-  // nuovo appuntamento dopo riprenota
   const [nuovo, setNuovo] = useState<{ data: string; ora: string } | null>(null);
 
-  // carica i dettagli all'avvio
   useEffect(() => {
     let attivo = true;
     (async () => {
@@ -244,13 +331,11 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
 
   const slotGiorno = data ? disp[data] : undefined;
 
-  // se l'orario scelto risulta occupato dopo l'aggiornamento, lo deseleziono
   useEffect(() => {
     if (ora && slotGiorno && slotGiorno[ora] === false) setOra('');
   }, [ora, slotGiorno]);
 
-  const stessoOrarioAttuale =
-    fase === 'sposta' && !!dettagli && data === dettagli.data && ora === dettagli.ora;
+  const stessoOrarioAttuale = fase === 'sposta' && !!dettagli && data === dettagli.data && ora === dettagli.ora;
 
   function avviaSposta() {
     if (dettagli?.data) setData(dettagli.data);
@@ -333,86 +418,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
     setInviando(false);
   }
 
-  // blocco selettore data/ora riusato da sposta e riprenota
-  function SelettoreSlot({ onConferma, etichetta, bloccato }: { onConferma: () => void; etichetta: string; bloccato: boolean }) {
-    return (
-      <div>
-        <CalendarioInline valore={data} onSelect={setData} onMeseVisibile={caricaMese} giorniPieni={giorniPieni} />
-        {data && <p className="text-sm text-[#666] mt-2 capitalize text-center">{formatDataLeggibile(data)}</p>}
-
-        <div className="mt-5">
-          <span className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#666] mb-2">
-            Fascia oraria
-            {caricandoSlot && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#999]" />}
-          </span>
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-            {SLOT_ORARI.map((slot) => {
-              const sel = ora === slot;
-              const occupato = slotGiorno ? slotGiorno[slot] === false : false;
-              return (
-                <button
-                  key={slot}
-                  onClick={() => !occupato && setOra(slot)}
-                  disabled={occupato}
-                  className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
-                    sel
-                      ? 'border-[#F5B800] bg-[#F5B800] text-[#1A1A1A]'
-                      : occupato
-                        ? 'border-[#EEE] bg-[#F7F7F7] text-[#CCC] cursor-not-allowed line-through'
-                        : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]'
-                  }`}
-                >
-                  {slot}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {stessoOrarioAttuale && (
-          <p className="text-sm text-[#999] mt-3 text-center">È lo stesso orario attuale: scegli un giorno o una fascia diversi.</p>
-        )}
-        {errMsg && <p className="text-sm text-[#C0392B] mt-3 text-center">{errMsg}</p>}
-
-        <div className="flex gap-2 mt-6">
-          <button
-            onClick={() => { setErrMsg(''); setFase('menu'); }}
-            className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]"
-          >
-            Indietro
-          </button>
-          <button
-            onClick={onConferma}
-            disabled={!data || !ora || inviando || bloccato}
-            className="flex-1 flex items-center justify-center gap-2 bg-[#F5B800] text-[#1A1A1A] font-bold py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-          >
-            {inviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            {etichetta}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // pulsanti dopo l'annullamento: riprenota stesso intervento / prenota altro
-  function AzioniPostAnnulla() {
-    return (
-      <div className="space-y-3 mt-6">
-        <button
-          onClick={avviaRiprenota}
-          className="w-full flex items-center justify-center gap-2 bg-[#1A1A1A] text-white font-bold py-3 rounded-xl hover:opacity-90 transition"
-        >
-          <RotateCcw className="w-4 h-4" /> Riprenota lo stesso intervento
-        </button>
-        <a
-          href="/"
-          className="w-full flex items-center justify-center gap-2 bg-white text-[#1A1A1A] border-2 border-[#E5E5E5] font-bold py-3 rounded-xl hover:bg-[#F7F7F7] transition"
-        >
-          <CalendarDays className="w-4 h-4" /> Prenota un altro intervento
-        </a>
-      </div>
-    );
-  }
+  const tornaAlMenu = () => { setErrMsg(''); setFase('menu'); };
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center px-4 py-10">
@@ -488,12 +494,44 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
               {fase === 'sposta' && (
                 <>
                   <p className="text-sm text-[#666] mb-4">Scegli il nuovo giorno e orario (la data attuale è evidenziata):</p>
-                  <SelettoreSlot onConferma={confermaSposta} etichetta="Conferma spostamento" bloccato={stessoOrarioAttuale} />
+                  <SelettoreSlot
+                    data={data}
+                    ora={ora}
+                    onData={setData}
+                    onOra={setOra}
+                    onMeseVisibile={caricaMese}
+                    giorniPieni={giorniPieni}
+                    slotGiorno={slotGiorno}
+                    caricandoSlot={caricandoSlot}
+                    noteStessoOrario={stessoOrarioAttuale}
+                    errMsg={errMsg}
+                    inviando={inviando}
+                    bloccato={stessoOrarioAttuale}
+                    etichetta="Conferma spostamento"
+                    onConferma={confermaSposta}
+                    onIndietro={tornaAlMenu}
+                  />
                 </>
               )}
 
               {fase === 'riprenota' && (
-                <SelettoreSlot onConferma={confermaRiprenota} etichetta="Conferma prenotazione" bloccato={false} />
+                <SelettoreSlot
+                  data={data}
+                  ora={ora}
+                  onData={setData}
+                  onOra={setOra}
+                  onMeseVisibile={caricaMese}
+                  giorniPieni={giorniPieni}
+                  slotGiorno={slotGiorno}
+                  caricandoSlot={caricandoSlot}
+                  noteStessoOrario={false}
+                  errMsg={errMsg}
+                  inviando={inviando}
+                  bloccato={false}
+                  etichetta="Conferma prenotazione"
+                  onConferma={confermaRiprenota}
+                  onIndietro={tornaAlMenu}
+                />
               )}
 
               {fase === 'annulla' && (
@@ -502,10 +540,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
                   <p className="text-sm text-[#999] mb-6">Dopo l'annullamento potrai riprenotare lo stesso intervento in un altro orario.</p>
                   {errMsg && <p className="text-sm text-[#C0392B] mb-4">{errMsg}</p>}
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => { setErrMsg(''); setFase('menu'); }}
-                      className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]"
-                    >
+                    <button onClick={tornaAlMenu} className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]">
                       No, torna indietro
                     </button>
                     <button
@@ -557,7 +592,20 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
               </div>
               <h1 className="text-xl font-bold mb-2">Appuntamento annullato</h1>
               <p className="text-[#666]">Vuoi prenotarne uno nuovo?</p>
-              <AzioniPostAnnulla />
+              <div className="space-y-3 mt-6">
+                <button
+                  onClick={avviaRiprenota}
+                  className="w-full flex items-center justify-center gap-2 bg-[#1A1A1A] text-white font-bold py-3 rounded-xl hover:opacity-90 transition"
+                >
+                  <RotateCcw className="w-4 h-4" /> Riprenota lo stesso intervento
+                </button>
+                <a
+                  href="/"
+                  className="w-full flex items-center justify-center gap-2 bg-white text-[#1A1A1A] border-2 border-[#E5E5E5] font-bold py-3 rounded-xl hover:bg-[#F7F7F7] transition"
+                >
+                  <CalendarDays className="w-4 h-4" /> Prenota un altro intervento
+                </a>
+              </div>
             </div>
           )}
         </div>
