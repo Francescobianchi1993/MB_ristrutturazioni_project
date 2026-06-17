@@ -1,17 +1,17 @@
 /**
- * Pagina di gestione self-service dell'appuntamento.
+ * Pagina di gestione self-service dell'appuntamento (?gestisci=<id>).
  *
- * Si attiva quando l'URL contiene `?gestisci=<id>` (link dai pulsanti nella
- * mail di conferma). Il cliente può:
- *   - SPOSTARE l'appuntamento (sceglie nuovo giorno/ora → backend cancella il
- *     vecchio evento e ne crea uno nuovo sul Google Calendar)
- *   - ANNULLARE l'appuntamento
+ * Il cliente può:
+ *   - SPOSTARE (calendario con la data attuale evidenziata; non si può
+ *     confermare lo stesso identico orario)
+ *   - ANNULLARE (conferma con data/ora) e poi RIPRENOTARE lo stesso intervento
+ *     senza rifare il wizard, oppure prenotarne un altro dal sito.
  *
+ * Appuntamento già passato o già annullato → stati dedicati.
  * Tutto via Edge Function `gestisci-prenotazione` (service role lato server).
- * Componente autonomo: niente router, niente dipendenze dal wizard.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Loader2, RotateCcw, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 const SLOT_ORARI = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
@@ -25,6 +25,7 @@ interface Dettagli {
   data: string | null;
   ora: string | null;
   stato: string;
+  passato: boolean;
 }
 
 function toISODate(d: Date): string {
@@ -49,7 +50,7 @@ async function caricaDisponibilita(from: string, to: string): Promise<Disponibil
   }
 }
 
-// ── calendario inline (versione compatta, stile coerente col wizard) ──────────
+// ── calendario inline (apre sul mese della data selezionata) ──────────────────
 function CalendarioInline({
   valore,
   onSelect,
@@ -66,7 +67,13 @@ function CalendarioInline({
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
-  const [mese, setMese] = useState(() => new Date(oggi.getFullYear(), oggi.getMonth(), 1));
+  const [mese, setMese] = useState(() => {
+    if (valore) {
+      const [y, mm] = valore.split('-').map(Number);
+      return new Date(y, mm - 1, 1);
+    }
+    return new Date(oggi.getFullYear(), oggi.getMonth(), 1);
+  });
 
   const anno = mese.getFullYear();
   const m = mese.getMonth();
@@ -151,20 +158,32 @@ function CalendarioInline({
   );
 }
 
-// ── pagina ────────────────────────────────────────────────────────────────--
-type Fase = 'caricamento' | 'menu' | 'sposta' | 'annulla' | 'fatto-sposta' | 'fatto-annulla' | 'errore' | 'non-trovata';
+type Fase =
+  | 'caricamento'
+  | 'menu'
+  | 'sposta'
+  | 'annulla'
+  | 'riprenota'
+  | 'fatto-sposta'
+  | 'fatto-annulla'
+  | 'fatto-riprenota'
+  | 'passato'
+  | 'errore'
+  | 'non-trovata';
 
 export default function GestioneAppuntamento({ id, azioneIniziale }: { id: string; azioneIniziale?: string }) {
   const [fase, setFase] = useState<Fase>('caricamento');
   const [dettagli, setDettagli] = useState<Dettagli | null>(null);
   const [errMsg, setErrMsg] = useState('');
 
-  // stato "sposta"
+  // slot scelto (per sposta / riprenota)
   const [data, setData] = useState('');
   const [ora, setOra] = useState('');
   const [disp, setDisp] = useState<Disponibilita>({});
   const [caricandoSlot, setCaricandoSlot] = useState(false);
   const [inviando, setInviando] = useState(false);
+  // nuovo appuntamento dopo riprenota
+  const [nuovo, setNuovo] = useState<{ data: string; ora: string } | null>(null);
 
   // carica i dettagli all'avvio
   useEffect(() => {
@@ -184,13 +203,17 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
           setFase('non-trovata');
           return;
         }
-        const det: Dettagli = { tipo: res.tipo, data: res.data, ora: res.ora, stato: res.stato };
+        const det: Dettagli = { tipo: res.tipo, data: res.data, ora: res.ora, stato: res.stato, passato: !!res.passato };
         setDettagli(det);
         if (det.stato === 'annullata') {
           setFase('fatto-annulla');
+        } else if (det.passato) {
+          setFase('passato');
         } else if (azioneIniziale === 'annulla') {
           setFase('annulla');
         } else if (azioneIniziale === 'sposta') {
+          if (det.data) setData(det.data);
+          if (det.ora) setOra(det.ora);
           setFase('sposta');
         } else {
           setFase('menu');
@@ -221,12 +244,30 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
 
   const slotGiorno = data ? disp[data] : undefined;
 
+  // se l'orario scelto risulta occupato dopo l'aggiornamento, lo deseleziono
   useEffect(() => {
     if (ora && slotGiorno && slotGiorno[ora] === false) setOra('');
   }, [ora, slotGiorno]);
 
+  const stessoOrarioAttuale =
+    fase === 'sposta' && !!dettagli && data === dettagli.data && ora === dettagli.ora;
+
+  function avviaSposta() {
+    if (dettagli?.data) setData(dettagli.data);
+    if (dettagli?.ora) setOra(dettagli.ora);
+    setErrMsg('');
+    setFase('sposta');
+  }
+
+  function avviaRiprenota() {
+    setData('');
+    setOra('');
+    setErrMsg('');
+    setFase('riprenota');
+  }
+
   async function confermaSposta() {
-    if (!supabase || !data || !ora || inviando) return;
+    if (!supabase || !data || !ora || inviando || stessoOrarioAttuale) return;
     setInviando(true);
     setErrMsg('');
     try {
@@ -234,17 +275,36 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
         body: { azione: 'sposta', id, data, ora },
       });
       if (error || !res?.ok) {
-        const status = (error as { context?: Response } | null)?.context?.status;
-        if (status === 409 || res?.error === 'slot_occupato') {
-          setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
-        } else {
-          setErrMsg('Non è stato possibile spostare l\'appuntamento. Riprova.');
-        }
+        if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        else if (res?.error === 'stesso_orario') setErrMsg('Hai scelto lo stesso orario attuale: scegline uno diverso.');
+        else setErrMsg('Non è stato possibile spostare l\'appuntamento. Riprova.');
         setInviando(false);
         return;
       }
       setDettagli((d) => (d ? { ...d, data, ora, stato: 'spostata' } : d));
       setFase('fatto-sposta');
+    } catch {
+      setErrMsg('Errore di rete. Riprova.');
+    }
+    setInviando(false);
+  }
+
+  async function confermaRiprenota() {
+    if (!supabase || !data || !ora || inviando) return;
+    setInviando(true);
+    setErrMsg('');
+    try {
+      const { data: res, error } = await supabase.functions.invoke('gestisci-prenotazione', {
+        body: { azione: 'riprenota', id, data, ora },
+      });
+      if (error || !res?.ok) {
+        if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        else setErrMsg('Non è stato possibile prenotare. Riprova.');
+        setInviando(false);
+        return;
+      }
+      setNuovo({ data, ora });
+      setFase('fatto-riprenota');
     } catch {
       setErrMsg('Errore di rete. Riprova.');
     }
@@ -271,6 +331,87 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
     setInviando(false);
   }
 
+  // blocco selettore data/ora riusato da sposta e riprenota
+  function SelettoreSlot({ onConferma, etichetta, bloccato }: { onConferma: () => void; etichetta: string; bloccato: boolean }) {
+    return (
+      <div>
+        <CalendarioInline valore={data} onSelect={setData} onMeseVisibile={caricaMese} giorniPieni={giorniPieni} />
+        {data && <p className="text-sm text-[#666] mt-2 capitalize text-center">{formatDataLeggibile(data)}</p>}
+
+        <div className="mt-5">
+          <span className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#666] mb-2">
+            Fascia oraria
+            {caricandoSlot && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#999]" />}
+          </span>
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+            {SLOT_ORARI.map((slot) => {
+              const sel = ora === slot;
+              const occupato = slotGiorno ? slotGiorno[slot] === false : false;
+              return (
+                <button
+                  key={slot}
+                  onClick={() => !occupato && setOra(slot)}
+                  disabled={occupato}
+                  className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
+                    sel
+                      ? 'border-[#F5B800] bg-[#F5B800] text-[#1A1A1A]'
+                      : occupato
+                        ? 'border-[#EEE] bg-[#F7F7F7] text-[#CCC] cursor-not-allowed line-through'
+                        : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]'
+                  }`}
+                >
+                  {slot}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {stessoOrarioAttuale && (
+          <p className="text-sm text-[#999] mt-3 text-center">È lo stesso orario attuale: scegli un giorno o una fascia diversi.</p>
+        )}
+        {errMsg && <p className="text-sm text-[#C0392B] mt-3 text-center">{errMsg}</p>}
+
+        <div className="flex gap-2 mt-6">
+          <button
+            onClick={() => { setErrMsg(''); setFase('menu'); }}
+            className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]"
+          >
+            Indietro
+          </button>
+          <button
+            onClick={onConferma}
+            disabled={!data || !ora || inviando || bloccato}
+            className="flex-1 flex items-center justify-center gap-2 bg-[#F5B800] text-[#1A1A1A] font-bold py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+          >
+            {inviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            {etichetta}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // pulsanti dopo l'annullamento: riprenota stesso intervento / prenota altro
+  function AzioniPostAnnulla() {
+    return (
+      <div className="space-y-3 mt-6">
+        <button
+          onClick={avviaRiprenota}
+          className="w-full flex items-center justify-center gap-2 bg-[#1A1A1A] text-white font-bold py-3 rounded-xl hover:opacity-90 transition"
+        >
+          <RotateCcw className="w-4 h-4" /> Riprenota lo stesso intervento
+        </button>
+        <a
+          href="/"
+          className="w-full flex items-center justify-center gap-2 bg-white text-[#1A1A1A] border-2 border-[#E5E5E5] font-bold py-3 rounded-xl hover:bg-[#F7F7F7] transition"
+        >
+          <CalendarDays className="w-4 h-4" /> Prenota un altro intervento
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center px-4 py-10">
       <div className="w-full max-w-lg">
@@ -289,9 +430,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
           {fase === 'non-trovata' && (
             <div className="text-center py-8">
               <h1 className="text-xl font-bold mb-2">Appuntamento non trovato</h1>
-              <p className="text-[#666]">
-                Il link potrebbe essere scaduto o non valido. Per qualsiasi cosa scrivici o chiamaci.
-              </p>
+              <p className="text-[#666]">Il link potrebbe essere scaduto o non valido. Per qualsiasi cosa scrivici o chiamaci.</p>
             </div>
           )}
 
@@ -302,28 +441,41 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
             </div>
           )}
 
-          {dettagli && (fase === 'menu' || fase === 'sposta' || fase === 'annulla') && (
+          {fase === 'passato' && dettagli && (
+            <div className="text-center py-8">
+              <h1 className="text-xl font-bold mb-2">Appuntamento già passato</h1>
+              {dettagli.data && dettagli.ora && (
+                <p className="text-[#444] capitalize mb-2">{formatDataLeggibile(dettagli.data)} alle {dettagli.ora}</p>
+              )}
+              <p className="text-[#666]">Non è più modificabile online. Per un nuovo intervento contattaci o prenota dal sito.</p>
+              <a href="/" className="inline-block mt-4 bg-[#F5B800] text-[#1A1A1A] font-bold py-2.5 px-5 rounded-xl">Prenota un intervento</a>
+            </div>
+          )}
+
+          {dettagli && (fase === 'menu' || fase === 'sposta' || fase === 'annulla' || fase === 'riprenota') && (
             <>
               <div className="flex items-center gap-2 text-[#666] text-sm mb-1">
-                <CalendarDays className="w-4 h-4 text-[#F5B800]" /> Il tuo appuntamento
+                <CalendarDays className="w-4 h-4 text-[#F5B800]" />
+                {fase === 'riprenota' ? 'Riprenota lo stesso intervento' : 'Il tuo appuntamento'}
               </div>
               <h1 className="text-2xl font-bold mb-1">Intervento {dettagli.tipo}</h1>
-              {dettagli.data && dettagli.ora && (
+              {dettagli.data && dettagli.ora && fase !== 'riprenota' && (
                 <p className="text-[#444] capitalize mb-6">
                   {formatDataLeggibile(dettagli.data)} alle <strong>{dettagli.ora}</strong>
                 </p>
               )}
+              {fase === 'riprenota' && <p className="text-sm text-[#666] mb-6">Scegli quando vuoi il nuovo appuntamento.</p>}
 
               {fase === 'menu' && (
                 <div className="space-y-3">
                   <button
-                    onClick={() => setFase('sposta')}
+                    onClick={avviaSposta}
                     className="w-full flex items-center justify-center gap-2 bg-[#1A1A1A] text-white font-bold py-3 rounded-xl hover:opacity-90 transition"
                   >
                     <CalendarDays className="w-4 h-4" /> Sposta appuntamento
                   </button>
                   <button
-                    onClick={() => setFase('annulla')}
+                    onClick={() => { setErrMsg(''); setFase('annulla'); }}
                     className="w-full flex items-center justify-center gap-2 bg-white text-[#C0392B] border-2 border-[#C0392B] font-bold py-3 rounded-xl hover:bg-[#C0392B]/5 transition"
                   >
                     <X className="w-4 h-4" /> Annulla appuntamento
@@ -332,69 +484,24 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
               )}
 
               {fase === 'sposta' && (
-                <div>
-                  <p className="text-sm text-[#666] mb-4">Scegli il nuovo giorno e orario:</p>
-                  <CalendarioInline valore={data} onSelect={setData} onMeseVisibile={caricaMese} giorniPieni={giorniPieni} />
-                  {data && <p className="text-sm text-[#666] mt-2 capitalize text-center">{formatDataLeggibile(data)}</p>}
+                <>
+                  <p className="text-sm text-[#666] mb-4">Scegli il nuovo giorno e orario (la data attuale è evidenziata):</p>
+                  <SelettoreSlot onConferma={confermaSposta} etichetta="Conferma spostamento" bloccato={stessoOrarioAttuale} />
+                </>
+              )}
 
-                  <div className="mt-5">
-                    <span className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#666] mb-2">
-                      Fascia oraria
-                      {caricandoSlot && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#999]" />}
-                    </span>
-                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                      {SLOT_ORARI.map((slot) => {
-                        const sel = ora === slot;
-                        const occupato = slotGiorno ? slotGiorno[slot] === false : false;
-                        return (
-                          <button
-                            key={slot}
-                            onClick={() => !occupato && setOra(slot)}
-                            disabled={occupato}
-                            className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
-                              sel
-                                ? 'border-[#F5B800] bg-[#F5B800] text-[#1A1A1A]'
-                                : occupato
-                                  ? 'border-[#EEE] bg-[#F7F7F7] text-[#CCC] cursor-not-allowed line-through'
-                                  : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]'
-                            }`}
-                          >
-                            {slot}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {errMsg && <p className="text-sm text-[#C0392B] mt-4 text-center">{errMsg}</p>}
-
-                  <div className="flex gap-2 mt-6">
-                    <button
-                      onClick={() => setFase('menu')}
-                      className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]"
-                    >
-                      Indietro
-                    </button>
-                    <button
-                      onClick={confermaSposta}
-                      disabled={!data || !ora || inviando}
-                      className="flex-1 flex items-center justify-center gap-2 bg-[#F5B800] text-[#1A1A1A] font-bold py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-                    >
-                      {inviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      Conferma spostamento
-                    </button>
-                  </div>
-                </div>
+              {fase === 'riprenota' && (
+                <SelettoreSlot onConferma={confermaRiprenota} etichetta="Conferma prenotazione" bloccato={false} />
               )}
 
               {fase === 'annulla' && (
                 <div>
                   <p className="text-[#444] mb-2">Vuoi davvero annullare questo appuntamento?</p>
-                  <p className="text-sm text-[#999] mb-6">L'operazione non si può annullare: dovrai prenotare di nuovo.</p>
+                  <p className="text-sm text-[#999] mb-6">Dopo l'annullamento potrai riprenotare lo stesso intervento in un altro orario.</p>
                   {errMsg && <p className="text-sm text-[#C0392B] mb-4">{errMsg}</p>}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setFase('menu')}
+                      onClick={() => { setErrMsg(''); setFase('menu'); }}
                       className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]"
                     >
                       No, torna indietro
@@ -424,7 +531,20 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
                   Nuovo orario: <strong>{formatDataLeggibile(dettagli.data)} alle {dettagli.ora}</strong>
                 </p>
               )}
-              <p className="text-sm text-[#999] mt-3">Ti ricontatteremo a breve. Grazie!</p>
+              <p className="text-sm text-[#999] mt-3">Ti abbiamo inviato la conferma via email. Grazie!</p>
+            </div>
+          )}
+
+          {fase === 'fatto-riprenota' && nuovo && (
+            <div className="text-center py-6">
+              <div className="w-14 h-14 rounded-full bg-[#F5B800]/20 flex items-center justify-center mx-auto mb-4">
+                <Check className="w-7 h-7 text-[#1A1A1A]" />
+              </div>
+              <h1 className="text-xl font-bold mb-2">Prenotazione confermata ✅</h1>
+              <p className="text-[#444] capitalize">
+                <strong>{formatDataLeggibile(nuovo.data)} alle {nuovo.ora}</strong>
+              </p>
+              <p className="text-sm text-[#999] mt-3">Ti abbiamo inviato la conferma via email. Grazie!</p>
             </div>
           )}
 
@@ -434,7 +554,8 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
                 <X className="w-7 h-7 text-[#C0392B]" />
               </div>
               <h1 className="text-xl font-bold mb-2">Appuntamento annullato</h1>
-              <p className="text-[#666]">Quando vuoi puoi prenotarne uno nuovo dal nostro sito.</p>
+              <p className="text-[#666]">Vuoi prenotarne uno nuovo?</p>
+              <AzioniPostAnnulla />
             </div>
           )}
         </div>

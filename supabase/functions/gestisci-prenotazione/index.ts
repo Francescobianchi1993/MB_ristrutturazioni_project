@@ -1,25 +1,27 @@
 /**
  * Gestione self-service di una prenotazione da parte del cliente.
  *
- * Il cliente arriva qui dai pulsanti nella mail di conferma, che portano
- * l'id della prenotazione (UUID non indovinabile = "token" di gestione).
+ * Il cliente arriva dai pulsanti nella mail di conferma (portano l'id = UUID
+ * non indovinabile, fa da "token").
  *
  * Input (JSON): { azione, id, data?, ora? }
- *   azione = 'dettagli' | 'annulla' | 'sposta'
+ *   azione = 'dettagli' | 'annulla' | 'sposta' | 'riprenota'
  * Output:
- *   dettagli → { ok, tipo, data, ora, stato }
- *   annulla  → { ok, stato: 'annullata' }
- *   sposta   → { ok, data, ora } | { error: 'slot_occupato' } (409)
+ *   dettagli  → { ok, tipo, data, ora, stato, passato }
+ *   annulla   → { ok, stato: 'annullata' }
+ *   sposta    → { ok, data, ora } | { error } (409)
+ *   riprenota → { ok, id, data, ora } | { error } (409)   (crea una NUOVA prenotazione clone)
  *
  * Usa il service role (bypassa RLS): la tabella resta non leggibile da anon.
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { getAccessToken, getBusy } from '../_shared/google.ts';
 import { SLOT_DURATA_MIN, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
+import { inviaEmailConferma } from '../_shared/email.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 interface Body {
-  azione: 'dettagli' | 'annulla' | 'sposta';
+  azione: 'dettagli' | 'annulla' | 'sposta' | 'riprenota';
   id: string;
   data?: string;
   ora?: string;
@@ -29,7 +31,7 @@ function tipoLabel(categoria: string): string {
   return categoria === 'idro' ? 'Idraulico' : 'Elettricista';
 }
 
-/** Cancella un evento dal Google Calendar società (best-effort, non blocca). */
+/** Cancella un evento dal Google Calendar (best-effort, non blocca). */
 async function cancellaEvento(token: string, calendarId: string, eventId: string): Promise<void> {
   try {
     await fetch(
@@ -37,8 +39,62 @@ async function cancellaEvento(token: string, calendarId: string, eventId: string
       { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
     );
   } catch {
-    // best-effort: se fallisce l'owner può cancellarlo a mano
+    // best-effort
   }
+}
+
+/** Crea un evento sul Google Calendar e ritorna il suo id. */
+async function creaEvento(
+  token: string,
+  calendarId: string,
+  summary: string,
+  descr: string,
+  start: Date,
+  end: Date,
+): Promise<string> {
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        summary,
+        description: descr,
+        start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
+        end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
+      }),
+    },
+  );
+  if (!res.ok) throw new Error(`creazione evento fallita: ${res.status} ${await res.text()}`);
+  const ev = await res.json();
+  return ev.id as string;
+}
+
+// deno-lint-ignore no-explicit-any
+function buildDatiEmail(row: any, id: string, dataISO: string, ora: string) {
+  return {
+    email: row.email as string,
+    nome: (row.nome ?? '') as string,
+    tipo: tipoLabel(row.categoria),
+    urgenza: row.urgenza as string,
+    voci: (row.voci ?? []) as { voce: string; prezzo: number }[],
+    vociCustom: (row.voci_custom ?? []) as string[],
+    dataISO,
+    ora,
+    totale: Number(row.totale_stimato ?? 0),
+    id,
+  };
+}
+
+// deno-lint-ignore no-explicit-any
+function descrizione(row: any, tipo: string, riprogrammato: boolean): string {
+  return [
+    riprogrammato ? 'Appuntamento riprogrammato dal cliente.' : 'Prenotazione dal sito MB Ristrutturazioni.',
+    `Tipo: ${tipo}`,
+    row.nome ? `Cliente: ${row.nome}` : '',
+    row.telefono ? `Telefono: ${row.telefono}` : '',
+    row.email ? `Email: ${row.email}` : '',
+  ].filter(Boolean).join('\n');
 }
 
 Deno.serve(async (req) => {
@@ -58,7 +114,12 @@ Deno.serve(async (req) => {
       .single();
     if (error || !row) return jsonResponse({ error: 'non_trovata' }, 404);
 
-    // ── dettagli: info minime per la pagina di gestione ──────────────────────
+    const startAttuale = row.data_intervento && row.ora_intervento
+      ? romeWallToUTC(row.data_intervento, row.ora_intervento)
+      : null;
+    const passato = startAttuale ? startAttuale.getTime() < Date.now() : false;
+
+    // ── dettagli ─────────────────────────────────────────────────────────────
     if (azione === 'dettagli') {
       return jsonResponse({
         ok: true,
@@ -66,12 +127,15 @@ Deno.serve(async (req) => {
         data: row.data_intervento,
         ora: row.ora_intervento,
         stato: row.stato,
+        passato,
       });
     }
 
     const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID');
     if (!calendarId) throw new Error('GOOGLE_CALENDAR_ID mancante');
     const token = await getAccessToken();
+    const tipo = tipoLabel(row.categoria);
+    const summary = `Intervento MB — ${tipo}${row.nome ? ` (${row.nome})` : ''}`;
 
     // ── annulla ──────────────────────────────────────────────────────────────
     if (azione === 'annulla') {
@@ -81,60 +145,67 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, stato: 'annullata' });
     }
 
-    // ── sposta ─────────────────────────────────────────────────────────────-─
+    // ── sposta ─────────────────────────────────────────────────────────────--
     if (azione === 'sposta') {
       if (!data || !ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
       if (row.stato === 'annullata') return jsonResponse({ error: 'gia_annullata' }, 409);
+      if (passato) return jsonResponse({ error: 'passato' }, 409);
+      if (data === row.data_intervento && ora === row.ora_intervento) {
+        return jsonResponse({ error: 'stesso_orario' }, 409);
+      }
 
       const start = romeWallToUTC(data, ora);
       const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
-
-      // lo slot nuovo deve essere libero (l'evento attuale è su un altro orario)
       const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);
       if (busy.length > 0) return jsonResponse({ error: 'slot_occupato' }, 409);
 
-      const tipo = tipoLabel(row.categoria);
-      const summary = `Intervento MB — ${tipo}${row.nome ? ` (${row.nome})` : ''}`;
-      const descr = [
-        'Appuntamento riprogrammato dal cliente.',
-        `Tipo: ${tipo}`,
-        row.nome ? `Cliente: ${row.nome}` : '',
-        row.telefono ? `Telefono: ${row.telefono}` : '',
-        row.email ? `Email: ${row.email}` : '',
-      ].filter(Boolean).join('\n');
-
-      // 1. crea il nuovo evento
-      const evRes = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            summary,
-            description: descr,
-            start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
-            end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
-          }),
-        },
-      );
-      if (!evRes.ok) throw new Error(`creazione evento fallita: ${evRes.status} ${await evRes.text()}`);
-      const evento = await evRes.json();
-
-      // 2. cancella il vecchio evento
+      const newEventId = await creaEvento(token, calendarId, summary, descrizione(row, tipo, true), start, end);
       if (row.google_event_id) await cancellaEvento(token, calendarId, row.google_event_id);
-
-      // 3. aggiorna la riga
       await supabase
         .from('prenotazioni_intervento')
-        .update({
-          data_intervento: data,
-          ora_intervento: ora,
-          google_event_id: evento.id,
-          stato: 'spostata',
-        })
+        .update({ data_intervento: data, ora_intervento: ora, google_event_id: newEventId, stato: 'spostata' })
         .eq('id', id);
 
+      if (row.email) await inviaEmailConferma(buildDatiEmail(row, id, data, ora));
       return jsonResponse({ ok: true, data, ora });
+    }
+
+    // ── riprenota: crea una NUOVA prenotazione clone (stesso intervento) ──────
+    if (azione === 'riprenota') {
+      if (!data || !ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
+
+      const start = romeWallToUTC(data, ora);
+      const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
+      const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);
+      if (busy.length > 0) return jsonResponse({ error: 'slot_occupato' }, 409);
+
+      const newEventId = await creaEvento(token, calendarId, summary, descrizione(row, tipo, false), start, end);
+      const { data: newRow, error: insErr } = await supabase
+        .from('prenotazioni_intervento')
+        .insert({
+          categoria: row.categoria,
+          urgenza: row.urgenza,
+          data_intervento: data,
+          ora_intervento: ora,
+          voci: row.voci,
+          voci_custom: row.voci_custom,
+          totale_stimato: row.totale_stimato,
+          nome: row.nome,
+          telefono: row.telefono,
+          email: row.email,
+          indirizzo: row.indirizzo,
+          cap: row.cap,
+          citta: row.citta,
+          fuori_zona: row.fuori_zona,
+          google_event_id: newEventId,
+        })
+        .select('id')
+        .single();
+      if (insErr) console.error('[gestisci] riprenota insert fallita:', insErr.message);
+
+      const newId = newRow?.id ?? null;
+      if (row.email && newId) await inviaEmailConferma(buildDatiEmail(row, newId, data, ora));
+      return jsonResponse({ ok: true, id: newId, data, ora });
     }
 
     return jsonResponse({ error: 'azione_sconosciuta' }, 400);
