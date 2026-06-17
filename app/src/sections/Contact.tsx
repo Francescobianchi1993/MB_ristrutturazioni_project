@@ -1,4 +1,3 @@
-import emailjs from '@emailjs/browser';
 import { useRef, useState, useCallback } from 'react';
 import {
   MapPin, Phone, Mail, MessageCircle, Calendar, CheckCircle,
@@ -160,76 +159,45 @@ export default function Contact() {
     if (e.dataTransfer.files) addFiles(e.dataTransfer.files);
   };
 
-  // Comprime + carica nel bucket privato. Ritorna i PATH (vuoto se un upload fallisce),
-  // allineati 1:1 con `files`. I link firmati si ottengono poi via edge function.
-  const uploadFiles = async (): Promise<string[]> => {
+  // Comprime + carica nel bucket privato. Ritorna gli allegati caricati con
+  // successo come { nome, path } (gli upload falliti vengono semplicemente saltati).
+  const uploadFiles = async (): Promise<{ nome: string; path: string }[]> => {
     if (!supabase || files.length === 0) return [];
     const prefix = `${Date.now()}-${formData.name.replace(/\s+/g, '_').toLowerCase() || 'anon'}`;
-    const paths: string[] = [];
+    const out: { nome: string; path: string }[] = [];
     for (const original of files) {
       const file = await comprimiImmagine(original);
       try {
         const { data, error } = await supabase.storage
           .from(BUCKET)
           .upload(`${prefix}/${file.name}`, file, { upsert: true, contentType: file.type });
-        paths.push(!error && data ? data.path : '');
+        if (!error && data) out.push({ nome: original.name, path: data.path });
       } catch {
-        paths.push('');
+        // upload singolo fallito: lo saltiamo
       }
     }
-    return paths;
-  };
-
-  // Chiede al server i link firmati (temporanei) per i path caricati.
-  const firmaAllegati = async (paths: string[]): Promise<(string | null)[]> => {
-    const validi = paths.filter(Boolean);
-    if (!supabase || validi.length === 0) return [];
-    try {
-      const { data, error } = await supabase.functions.invoke('firma-allegati', {
-        body: { paths: validi },
-      });
-      if (error || !data?.urls) return [];
-      return data.urls as (string | null)[];
-    } catch {
-      return [];
-    }
+    return out;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) {
+      console.error('[Contact] Supabase non configurato');
+      return;
+    }
     setIsLoading(true);
     try {
-      const paths = await uploadFiles();
-      const signedUrls = await firmaAllegati(paths);
-
-      let fullMessage = formData.message;
-      if (files.length > 0) {
-        let u = 0;
-        const lines = files.map((f, i) => {
-          if (paths[i]) {
-            const link = signedUrls[u++] ?? null;
-            return link
-              ? `${i + 1}. ${f.name}: ${link}`
-              : `${i + 1}. ${f.name} (caricato, link non disponibile)`;
-          }
-          return `${i + 1}. ${f.name} (non caricato)`;
-        });
-        fullMessage += `\n\n--- Allegati (${files.length}) ---\n${lines.join('\n')}`;
-      }
-
-      await emailjs.send(
-        'service_rqko90m',
-        'template_rbj6nxk',
-        {
-          from_name: formData.name,
-          name: formData.name,
+      const allegati = await uploadFiles();
+      const { error } = await supabase.functions.invoke('invia-sopralluogo', {
+        body: {
+          nome: formData.name,
           email: formData.email,
-          reply_to: formData.email,
-          phone: formData.phone,
-          message: fullMessage,
+          telefono: formData.phone,
+          note: formData.message,
+          allegati,
         },
-        'nipzQBUhrUoZz04UK'
-      );
+      });
+      if (error) throw error;
 
       setIsSubmitted(true);
       setFormData({ name: '', email: '', phone: '', message: '' });
