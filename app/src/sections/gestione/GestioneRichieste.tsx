@@ -9,7 +9,7 @@
  * La password resta in localStorage del dispositivo dopo il primo accesso.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Lock, RefreshCw, X, CheckCircle2, FileText, ExternalLink } from 'lucide-react';
+import { Loader2, Lock, RefreshCw, X, CheckCircle2, FileText, ExternalLink, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 const PW_KEY = 'mb_admin_pw';
@@ -40,6 +40,8 @@ function isImg(nome: string): boolean {
 export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   const [pw, setPw] = useState<string>(() => localStorage.getItem(PW_KEY) ?? '');
   const [pwInput, setPwInput] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [recMsg, setRecMsg] = useState('');
   const [authed, setAuthed] = useState(false);
   const [caricando, setCaricando] = useState(false);
   const [errore, setErrore] = useState('');
@@ -117,6 +119,22 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     caricaLista(pwInput.trim());
   }
 
+  async function recupera() {
+    setRecMsg(''); setErrore('');
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.functions.invoke('recupera-password-admin', { body: {} });
+      if (error) {
+        const st = (error as { context?: Response }).context?.status;
+        setRecMsg(st === 503 ? 'Imposta prima la password lato server (Supabase).' : 'Invio non riuscito. Riprova.');
+        return;
+      }
+      setRecMsg('Password inviata alla mail aziendale. Controlla la posta.');
+    } catch {
+      setRecMsg('Invio non riuscito. Riprova.');
+    }
+  }
+
   // ── LOGIN ───────────────────────────────────────────────────────────────
   if (!authed) {
     return (
@@ -127,16 +145,28 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
           </div>
           <h1 className="text-xl font-bold mb-1">Gestionale richieste</h1>
           <p className="text-sm text-[#666] mb-5">MB Ristrutturazioni · accesso riservato</p>
-          <input
-            type="password" value={pwInput} onChange={(e) => setPwInput(e.target.value)}
-            placeholder="Password" autoFocus
-            className="w-full h-12 rounded-xl border-2 border-[#E5E5E5] px-4 mb-3 focus:border-[#F5B800] outline-none"
-          />
+          <div className="relative mb-3">
+            <input
+              type={showPw ? 'text' : 'password'} value={pwInput} onChange={(e) => setPwInput(e.target.value)}
+              placeholder="Password" autoFocus
+              className="w-full h-12 rounded-xl border-2 border-[#E5E5E5] pl-4 pr-12 focus:border-[#F5B800] outline-none"
+            />
+            <button type="button" onClick={() => setShowPw((v) => !v)}
+              aria-label={showPw ? 'Nascondi password' : 'Mostra password'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#1A1A1A]">
+              {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
           {errore && <p className="text-sm text-[#C0392B] mb-3">{errore}</p>}
           <button type="submit" disabled={caricando}
             className="w-full bg-[#1A1A1A] text-white font-bold h-12 rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
             {caricando ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Entra
           </button>
+          <button type="button" onClick={recupera}
+            className="mt-4 text-sm text-[#666] hover:text-[#1A1A1A] underline">
+            Password dimenticata? Inviala alla mail aziendale
+          </button>
+          {recMsg && <p className="text-sm text-[#2E7D32] mt-2">{recMsg}</p>}
         </form>
       </div>
     );
