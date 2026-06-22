@@ -145,7 +145,7 @@ interface PrenotazioneRiepilogo {
   categoria: Categoria;
   urgenza: Urgenza;
   voci: VoceIntervento[];
-  vociCustom: string[];
+  vociCustom: VoceCustom[];
   data: string;
   ora: string;
   totale: number;
@@ -213,7 +213,7 @@ async function creaPrenotazione(
         data: p.data,
         ora: p.ora,
         voci: p.voci.map((v) => ({ id: v.id, voce: v.voce, prezzo: v.prezzo })),
-        vociCustom: p.vociCustom,
+        vociCustom: p.vociCustom.map((c) => c.descrizione),
         totale: p.totale,
         nome: p.nome,
         telefono: p.telefono,
@@ -262,7 +262,7 @@ function dettaglioTesto(p: PrenotazioneRiepilogo): string {
     righe.push('', 'Interventi:', ...p.voci.map((v) => `• ${v.voce} — € ${v.prezzo}`));
   }
   if (p.vociCustom.length > 0) {
-    righe.push('', 'Richieste personalizzate (prezzo da definire):', ...p.vociCustom.map((d) => `• ${d}`));
+    righe.push('', 'Richieste personalizzate (prezzo da definire):', ...p.vociCustom.map((c) => `• ${c.descrizione}`));
   }
   righe.push('', `Totale interventi a listino: € ${p.totale.toFixed(2)}`);
   if (p.vociCustom.length > 0) {
@@ -386,7 +386,7 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       categoria,
       urgenza,
       voci: selezionati.map((id) => VOCE_BY_ID.get(id)!).filter(Boolean),
-      vociCustom: vociCustom.map((c) => c.descrizione),
+      vociCustom: vociCustom,
       data,
       ora,
       totale: costi.totale,
@@ -1331,11 +1331,11 @@ function StepRiepilogo({
               Richieste personalizzate
             </div>
             <div className="space-y-2">
-              {riepilogo.vociCustom.map((d, i) => (
-                <div key={i} className="flex justify-between gap-3 text-sm">
+              {riepilogo.vociCustom.map((c) => (
+                <div key={c.id} className="flex justify-between gap-3 text-sm">
                   <span className="text-[#1A1A1A] flex items-start gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-[#F5B800] flex-shrink-0 mt-0.5" />
-                    {d}
+                    {c.descrizione}
                   </span>
                   <span className="font-mono text-[#999] text-xs whitespace-nowrap">da definire</span>
                 </div>

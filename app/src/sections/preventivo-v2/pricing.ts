@@ -117,10 +117,13 @@ export function calcolaPrezzo(state: ProgettoState): PricingResult {
   const totale = haDettaglio ? totaleDettagliato : totaleBase;
 
   return {
-    totale: Math.round(totale / 50) * 50, // arrotondo a 50€
+    // Somma reale dei costi, arrotondata solo all'euro (niente più scatti da 50€,
+    // così la deselezione di una voce riduce il totale dell'importo esatto e una
+    // stima piccola non viene mai azzerata).
+    totale: Math.round(totale),
     range: {
-      min: Math.round((totale * (1 - RANGE_PCT)) / 50) * 50,
-      max: Math.round((totale * (1 + RANGE_PCT)) / 50) * 50,
+      min: Math.round(totale * (1 - RANGE_PCT)),
+      max: Math.round(totale * (1 + RANGE_PCT)),
     },
     perSlot,
     totaleDettagliato,

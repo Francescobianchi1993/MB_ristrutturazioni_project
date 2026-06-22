@@ -49,7 +49,8 @@ export default function RiepilogoSticky({
       </div>
       {!result.haDettaglio && result.totale > 0 && (
         <div className="text-xs text-[#666] mt-1">
-          range {fmt(result.range.min)} – {fmt(result.range.max)} · ±15%
+          Prezzo finale stimato{' '}
+          <strong className="text-[#1A1A1A]">{fmt(result.range.min)} – {fmt(result.range.max)}</strong>
         </div>
       )}
       {result.totale === 0 && (
@@ -85,7 +86,8 @@ export default function RiepilogoSticky({
         <RichiediSopralluogoDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
 
         <p className="text-[11px] text-[#666] pt-1 leading-snug">
-          Stima orientativa. Il preventivo definitivo viene confermato dopo sopralluogo gratuito con MB.
+          Stima orientativa: il prezzo definitivo, confermato dopo il sopralluogo gratuito, può
+          variare di circa ±15% in base a materiali, stato dei luoghi e dettagli del progetto.
         </p>
 
         <button

@@ -24,7 +24,7 @@ import {
 import { calcolaPrezzo, fmt } from './pricing';
 import RiepilogoSticky from './RiepilogoSticky';
 import Dimensioni from './Dimensioni';
-import { isCompletaAttiva, PIANI, mqTotaliEffettivi, mqDistribuiti } from '@/lib/preventivoModel';
+import { isCompletaAttiva, PIANI, mqTotaliEffettivi, mqDistribuiti, mqPerTipo } from '@/lib/preventivoModel';
 import type { MacroSlotId, Finitura, Tempistica } from '@/lib/preventivoModel';
 
 const STEPS = [
@@ -53,7 +53,23 @@ export default function LivelloRapido({ onTorna, initialStep = 1 }: LivelloRapid
   }, []);
 
   const haAlmenoUnIntervento = Object.values(state.macroSlot).some((s) => s?.attivo);
-  const canNext = step === 1 ? haAlmenoUnIntervento : step === 2 ? state.ambienti.length > 0 : true;
+
+  // Step 2 (Dimensioni): si prosegue quando le misure richieste dagli interventi
+  // attivi sono valorizzate. Le stanze partono da 0 mq → vanno indicate; gli
+  // interventi "su tutta la casa" e gli infissi hanno default sensati.
+  const ms = state.macroSlot;
+  const dimensioniOk =
+    !(ms.cucina?.attivo && mqPerTipo(state, 'cucina') <= 0) &&
+    !(ms.bagno?.attivo && mqPerTipo(state, 'bagno') <= 0) &&
+    !(ms.camera?.attivo && mqPerTipo(state, 'camera') + mqPerTipo(state, 'soggiorno') <= 0) &&
+    !(
+      (ms.completa?.attivo || ms.elettrico?.attivo || ms.idraulico?.attivo ||
+        ms.termico?.attivo || ms.tinteggiatura?.attivo) &&
+      mqTotaliEffettivi(state) <= 0
+    ) &&
+    !(ms.infissi?.attivo && (ms.infissi.numPorte ?? 0) + (ms.infissi.numFinestre ?? 0) <= 0);
+
+  const canNext = step === 1 ? haAlmenoUnIntervento : step === 2 ? dimensioniOk : true;
 
   return (
     <div ref={topRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
