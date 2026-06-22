@@ -101,3 +101,47 @@ export const VOCI_INTERVENTO: VoceIntervento[] = [
   { id: 2034, voce: "Verifica messa a terra", categoria: "elettrico", prezzo: 100, unita: "a corpo", note: "Controllo con strumento dell'impianto di terra dell'appartamento." },
   { id: 2035, voce: "Sopralluogo e diagnosi impianto elettrico", categoria: "elettrico", prezzo: 50, unita: "a corpo", note: "Tariffa fissa per ispezione, assorbita in caso di lavori." },
 ];
+
+/**
+ * Sinonimi colloquiali per la ricerca: se l'utente digita uno dei termini
+ * comuni (es. "vaso"), il filtro mostra tutte le voci il cui nome contiene la
+ * `chiave` tecnica corrispondente (es. "wc"). Così chi cerca col linguaggio di
+ * tutti i giorni trova comunque l'intervento giusto. La `chiave` va scritta in
+ * minuscolo e deve comparire nel nome delle voci di listino.
+ */
+export const SINONIMI_INTERVENTO: { chiave: string; sinonimi: string[] }[] = [
+  // ── IDRO
+  { chiave: 'wc', sinonimi: ['vaso', 'water', 'tazza', 'gabinetto', 'cesso', 'sciacquone', 'turca', 'tazza del bagno'] },
+  { chiave: 'cassetta', sinonimi: ['sciacquone', 'scarico del water', 'scarico wc', 'cassetta del bagno'] },
+  { chiave: 'scaldabagno', sinonimi: ['boiler', 'scaldino', 'scaldaacqua', 'scalda acqua', 'scalda-acqua'] },
+  { chiave: 'disostruzione', sinonimi: ['intasato', 'otturato', 'ingorgo', 'tappato', 'stappare', 'non scarica', 'scarico lento', 'ostruito', 'turato'] },
+  { chiave: 'lavabo', sinonimi: ['lavandino', 'lavello', 'lavabo bagno'] },
+  { chiave: 'lavandino', sinonimi: ['lavabo', 'lavello', 'lavandino cucina'] },
+  { chiave: 'rubinetto', sinonimi: ['cannella', 'miscelatore', 'gocciola', 'perde acqua', 'rubinetteria'] },
+  { chiave: 'miscelatore', sinonimi: ['rubinetto', 'monocomando'] },
+  { chiave: 'sifone', sinonimi: ['curva sotto il lavandino', 'tubo a s', 'sotto lavabo'] },
+  { chiave: 'vasca', sinonimi: ['vasca da bagno', 'tinozza'] },
+  { chiave: 'doccia', sinonimi: ['box doccia', 'piatto doccia', 'cabina doccia'] },
+  { chiave: 'lavatrice', sinonimi: ['lavabiancheria'] },
+  { chiave: 'perdita', sinonimi: ['perde acqua', 'gocciola', 'infiltrazione', 'allagamento', 'goccia', 'fuoriuscita'] },
+  { chiave: 'bidet', sinonimi: ['bide', 'bidè'] },
+  { chiave: 'flessibil', sinonimi: ['tubo flessibile', 'tubicino acqua'] },
+  // ── ELETTRICO
+  { chiave: 'presa', sinonimi: ['spina', 'presa corrente', 'presa di corrente', 'ciabatta', 'attacco corrente'] },
+  { chiave: 'schuko', sinonimi: ['presa tedesca', 'presa grande', 'presa schuko'] },
+  { chiave: 'interruttore', sinonimi: ['tasto luce', 'pulsante della luce', 'tasto della luce', 'deviatore', 'accendere la luce'] },
+  { chiave: 'punto luce', sinonimi: ['luce', 'lampadina', 'attacco luce', 'portalampada'] },
+  { chiave: 'lampadario', sinonimi: ['luce', 'lampadina', 'lampada a soffitto'] },
+  { chiave: 'plafoniera', sinonimi: ['luce', 'lampada a soffitto', 'faretto'] },
+  { chiave: 'lampada', sinonimi: ['luce', 'lampadina', 'faretto', 'applique', 'abat jour'] },
+  { chiave: 'salvavita', sinonimi: ['differenziale', 'salva vita', 'interruttore generale', 'salta la corrente', 'salta il contatore', 'va via la luce', 'va via la corrente'] },
+  { chiave: 'differenziale', sinonimi: ['salvavita', 'salva vita', 'interruttore generale', 'salta la corrente'] },
+  { chiave: 'magnetotermico', sinonimi: ['salvavita', 'interruttore generale', 'salta la corrente', 'automatico'] },
+  { chiave: 'quadro', sinonimi: ['centralino', 'contatore', 'quadro elettrico', 'quadretto'] },
+  { chiave: 'corto circuito', sinonimi: ['corto', 'cortocircuito', 'scintilla', 'scoppio'] },
+  { chiave: 'citofono', sinonimi: ['interfono', 'videocitofono', 'apriporta'] },
+  { chiave: 'campanello', sinonimi: ['suoneria', 'ronzatore', 'campanello di casa'] },
+  { chiave: 'messa a terra', sinonimi: ['terra', 'scarica a terra', 'impianto di terra'] },
+  { chiave: 'cavo', sinonimi: ['filo', 'filo elettrico', 'cavetto'] },
+  { chiave: 'timer', sinonimi: ['temporizzatore', 'rele', 'relè'] },
+];

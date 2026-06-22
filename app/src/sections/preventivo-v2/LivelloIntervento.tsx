@@ -47,7 +47,12 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import ConfirmDialog from './ConfirmDialog';
-import { VOCI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
+import { VOCI_INTERVENTO, SINONIMI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
+
+/** minuscolo + senza accenti, per una ricerca tollerante. */
+function normalizzaRicerca(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
 
 type Categoria = CategoriaIntervento;
 type Urgenza = 'normale' | 'alta';
@@ -524,7 +529,9 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
 
           <Stepper step={step} />
 
-          <div className="mt-8">
+          {/* pb extra allo step 2 (lista lunga): spazio per non far coprire
+              l'ultima card dalla barra "Avanti" sticky in basso. */}
+          <div className={`mt-8 ${step === 2 ? 'pb-24 sm:pb-4' : ''}`}>
             {step === 0 && <StepCategoria categoria={categoria} onScegli={scegliCategoria} />}
             {step === 1 && <StepUrgenza urgenza={urgenza} onScegli={setUrgenza} />}
             {step === 2 && categoria && (
@@ -562,7 +569,13 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
           </div>
 
           {step < 4 && (
-            <div className="mt-8 flex items-center justify-between gap-3">
+            <div
+              className={
+                step === 2
+                  ? 'sticky bottom-0 z-30 -mx-4 sm:mx-0 px-4 sm:px-0 mt-4 sm:mt-8 py-3 sm:py-0 [padding-bottom:calc(env(safe-area-inset-bottom)+0.75rem)] sm:[padding-bottom:0] bg-white/95 backdrop-blur border-t border-[#E5E5E5] sm:bg-transparent sm:border-0 sm:backdrop-blur-none flex items-center justify-between gap-3'
+                  : 'mt-8 flex items-center justify-between gap-3'
+              }
+            >
               <button
                 onClick={indietro}
                 disabled={step === 0}
@@ -646,6 +659,7 @@ function StepCategoria({
           titolo="Idraulico"
           sottotitolo="Idraulica · perdite · scarichi · sanitari"
           colore="#3B9ED8"
+          bgAttivo="#EAF6FC"
           onClick={() => onScegli('idro')}
         />
         <CategoriaCard
@@ -654,6 +668,7 @@ function StepCategoria({
           titolo="Elettrico"
           sottotitolo="Impianti · prese · luci · quadri"
           colore="#F5B800"
+          bgAttivo="#FFF8E7"
           onClick={() => onScegli('elettrico')}
         />
       </div>
@@ -667,6 +682,7 @@ function CategoriaCard({
   titolo,
   sottotitolo,
   colore,
+  bgAttivo,
   onClick,
 }: {
   attivo: boolean;
@@ -674,13 +690,19 @@ function CategoriaCard({
   titolo: string;
   sottotitolo: string;
   colore: string;
+  bgAttivo: string;
   onClick: () => void;
 }) {
+  // Colori-stato (bordo/sfondo/freccia) derivati dal colore della categoria via
+  // CSS variables, così idraulico è interamente azzurro ed elettrico giallo.
   return (
     <button
       onClick={onClick}
+      style={{ ['--cat']: colore, ['--cat-bg']: bgAttivo } as React.CSSProperties}
       className={`group text-left rounded-3xl p-6 sm:p-8 border-2 transition shadow-sm hover:shadow-md ${
-        attivo ? 'border-[#F5B800] bg-[#FFF8E7]' : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]'
+        attivo
+          ? 'border-[var(--cat)] bg-[var(--cat-bg)]'
+          : 'border-[#E5E5E5] bg-white hover:border-[var(--cat)]'
       }`}
     >
       <div
@@ -691,7 +713,7 @@ function CategoriaCard({
       </div>
       <div className="font-display text-2xl font-bold mb-1">{titolo}</div>
       <p className="text-sm text-[#666]">{sottotitolo}</p>
-      <div className="mt-5 inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm">
+      <div className="mt-5 inline-flex items-center gap-2 font-semibold text-sm" style={{ color: colore }}>
         Scegli <span className="group-hover:translate-x-1 transition">→</span>
       </div>
     </button>
@@ -793,9 +815,19 @@ function StepIntervento({
   const [infoApertoId, setInfoApertoId] = useState<number | null>(null);
 
   const filtrate = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = normalizzaRicerca(search.trim());
     if (!q) return voci;
-    return voci.filter((v) => v.voce.toLowerCase().includes(q) || v.note.toLowerCase().includes(q));
+    // Sinonimi: se la query corrisponde a un termine colloquiale, attiviamo la
+    // relativa parola-chiave tecnica (es. "vaso" → "wc") e mostriamo le voci che
+    // la contengono nel nome.
+    const chiaviAttive = SINONIMI_INTERVENTO
+      .filter((g) => g.sinonimi.some((s) => normalizzaRicerca(s).includes(q)))
+      .map((g) => g.chiave);
+    return voci.filter((v) => {
+      const nome = normalizzaRicerca(v.voce);
+      const note = normalizzaRicerca(v.note);
+      return nome.includes(q) || note.includes(q) || chiaviAttive.some((c) => nome.includes(c));
+    });
   }, [voci, search]);
 
   const totSelezionati = selezionati.length + vociCustom.length;
