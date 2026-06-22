@@ -233,12 +233,17 @@ export const mqDistribuiti = mqTotali;
 
 /**
  * Mq totali "effettivi" su cui ragionare per le voci che agiscono su tutta la
- * casa: i distribuiti se presenti, altrimenti i dichiarati, altrimenti il
- * default "appartamento medio". Non è mai 0 → evita stime e display a 0 m²,
- * anche per sessioni vecchie con 0 salvato in cache.
+ * casa: i mq DICHIARATI dall'utente (slider "casa totale") se impostati,
+ * altrimenti la somma dei mq distribuiti negli ambienti, altrimenti il default
+ * "appartamento medio". Non è mai 0 → evita stime/display a 0 m².
+ *
+ * Priorità ai dichiarati perché un intervento "su tutta la casa" (es. impianto
+ * idraulico) si stima sui m² dell'intera casa, non solo su quelli delle singole
+ * stanze già dettagliate. Stesso ordine usato nel display, così slider e prezzo
+ * restano coerenti.
  */
 export function mqTotaliEffettivi(state: ProgettoState): number {
-  return mqTotali(state) || state.mqTotaliDichiarati || MQ_TOTALI_DEFAULT;
+  return state.mqTotaliDichiarati || mqTotali(state) || MQ_TOTALI_DEFAULT;
 }
 
 export function mqPerTipo(state: ProgettoState, tipo: AmbienteTipo): number {

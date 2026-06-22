@@ -13,9 +13,8 @@ import {
   type AmbienteTipo,
   LABEL_AMBIENTE,
   isCompletaAttiva,
-  mqTotali,
   mqPerTipo,
-  MQ_TOTALI_DEFAULT,
+  mqTotaliEffettivi,
 } from '@/lib/preventivoModel';
 import { Home, Bath, ChefHat, Bed, Ruler } from 'lucide-react';
 import { useProgetto } from './state';
@@ -163,10 +162,9 @@ function DimensioneStanza({ tipo }: { tipo: AmbienteTipo }) {
 
 function DimensioneMqTotali() {
   const { state, dispatch } = useProgetto();
-  // Mostra il valore dichiarato dall'utente. Se non c'è ancora, fallback alla
-  // somma degli ambienti (utile se arriva da preset). Se anche quella è 0,
-  // usa il default "appartamento medio" se non c'è ancora nulla.
-  const totale = state.mqTotaliDichiarati || mqTotali(state) || MQ_TOTALI_DEFAULT;
+  // Stesso valore su cui calcola il prezzo (mqTotaliEffettivi): così slider e
+  // stima restano sempre coerenti.
+  const totale = mqTotaliEffettivi(state);
 
   return (
     <div className="bg-white border border-[#E5E5E5] rounded-2xl overflow-hidden">

@@ -1218,7 +1218,7 @@ function StepDataOra({
         Scegli <span className="text-[#F5B800]">data e ora</span>
       </h2>
       <p className="text-center text-sm text-[#666] mb-6">
-        Gli orari liberi sono in tempo reale sull'agenda MB. Ti invieremo la conferma via email e WhatsApp.
+        Gli orari liberi sono in tempo reale sull'agenda MB. Ti invieremo la conferma via email.
       </p>
 
       <div className="max-w-md mx-auto space-y-6">
@@ -1526,8 +1526,7 @@ function StepRiepilogo({
             </label>
           </div>
           <p className="text-[11px] text-[#666] mt-2 leading-snug">
-            Ti invieremo la conferma dell'appuntamento via <strong>email</strong> e{' '}
-            <strong>WhatsApp</strong> a questi recapiti.
+            Ti invieremo la conferma dell'appuntamento via <strong>email</strong> a questo indirizzo.
           </p>
         </div>
 
@@ -1602,11 +1601,11 @@ function SchermataConferma({
       <p className="text-[#666] mb-8">
         {riepilogo.email ? (
           <>
-            Conferma inviata via email a <strong>{riepilogo.email}</strong>. A breve riceverai
-            anche un messaggio WhatsApp con il riepilogo dell'appuntamento.
+            Conferma inviata via email a <strong>{riepilogo.email}</strong> con il riepilogo
+            dell'appuntamento.
           </>
         ) : (
-          <>Ti contatteremo a breve via email e WhatsApp per confermare l'appuntamento.</>
+          <>Ti contatteremo a breve via email per confermare l'appuntamento.</>
         )}
       </p>
 

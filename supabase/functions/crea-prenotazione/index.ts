@@ -213,10 +213,25 @@ Deno.serve(async (req) => {
       })
       .select('id')
       .single();
-    if (error) console.error('[crea-prenotazione] insert fallita:', error.message);
+    // Se il salvataggio su DB fallisce NON proseguiamo: cancelliamo l'evento Google
+    // appena creato (niente evento orfano né conferma "fantasma" al cliente) e
+    // segnaliamo l'errore — prima della notifica, della sostituzione e delle email.
+    // Coerente col flusso riprenota di gestisci-prenotazione.
+    if (error || !row) {
+      console.error('[crea-prenotazione] insert fallita:', error?.message);
+      try {
+        await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${evento.id}`,
+          { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+        );
+      } catch {
+        // best-effort
+      }
+      return jsonResponse({ error: 'insert_fallita' }, 500);
+    }
 
     // 4b. notifica all'azienda (best-effort): parte sempre, anche senza contatti cliente
-    await inviaNotificaAzienda(p, tipo, row?.id ?? null);
+    await inviaNotificaAzienda(p, tipo, row.id);
 
     // 5. sostituzione: annulla il precedente DOPO aver creato il nuovo
     if (p.confermaSettimana && p.annullaId) {

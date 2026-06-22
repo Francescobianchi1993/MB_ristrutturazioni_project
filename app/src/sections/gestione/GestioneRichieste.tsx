@@ -369,13 +369,16 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
               </label>
             </div>
             <p className="text-[11px] text-[#999] mb-4">Lascia vuoto per annullare senza proposta.</p>
+            {(!!propData) !== (!!propOra) && (
+              <p className="text-sm text-[#C0392B] mb-3">Per proporre un orario indica <strong>sia data che ora</strong>, oppure lascia entrambi vuoti.</p>
+            )}
             {azioneErr && <p className="text-sm text-[#C0392B] mb-3">{azioneErr}</p>}
             <div className="flex gap-2">
               <button onClick={() => setAnnullaTarget(null)} disabled={annullando}
                 className="flex-1 py-2.5 rounded-full border-2 border-[#E5E5E5] font-semibold text-sm hover:bg-[#F7F7F7] disabled:opacity-50">
                 Indietro
               </button>
-              <button onClick={confermaAnnulla} disabled={annullando}
+              <button onClick={confermaAnnulla} disabled={annullando || (!!propData) !== (!!propOra)}
                 className="flex-1 py-2.5 rounded-full bg-[#C0392B] text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50">
                 {annullando ? 'Annullo…' : (propData && propOra ? 'Annulla e proponi' : 'Annulla appuntamento')}
               </button>
