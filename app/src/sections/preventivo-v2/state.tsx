@@ -175,8 +175,10 @@ function reducer(state: ProgettoState, action: ProgettoAction): ProgettoState {
             }
           }
         }
-        newMacro[action.slot] = corrente ?? defaultMacroSlotConfig(action.slot);
-        newMacro[action.slot]!.attivo = true;
+        // Update immutabile: NON mutare l'oggetto del vecchio stato (altrimenti
+        // in StrictMode la doppia invocazione del reducer "ritoggla" e la card
+        // a volte non si apre). Sempre un nuovo oggetto.
+        newMacro[action.slot] = { ...(corrente ?? defaultMacroSlotConfig(action.slot)), attivo: true };
       }
 
       return { ...state, macroSlot: newMacro };

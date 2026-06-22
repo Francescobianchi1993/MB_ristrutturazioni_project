@@ -3,7 +3,7 @@
  * Stima rapida (L1) o Preventivo dettagliato (L2).
  */
 
-import { Zap, ClipboardCheck, Wrench, Star } from 'lucide-react';
+import { Zap, Wrench } from 'lucide-react';
 
 interface HubProps {
   onScegli: (modalita: 'rapida' | 'esperto' | 'intervento') => void;
@@ -21,7 +21,7 @@ export default function Hub({ onScegli }: HubProps) {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-5">
+      <div className="grid md:grid-cols-2 gap-5 max-w-3xl mx-auto">
         <button
           onClick={() => onScegli('intervento')}
           className="group text-left bg-white border-2 border-[#E5E5E5] hover:border-[#F5B800] rounded-2xl sm:rounded-3xl p-5 sm:p-8 transition shadow-sm hover:shadow-md"
@@ -72,36 +72,6 @@ export default function Hub({ onScegli }: HubProps) {
           </ul>
           <div className="mt-6 inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm">
             Inizia stima rapida
-            <span className="group-hover:translate-x-1 transition">→</span>
-          </div>
-        </button>
-
-        <button
-          onClick={() => onScegli('esperto')}
-          className="group relative text-left bg-[#F5B800]/[0.07] border-2 border-[#F5B800]/40 hover:border-[#F5B800] rounded-2xl sm:rounded-3xl p-5 sm:p-8 transition shadow-sm hover:shadow-md"
-        >
-          <div className="absolute -top-3 right-6 bg-[#F5B800] text-[#1A1A1A] text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
-            <Star className="w-3 h-3 fill-current" /> Più completo
-          </div>
-          <div className="flex items-center justify-between mb-5">
-            <div className="w-14 h-14 rounded-2xl bg-[#F5B800] flex items-center justify-center shadow-sm">
-              <ClipboardCheck className="w-7 h-7 text-[#1A1A1A]" />
-            </div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[#666]">
-              ~ 10 minuti
-            </span>
-          </div>
-          <div className="font-display text-xl sm:text-2xl font-bold mb-2">Preventivo dettagliato</div>
-          <p className="text-sm text-[#666] mb-5">
-            Componi il preventivo voce per voce dal listino MB. Prezzi reali per unità, calcolati sul DB.
-          </p>
-          <ul className="text-sm space-y-2">
-            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Listino MB validato</li>
-            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Quantità + unità reali</li>
-            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Pre-compilato dalla stima rapida</li>
-          </ul>
-          <div className="mt-6 inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm">
-            Crea preventivo esperto
             <span className="group-hover:translate-x-1 transition">→</span>
           </div>
         </button>

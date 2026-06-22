@@ -198,10 +198,17 @@ function ambientiDefault(): Ambiente[] {
   ];
 }
 
+/**
+ * Metratura totale di default ("appartamento medio"). Usata come valore iniziale
+ * dei mq dichiarati E come fallback nel pricing, così lo slider mostra 80 m² e la
+ * stima è coerente anche se l'utente non tocca il cursore (evita la stima a 0 €).
+ */
+export const MQ_TOTALI_DEFAULT = 80;
+
 export function statoIniziale(): ProgettoState {
   return {
     piano: 'primo_secondo',
-    mqTotaliDichiarati: 0,
+    mqTotaliDichiarati: MQ_TOTALI_DEFAULT,
     ambienti: ambientiDefault(),
     macroSlot: {},
     finitura: 'medio',
@@ -223,6 +230,16 @@ export function mqTotali(state: ProgettoState): number {
 
 /** Alias semantico più chiaro per il caso "metri distribuiti". */
 export const mqDistribuiti = mqTotali;
+
+/**
+ * Mq totali "effettivi" su cui ragionare per le voci che agiscono su tutta la
+ * casa: i distribuiti se presenti, altrimenti i dichiarati, altrimenti il
+ * default "appartamento medio". Non è mai 0 → evita stime e display a 0 m²,
+ * anche per sessioni vecchie con 0 salvato in cache.
+ */
+export function mqTotaliEffettivi(state: ProgettoState): number {
+  return mqTotali(state) || state.mqTotaliDichiarati || MQ_TOTALI_DEFAULT;
+}
 
 export function mqPerTipo(state: ProgettoState, tipo: AmbienteTipo): number {
   return state.ambienti

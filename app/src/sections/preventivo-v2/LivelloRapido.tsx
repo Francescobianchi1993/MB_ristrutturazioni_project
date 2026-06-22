@@ -24,7 +24,7 @@ import {
 import { calcolaPrezzo, fmt } from './pricing';
 import RiepilogoSticky from './RiepilogoSticky';
 import Dimensioni from './Dimensioni';
-import { isCompletaAttiva, PIANI } from '@/lib/preventivoModel';
+import { isCompletaAttiva, PIANI, mqTotaliEffettivi, mqDistribuiti } from '@/lib/preventivoModel';
 import type { MacroSlotId, Finitura, Tempistica } from '@/lib/preventivoModel';
 
 const STEPS = [
@@ -36,11 +36,10 @@ const STEPS = [
 
 interface LivelloRapidoProps {
   onTorna: () => void;
-  onPassaAEsperto: () => void;
   initialStep?: number;
 }
 
-export default function LivelloRapido({ onTorna, onPassaAEsperto, initialStep = 1 }: LivelloRapidoProps) {
+export default function LivelloRapido({ onTorna, initialStep = 1 }: LivelloRapidoProps) {
   const [step, setStep] = useState(initialStep);
   const { state } = useProgetto();
   const result = calcolaPrezzo(state);
@@ -76,7 +75,7 @@ export default function LivelloRapido({ onTorna, onPassaAEsperto, initialStep = 
         {step === 1 && <StepInterventi />}
         {step === 2 && <Dimensioni />}
         {step === 3 && <StepFiniture />}
-        {step === 4 && <StepRiepilogo onPassaAEsperto={onPassaAEsperto} />}
+        {step === 4 && <StepRiepilogo />}
 
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-[#E5E5E5] gap-3">
           {step === 1 ? (
@@ -415,7 +414,7 @@ function StepFiniture() {
 // Step 4 — Riepilogo
 // ────────────────────────────────────────────────────────────────────────────
 
-function StepRiepilogo({ onPassaAEsperto }: { onPassaAEsperto: () => void }) {
+function StepRiepilogo() {
   const { state } = useProgetto();
   const slotAttivi = (Object.keys(state.macroSlot) as MacroSlotId[]).filter(
     (id) => state.macroSlot[id]?.attivo
@@ -427,8 +426,8 @@ function StepRiepilogo({ onPassaAEsperto }: { onPassaAEsperto: () => void }) {
     <div>
       <h3 className="font-display text-2xl font-bold mb-2">Ecco la tua stima</h3>
       <p className="text-[#666] mb-6">
-        Basata su <strong>tariffe calcolate dal prezzario MB</strong>. Per un preventivo puntuale
-        al centesimo passa al livello esperto.
+        Basata su <strong>tariffe calcolate dal prezzario MB</strong>. Il preventivo definitivo
+        viene confermato dopo il sopralluogo gratuito con MB.
       </p>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-6">
@@ -437,11 +436,15 @@ function StepRiepilogo({ onPassaAEsperto }: { onPassaAEsperto: () => void }) {
             <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5">
               <div className="text-[10px] font-mono uppercase text-[#666] mb-1">Casa</div>
               <div className="text-sm font-medium">
-                {state.ambienti.reduce((s, a) => s + a.mq, 0)} m² · {state.ambienti.length}{' '}
-                ambienti · {pianoLabel}
+                {mqTotaliEffettivi(state)} m² · {state.ambienti.length} ambienti · {pianoLabel}
               </div>
               <div className="text-xs text-[#666] mt-1">
-                {state.ambienti.map((a) => `${a.nome} ${a.mq}m²`).join(' · ')}
+                {mqDistribuiti(state) > 0
+                  ? state.ambienti
+                      .filter((a) => a.mq > 0)
+                      .map((a) => `${a.nome} ${a.mq}m²`)
+                      .join(' · ')
+                  : 'Metratura dei singoli ambienti da dettagliare durante il sopralluogo'}
               </div>
             </div>
           ) : (
@@ -473,20 +476,14 @@ function StepRiepilogo({ onPassaAEsperto }: { onPassaAEsperto: () => void }) {
                 <AlertCircle className="w-4 h-4 text-[#1A1A1A]" />
               </div>
               <div className="text-sm">
-                <strong>Vuoi un preventivo puntuale?</strong> Passa al livello esperto: i tuoi dati
-                vengono pre-compilati con le voci specifiche del listino MB.
-                <button
-                  onClick={onPassaAEsperto}
-                  className="block mt-2 text-[#F5B800] font-semibold hover:underline"
-                >
-                  Vai al preventivo dettagliato →
-                </button>
+                <strong>Stima orientativa.</strong> Prenota un sopralluogo gratuito: MB verifica
+                di persona e ti conferma il preventivo definitivo, senza impegno.
               </div>
             </div>
           </div>
         </div>
 
-        <RiepilogoSticky variant="sticky" mostraDettaglio onSwitchModalita={onPassaAEsperto} />
+        <RiepilogoSticky variant="sticky" mostraDettaglio />
       </div>
     </div>
   );

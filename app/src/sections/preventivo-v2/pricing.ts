@@ -10,8 +10,8 @@ import {
   type ProgettoState,
   type AmbienteTipo,
   type MacroSlotId,
-  mqTotali,
   mqPerTipo,
+  mqTotaliEffettivi,
   isCompletaAttiva,
 } from '@/lib/preventivoModel';
 import {
@@ -42,7 +42,9 @@ function calcolaSlot(state: ProgettoState, slot: MacroSlot): number {
 
   const mqApplicabili =
     slot.ambiteApplicabili === 'tutto'
-      ? mqTotali(state)
+      // Slot "su tutta la casa": mq distribuiti se presenti, altrimenti dichiarati,
+      // altrimenti default. Mai 0 → la stima non è mai 0 € quando a video ci sono m².
+      ? mqTotaliEffettivi(state)
       : (slot.ambiteApplicabili as AmbienteTipo[]).reduce(
           (sum, tipo) => sum + mqPerTipo(state, tipo),
           0

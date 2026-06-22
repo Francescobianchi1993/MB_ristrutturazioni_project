@@ -114,6 +114,10 @@ export default function Contact() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState('');
+  // Errore "bloccante" dell'invio (mostrato nel form) e avviso non bloccante
+  // (mostrato nella schermata di conferma, es. allegati non caricati).
+  const [errorMsg, setErrorMsg] = useState('');
+  const [warnMsg, setWarnMsg] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
 
@@ -181,13 +185,23 @@ export default function Contact() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
+    setWarnMsg('');
     if (!supabase) {
-      console.error('[Contact] Supabase non configurato');
+      // Config mancante (es. env non settate in produzione): non lasciare
+      // l'utente senza feedback, indicagli un canale alternativo.
+      setErrorMsg(`Servizio di invio momentaneamente non disponibile. Chiamaci al +39 ${TEL_DISPLAY} o scrivici a ${EMAIL}.`);
       return;
     }
     setIsLoading(true);
     try {
+      const numFile = files.length;
       const allegati = await uploadFiles();
+      // Tutti gli allegati selezionati hanno fallito l'upload: blocco l'invio
+      // (le foto sono spesso decisive) e chiedo di riprovare.
+      if (numFile > 0 && allegati.length === 0) {
+        throw new Error('upload_allegati_fallito');
+      }
       const { error } = await supabase.functions.invoke('invia-sopralluogo', {
         body: {
           nome: formData.name,
@@ -199,12 +213,17 @@ export default function Contact() {
       });
       if (error) throw error;
 
+      // Invio riuscito ma alcuni (non tutti) allegati non sono saliti: avviso.
+      if (numFile > 0 && allegati.length < numFile) {
+        setWarnMsg(`Alcuni allegati non sono stati caricati. Se vuoi, inviaci le foto via WhatsApp al +39 ${TEL_DISPLAY}.`);
+      }
       setIsSubmitted(true);
       setFormData({ name: '', email: '', phone: '', message: '' });
       setFiles([]);
-      setTimeout(() => setIsSubmitted(false), 5000);
+      setTimeout(() => { setIsSubmitted(false); setWarnMsg(''); }, 8000);
     } catch (err) {
       console.error('[Contact] Invio fallito:', err);
+      setErrorMsg(`Invio non riuscito. Riprova tra poco, oppure chiamaci al +39 ${TEL_DISPLAY}.`);
     } finally {
       setIsLoading(false);
     }
@@ -307,6 +326,11 @@ export default function Contact() {
                   <p className="text-[#666666]">
                     Ti contatteremo presto per confermare la data del sopralluogo.
                   </p>
+                  {warnMsg && (
+                    <p className="mt-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                      {warnMsg}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -418,6 +442,12 @@ export default function Contact() {
                       </ul>
                     )}
                   </div>
+
+                  {errorMsg && (
+                    <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3" role="alert">
+                      {errorMsg}
+                    </p>
+                  )}
 
                   <Button
                     type="submit"

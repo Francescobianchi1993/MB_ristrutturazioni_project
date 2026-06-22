@@ -15,6 +15,7 @@ import {
   isCompletaAttiva,
   mqTotali,
   mqPerTipo,
+  MQ_TOTALI_DEFAULT,
 } from '@/lib/preventivoModel';
 import { Home, Bath, ChefHat, Bed, Ruler } from 'lucide-react';
 import { useProgetto } from './state';
@@ -164,8 +165,8 @@ function DimensioneMqTotali() {
   const { state, dispatch } = useProgetto();
   // Mostra il valore dichiarato dall'utente. Se non c'è ancora, fallback alla
   // somma degli ambienti (utile se arriva da preset). Se anche quella è 0,
-  // usa 80 come default sensato per appartamento medio.
-  const totale = state.mqTotaliDichiarati || mqTotali(state) || 80;
+  // usa il default "appartamento medio" se non c'è ancora nulla.
+  const totale = state.mqTotaliDichiarati || mqTotali(state) || MQ_TOTALI_DEFAULT;
 
   return (
     <div className="bg-white border border-[#E5E5E5] rounded-2xl overflow-hidden">

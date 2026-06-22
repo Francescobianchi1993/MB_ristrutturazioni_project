@@ -4,12 +4,14 @@
  * (colonna destra fissa).
  */
 
-import { Download, Mail, Share2 } from 'lucide-react';
+import { useState } from 'react';
+import { Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProgetto } from './state';
 import { calcolaPrezzo, fmt } from './pricing';
 import { MACRO_SLOT_BY_ID } from './data';
 import type { MacroSlotId } from '@/lib/preventivoModel';
+import RichiediSopralluogoDialog from './RichiediSopralluogoDialog';
 
 interface RiepilogoStickyProps {
   variant?: 'inline' | 'sticky';
@@ -26,6 +28,7 @@ export default function RiepilogoSticky({
 }: RiepilogoStickyProps) {
   const { state } = useProgetto();
   const result = calcolaPrezzo(state);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const slotAttivi = (Object.keys(result.perSlot) as MacroSlotId[]).filter(
     (id) => (result.perSlot[id] ?? 0) > 0
@@ -72,49 +75,38 @@ export default function RiepilogoSticky({
       )}
 
       <div className="border-t border-[#E5E5E5] mt-5 pt-5 space-y-2">
-        <button className="w-full bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold py-3 rounded-full text-sm">
+        <button
+          onClick={() => setDialogOpen(true)}
+          className="w-full bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold py-3 rounded-full text-sm"
+        >
           Richiedi sopralluogo gratuito
         </button>
+
+        <RichiediSopralluogoDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
 
         <p className="text-[11px] text-[#666] pt-1 leading-snug">
           Stima orientativa. Il preventivo definitivo viene confermato dopo sopralluogo gratuito con MB.
         </p>
 
-        <div className="grid grid-cols-3 gap-2 pt-1">
-          <button
-            onClick={() => toast.info('PDF', { description: 'Generazione PDF in arrivo (jsPDF)' })}
-            className="flex flex-col items-center gap-1 py-3 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs"
-          >
-            <Download className="w-4 h-4" />
-            Scarica
-          </button>
-          <button
-            onClick={() => toast.info('Email', { description: 'Invio via Resend in arrivo' })}
-            className="flex flex-col items-center gap-1 py-3 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs"
-          >
-            <Mail className="w-4 h-4" />
-            Email
-          </button>
-          <button
-            onClick={async () => {
-              const url = window.location.href;
-              if (navigator.share) {
-                try {
-                  await navigator.share({ title: 'Preventivo MB', url });
-                } catch {
-                  // user dismissed
-                }
-              } else {
-                await navigator.clipboard.writeText(url);
-                toast.success('Link copiato');
+        <button
+          onClick={async () => {
+            const url = window.location.href;
+            if (navigator.share) {
+              try {
+                await navigator.share({ title: 'Preventivo MB', url });
+              } catch {
+                // user dismissed
               }
-            }}
-            className="flex flex-col items-center gap-1 py-3 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs"
-          >
-            <Share2 className="w-4 h-4" />
-            Condividi
-          </button>
-        </div>
+            } else {
+              await navigator.clipboard.writeText(url);
+              toast.success('Link copiato');
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs"
+        >
+          <Share2 className="w-4 h-4" />
+          Condividi la stima
+        </button>
 
         {onSwitchModalita && (
           <button

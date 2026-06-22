@@ -44,10 +44,12 @@ export default function PreventivoV2() {
         {modalita === 'rapida' && (
           <LivelloRapido
             onTorna={vaiAHub}
-            onPassaAEsperto={() => setModalita('esperto')}
             initialStep={rapidaInitialStep}
           />
         )}
+        {/* Modalità "esperto" (Preventivo dettagliato) nascosta al pubblico:
+            l'Hub non la propone più. Codice e branch mantenuti per riattivarla
+            in futuro (basta ripristinare la card in Hub.tsx). */}
         {modalita === 'esperto' && (
           <LivelloDettaglio
             onTorna={vaiAHub}
