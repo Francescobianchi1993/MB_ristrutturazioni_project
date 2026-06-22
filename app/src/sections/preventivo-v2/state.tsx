@@ -112,13 +112,29 @@ function reducer(state: ProgettoState, action: ProgettoAction): ProgettoState {
           ),
         };
       }
-      // più ambienti dello stesso tipo: distribuzione proporzionale
+      // Più ambienti dello stesso tipo: distribuisco action.mq tra loro mantenendo
+      // le proporzioni attuali, ma con la somma ESATTAMENTE pari a action.mq (il
+      // resto di arrotondamento va sull'ultimo ambiente → l'input non "rimbalza").
+      // Se la somma attuale è 0, divido in parti uguali (altrimenti resterebbe 0).
       const totaleAttuale = ambientiDelTipo.reduce((s, a) => s + a.mq, 0);
-      const fattore = totaleAttuale > 0 ? action.mq / totaleAttuale : 1 / ambientiDelTipo.length;
+      const n = ambientiDelTipo.length;
+      const nuoviMq = new Map<string, number>();
+      let assegnato = 0;
+      ambientiDelTipo.forEach((a, i) => {
+        let v: number;
+        if (i === n - 1) {
+          v = action.mq - assegnato; // l'ultimo prende il resto → somma esatta
+        } else {
+          const quota = totaleAttuale > 0 ? a.mq / totaleAttuale : 1 / n;
+          v = Math.round(action.mq * quota);
+          assegnato += v;
+        }
+        nuoviMq.set(a.id, Math.max(0, v));
+      });
       return {
         ...state,
         ambienti: state.ambienti.map((a) =>
-          a.tipo === action.tipo ? { ...a, mq: Math.round(a.mq * fattore) } : a
+          nuoviMq.has(a.id) ? { ...a, mq: nuoviMq.get(a.id)! } : a
         ),
       };
     }

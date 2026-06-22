@@ -64,6 +64,14 @@ function calcolaSlot(state: ProgettoState, slot: MacroSlot): number {
     basePrice = corpoMid;
   }
 
+  // I prezzi "a pezzo" (infissi) sono già itemizzati dal conteggio porte/finestre:
+  // NON applichiamo il fattore percentuale delle sotto-voci — ha senso solo per gli
+  // slot a €/m². Applicarlo qui produrrebbe sconti immotivati (es. togliere "finestre
+  // legno/alluminio" taglierebbe il 20% di un prezzo già contato per pezzo).
+  if (slot.tariffaPezzo) {
+    return basePrice;
+  }
+
   // Sotto-voci: se l'utente ha disattivato qualcuna, sottraggo il suo peso pct
   const sottoVociAttive = config.sottoVociAttive;
   const tuttePesoPct = slot.sottoVoci.reduce((sum, sv) => sum + sv.pesoPct, 0);
