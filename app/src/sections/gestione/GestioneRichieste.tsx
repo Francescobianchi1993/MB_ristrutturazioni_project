@@ -48,6 +48,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   const [righe, setRighe] = useState<Riga[]>([]);
   const [sel, setSel] = useState<Riga | null>(null);
   const [firme, setFirme] = useState<{ nome: string; url: string | null }[]>([]);
+  const [azioneErr, setAzioneErr] = useState('');
 
   const chiama = useCallback(async (azione: string, extra: Record<string, unknown> = {}, password = pw) => {
     if (!supabase) throw new Error('config');
@@ -105,11 +106,21 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   }
 
   async function segna(r: Riga, nuovoStato: string) {
+    setAzioneErr('');
     try {
       await chiama('segna', { tipo: r.tipo, id: r.id, stato: nuovoStato });
       setRighe((prev) => prev.map((x) => (x.id === r.id && x.tipo === r.tipo ? { ...x, stato: nuovoStato } : x)));
       setSel((s) => (s ? { ...s, stato: nuovoStato } as Riga : s));
-    } catch { /* ignora */ }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'password_errata') {
+        // Sessione scaduta: torna al login con avviso.
+        esci();
+        setErrore('Sessione scaduta, accedi di nuovo.');
+      } else {
+        setAzioneErr('Operazione non riuscita. Controlla la connessione e riprova.');
+      }
+    }
   }
 
   function login(e: React.FormEvent) {
@@ -277,7 +288,9 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
               </div>
             )}
 
-            <div className="mt-6 flex gap-2">
+            {azioneErr && <p className="text-sm text-[#C0392B] mt-4">{azioneErr}</p>}
+
+            <div className="mt-3 flex gap-2">
               {(sel.stato === 'nuovo' || sel.stato === 'nuova') ? (
                 <button onClick={() => segna(sel, 'gestito')} className="flex-1 flex items-center justify-center gap-2 bg-[#1A1A1A] text-white font-bold py-3 rounded-xl hover:opacity-90">
                   <CheckCircle2 className="w-4 h-4" /> Segna come gestita

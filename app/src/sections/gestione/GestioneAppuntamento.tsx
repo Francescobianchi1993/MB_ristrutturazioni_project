@@ -321,19 +321,33 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
     setCaricandoSlot(false);
   }, []);
 
+  // In fase "sposta" la disponibilità del server marca come occupato anche
+  // l'appuntamento corrente del cliente: lo forziamo libero così la sua fascia
+  // resta selezionabile (ed evidenziata), com'è l'intento della UX.
+  const dispEffettiva = useMemo(() => {
+    if (fase !== 'sposta' || !dettagli?.data || !dettagli?.ora) return disp;
+    const giorno = disp[dettagli.data];
+    if (!giorno || giorno[dettagli.ora] === true) return disp;
+    return { ...disp, [dettagli.data]: { ...giorno, [dettagli.ora]: true } };
+  }, [disp, fase, dettagli]);
+
   const giorniPieni = useMemo(() => {
     const set = new Set<string>();
-    for (const [giorno, slots] of Object.entries(disp)) {
+    for (const [giorno, slots] of Object.entries(dispEffettiva)) {
       if (Object.values(slots).every((libero) => !libero)) set.add(giorno);
     }
     return set;
-  }, [disp]);
+  }, [dispEffettiva]);
 
-  const slotGiorno = data ? disp[data] : undefined;
+  const slotGiorno = data ? dispEffettiva[data] : undefined;
 
-  useEffect(() => {
-    if (ora && slotGiorno && slotGiorno[ora] === false) setOra('');
-  }, [ora, slotGiorno]);
+  // Cambiando giorno azzeriamo l'ora scelta (una fascia valida per un giorno può
+  // non esserlo per un altro). Il precaricamento di "sposta" imposta invece data
+  // e ora insieme, senza passare di qui, così la fascia attuale resta selezionata.
+  function selezionaData(v: string) {
+    setData(v);
+    setOra('');
+  }
 
   const stessoOrarioAttuale = fase === 'sposta' && !!dettagli && data === dettagli.data && ora === dettagli.ora;
 
@@ -384,8 +398,11 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
       const { data: res, error } = await supabase.functions.invoke('gestisci-prenotazione', {
         body: { azione: 'riprenota', id, data, ora },
       });
-      if (error || !res?.ok) {
+      // Non confermiamo se manca l'id: significa che il salvataggio su DB non è
+      // andato a buon fine (niente più "conferma fantasma").
+      if (error || !res?.ok || !res?.id) {
         if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        else if (res?.error === 'conflitto_settimana') setErrMsg('Hai già un appuntamento attivo in quella settimana. Annulla prima quello, oppure scegli un\'altra settimana.');
         else setErrMsg('Non è stato possibile prenotare. Riprova.');
         setInviando(false);
         return;
@@ -497,7 +514,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
                   <SelettoreSlot
                     data={data}
                     ora={ora}
-                    onData={setData}
+                    onData={selezionaData}
                     onOra={setOra}
                     onMeseVisibile={caricaMese}
                     giorniPieni={giorniPieni}
@@ -518,7 +535,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
                 <SelettoreSlot
                   data={data}
                   ora={ora}
-                  onData={setData}
+                  onData={selezionaData}
                   onOra={setOra}
                   onMeseVisibile={caricaMese}
                   giorniPieni={giorniPieni}

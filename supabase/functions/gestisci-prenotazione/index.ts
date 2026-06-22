@@ -31,6 +31,25 @@ function tipoLabel(categoria: string): string {
   return categoria === 'idro' ? 'Idraulico' : 'Elettricista';
 }
 
+/** Lunedì–domenica (ISO) che contengono la data. */
+function settimanaISO(dateStr: string): { from: string; to: string } {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = (dt.getUTCDay() + 6) % 7; // 0 = lunedì
+  const monday = new Date(dt.getTime() - dow * 86_400_000);
+  const sunday = new Date(monday.getTime() + 6 * 86_400_000);
+  const iso = (x: Date) => x.toISOString().slice(0, 10);
+  return { from: iso(monday), to: iso(sunday) };
+}
+
+/** Normalizza un numero IT in forma confrontabile (toglie il prefisso 39/0039). */
+function normTel(t?: string | null): string {
+  let n = (t ?? '').replace(/\D/g, '');
+  if (n.startsWith('0039')) n = n.slice(4);
+  if (n.length > 10 && n.startsWith('39')) n = n.slice(2);
+  return n;
+}
+
 /** Cancella un evento dal Google Calendar (best-effort, non blocca). */
 async function cancellaEvento(token: string, calendarId: string, eventId: string): Promise<void> {
   try {
@@ -174,6 +193,27 @@ Deno.serve(async (req) => {
     if (azione === 'riprenota') {
       if (!data || !ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
 
+      // Controllo "un appuntamento a settimana": come nel flusso di prenotazione,
+      // blocca se il cliente ha già un appuntamento ATTIVO nella stessa settimana
+      // ISO (escluso quello di partenza, che di solito è annullato/passato).
+      const emailLc = (row.email ?? '').trim().toLowerCase();
+      const telN = normTel(row.telefono);
+      if (emailLc || telN) {
+        const { from, to } = settimanaISO(data);
+        const { data: rows } = await supabase
+          .from('prenotazioni_intervento')
+          .select('id, email, telefono, stato')
+          .gte('data_intervento', from)
+          .lte('data_intervento', to)
+          .neq('stato', 'annullata');
+        const conflitto = (rows ?? []).some((r) =>
+          r.id !== id &&
+          ((emailLc && (r.email ?? '').trim().toLowerCase() === emailLc) ||
+            (telN && normTel(r.telefono) === telN))
+        );
+        if (conflitto) return jsonResponse({ error: 'conflitto_settimana' }, 409);
+      }
+
       const start = romeWallToUTC(data, ora);
       const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
       const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);
@@ -201,10 +241,16 @@ Deno.serve(async (req) => {
         })
         .select('id')
         .single();
-      if (insErr) console.error('[gestisci] riprenota insert fallita:', insErr.message);
+      // Se il salvataggio su DB fallisce NON confermiamo: cancelliamo l'evento
+      // appena creato (niente evento orfano sul calendario) e segnaliamo l'errore.
+      if (insErr || !newRow) {
+        console.error('[gestisci] riprenota insert fallita:', insErr?.message);
+        await cancellaEvento(token, calendarId, newEventId);
+        return jsonResponse({ error: 'insert_fallita' }, 500);
+      }
 
-      const newId = newRow?.id ?? null;
-      if (row.email && newId) await inviaEmailConferma(buildDatiEmail(row, newId, data, ora));
+      const newId = newRow.id;
+      if (row.email) await inviaEmailConferma(buildDatiEmail(row, newId, data, ora));
       return jsonResponse({ ok: true, id: newId, data, ora });
     }
 
