@@ -330,15 +330,17 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
     setCaricandoSlot(false);
   }, []);
 
-  // In fase "sposta" la disponibilità del server marca come occupato anche
-  // l'appuntamento corrente del cliente: lo forziamo libero così la sua fascia
-  // resta selezionabile (ed evidenziata), com'è l'intento della UX.
+  // Forza "libero" lo slot rilevante per non mostrarlo barrato/non selezionabile:
+  // in "sposta" l'orario attuale dell'appuntamento, in "riprenota" l'orario
+  // proposto da MB via deep-link. La disponibilità reale è validata alla conferma.
   const dispEffettiva = useMemo(() => {
-    if (fase !== 'sposta' || !dettagli?.data || !dettagli?.ora) return disp;
-    const giorno = disp[dettagli.data];
-    if (!giorno || giorno[dettagli.ora] === true) return disp;
-    return { ...disp, [dettagli.data]: { ...giorno, [dettagli.ora]: true } };
-  }, [disp, fase, dettagli]);
+    const gd = fase === 'sposta' ? dettagli?.data : fase === 'riprenota' ? dataIniziale : undefined;
+    const go = fase === 'sposta' ? dettagli?.ora : fase === 'riprenota' ? oraIniziale : undefined;
+    if (!gd || !go) return disp;
+    const giorno = disp[gd];
+    if (!giorno || giorno[go] === true) return disp;
+    return { ...disp, [gd]: { ...giorno, [go]: true } };
+  }, [disp, fase, dettagli, dataIniziale, oraIniziale]);
 
   const giorniPieni = useMemo(() => {
     const set = new Set<string>();
@@ -447,6 +449,15 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
   }
 
   const tornaAlMenu = () => { setErrMsg(''); setFase('menu'); };
+
+  // "Indietro" dalla riprenota: se l'appuntamento di partenza è già annullato o
+  // passato (tipico del deep-link "do=riprenota"), il menu Sposta/Annulla non ha
+  // senso → torniamo alla schermata di annullamento (che offre Riprenota / Prenota altro).
+  const indietroRiprenota = () => {
+    setErrMsg('');
+    if (dettagli && (dettagli.stato === 'annullata' || dettagli.passato)) setFase('fatto-annulla');
+    else setFase('menu');
+  };
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center px-4 py-10">
@@ -558,7 +569,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
                   bloccato={false}
                   etichetta="Conferma prenotazione"
                   onConferma={confermaRiprenota}
-                  onIndietro={tornaAlMenu}
+                  onIndietro={indietroRiprenota}
                 />
               )}
 

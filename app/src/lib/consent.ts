@@ -37,6 +37,8 @@ export function setConsent(c: Consent): void {
   }
   if (c === 'granted') {
     w().loadMetaPixel?.();
+    // Se il Pixel era già caricato e poi revocato, riabilitiamo il tracciamento.
+    w().fbq?.('consent', 'grant');
   } else if (w().__mbPixelLoaded) {
     // Revoca nella stessa sessione: il Pixel era già caricato → stop tracciamento.
     // (trackLead è comunque gated su hasMarketingConsent, ma fermiamo anche il Pixel.)

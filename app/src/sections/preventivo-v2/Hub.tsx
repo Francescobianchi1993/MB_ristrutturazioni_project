@@ -66,7 +66,7 @@ export default function Hub({ onScegli }: HubProps) {
             Pochi parametri, range di prezzo realistico per orientarti subito. Ideale come primo passo.
           </p>
           <ul className="text-sm space-y-2">
-            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> 5 step guidati</li>
+            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> 4 step guidati</li>
             <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Range "min – max" realistico</li>
             <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Risultato approssimativo (±15%)</li>
           </ul>
