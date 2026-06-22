@@ -123,6 +123,21 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     }
   }
 
+  async function annullaIntervento(r: Riga) {
+    if (r.tipo !== 'intervento') return;
+    if (!window.confirm("Annullare questo appuntamento? Verrà rimosso dal calendario e il cliente riceverà un'email con il link per riprenotare.")) return;
+    setAzioneErr('');
+    try {
+      await chiama('annulla', { tipo: 'intervento', id: r.id });
+      setRighe((prev) => prev.map((x) => (x.id === r.id && x.tipo === r.tipo ? { ...x, stato: 'annullata' } : x)));
+      setSel((s) => (s ? { ...s, stato: 'annullata' } as Riga : s));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'password_errata') { esci(); setErrore('Sessione scaduta, accedi di nuovo.'); }
+      else setAzioneErr('Annullamento non riuscito. Riprova.');
+    }
+  }
+
   function login(e: React.FormEvent) {
     e.preventDefault();
     if (!pwInput.trim()) return;
@@ -302,6 +317,15 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
               )}
               <a href={`mailto:${sel.email ?? ''}`} className="px-4 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7] flex items-center gap-1"><ExternalLink className="w-4 h-4" /> Rispondi</a>
             </div>
+
+            {sel.tipo === 'intervento' && sel.stato !== 'annullata' && (
+              <button
+                onClick={() => annullaIntervento(sel)}
+                className="mt-2 w-full py-3 rounded-xl border-2 border-[#C0392B] text-[#C0392B] font-semibold hover:bg-[#C0392B]/5 flex items-center justify-center gap-2"
+              >
+                <X className="w-4 h-4" /> Annulla appuntamento
+              </button>
+            )}
           </div>
         </div>
       )}

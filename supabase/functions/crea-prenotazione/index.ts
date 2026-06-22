@@ -20,6 +20,7 @@ import { getAccessToken, getBusy } from '../_shared/google.ts';
 import { SLOT_DURATA_MIN, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
 import { inviaWhatsApp } from '../_shared/whatsapp.ts';
 import { inviaEmailConferma } from '../_shared/email.ts';
+import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 interface Voce {
@@ -93,6 +94,32 @@ function costruisciDescrizione(p: Payload, tipo: string): string {
   }
   righe.push('', `Totale stimato a listino: € ${p.totale.toFixed(2)}`);
   return righe.join('\n');
+}
+
+/** Avvisa l'azienda (best-effort) che è arrivata una nuova prenotazione intervento. */
+async function inviaNotificaAzienda(p: Payload, tipo: string, id: string | null): Promise<void> {
+  const user = Deno.env.get('GMAIL_USER');
+  const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
+  const destinatario = Deno.env.get('LEAD_EMAIL') ?? user;
+  if (!user || !passRaw || !destinatario) return;
+  const password = passRaw.replace(/\s/g, '');
+  const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+  const adminUrl = id ? `${base}/?admin=1&lead=${id}` : `${base}/?admin=1`;
+  const testo = costruisciDescrizione(p, tipo) + `\n\nApri nel gestionale: ${adminUrl}`;
+  const client = new SMTPClient({ connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password } } });
+  try {
+    await client.send({
+      from: `Sito MB Ristrutturazioni <${user}>`,
+      to: destinatario,
+      replyTo: p.email || user,
+      subject: `Nuova prenotazione intervento — ${p.nome || 'cliente'}`,
+      content: testo,
+    });
+  } catch (e) {
+    console.error('[crea-prenotazione] notifica azienda fallita:', e instanceof Error ? e.message : String(e));
+  } finally {
+    try { await client.close(); } catch { /* best-effort */ }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -187,6 +214,9 @@ Deno.serve(async (req) => {
       .select('id')
       .single();
     if (error) console.error('[crea-prenotazione] insert fallita:', error.message);
+
+    // 4b. notifica all'azienda (best-effort): parte sempre, anche senza contatti cliente
+    await inviaNotificaAzienda(p, tipo, row?.id ?? null);
 
     // 5. sostituzione: annulla il precedente DOPO aver creato il nuovo
     if (p.confermaSettimana && p.annullaId) {

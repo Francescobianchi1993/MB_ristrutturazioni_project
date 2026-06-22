@@ -7,13 +7,51 @@
  * restano privati e non leggibili con la sola anon key.
  *
  * Input (JSON): { password, azione, tipo?, id?, paths?, stato? }
- *   azione = 'lista' | 'firma' | 'segna'
+ *   azione = 'lista' | 'firma' | 'segna' | 'annulla'
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
+import { getAccessToken } from '../_shared/google.ts';
+import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const BUCKET = 'sopralluogo-files';
 const SCADENZA_SEC = 60 * 60 * 24 * 365;
+
+/** Email al cliente quando è MB ad annullare l'appuntamento (best-effort). */
+// deno-lint-ignore no-explicit-any
+async function inviaEmailAnnullamentoCliente(row: any): Promise<void> {
+  const user = Deno.env.get('GMAIL_USER');
+  const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
+  if (!user || !passRaw || !row.email) return;
+  const password = passRaw.replace(/\s/g, '');
+  const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+  const riprenotaUrl = `${base}/?gestisci=${encodeURIComponent(row.id)}`;
+  const quando = row.data_intervento
+    ? `${String(row.data_intervento).split('-').reverse().join('/')}${row.ora_intervento ? ' alle ' + row.ora_intervento : ''}`
+    : '';
+  const testo = [
+    'Appuntamento annullato — MB Ristrutturazioni',
+    `Ciao ${row.nome || 'gentile cliente'},`,
+    `abbiamo dovuto annullare l'appuntamento${quando ? ' del ' + quando : ''}. Ci scusiamo per il disagio.`,
+    `Puoi riprenotare quando vuoi da qui: ${riprenotaUrl}`,
+    'Oppure chiamaci o scrivici su WhatsApp al +39 339 126 8722.',
+    'MB Ristrutturazioni · Roma',
+  ].join('\n');
+  const client = new SMTPClient({ connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password } } });
+  try {
+    await client.send({
+      from: `MB Ristrutturazioni <${user}>`,
+      to: row.email,
+      replyTo: user,
+      subject: 'Appuntamento annullato — MB Ristrutturazioni',
+      content: testo,
+    });
+  } catch (e) {
+    console.error('[admin] email annullamento fallita:', e instanceof Error ? e.message : String(e));
+  } finally {
+    try { await client.close(); } catch { /* best-effort */ }
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -62,6 +100,32 @@ Deno.serve(async (req) => {
       if (!id || !stato) return jsonResponse({ error: 'parametri_mancanti' }, 400);
       await supabase.from(tabella).update({ stato }).eq('id', id);
       return jsonResponse({ ok: true });
+    }
+
+    // Annulla un appuntamento intervento: cancella l'evento sul Google Calendar,
+    // segna 'annullata' su DB e avvisa il cliente via email (con link riprenota).
+    if (azione === 'annulla') {
+      if (tipo !== 'intervento') return jsonResponse({ error: 'tipo_non_supportato' }, 400);
+      if (!id) return jsonResponse({ error: 'parametri_mancanti' }, 400);
+      const { data: row } = await supabase.from('prenotazioni_intervento').select('*').eq('id', id).single();
+      if (!row) return jsonResponse({ error: 'non_trovata' }, 404);
+      if (row.stato === 'annullata') return jsonResponse({ ok: true, stato: 'annullata' });
+
+      const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID');
+      if (calendarId && row.google_event_id) {
+        try {
+          const token = await getAccessToken();
+          await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${row.google_event_id}`,
+            { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+          );
+        } catch (e) {
+          console.error('[admin] cancella evento Google fallita:', e instanceof Error ? e.message : String(e));
+        }
+      }
+      await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', id);
+      if (row.email) await inviaEmailAnnullamentoCliente(row);
+      return jsonResponse({ ok: true, stato: 'annullata' });
     }
 
     return jsonResponse({ error: 'azione_sconosciuta' }, 400);
