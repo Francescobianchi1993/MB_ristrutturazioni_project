@@ -1,5 +1,6 @@
 import { Home, Instagram, Youtube, Phone, Mail } from 'lucide-react';
 import { EMAIL, TEL_DISPLAY, TEL_HREF } from '@/lib/contatti';
+import { riapriBannerCookie } from '@/lib/consent';
 
 function TikTokIcon({ className }: { className?: string }) {
   return (
@@ -110,6 +111,7 @@ export default function Footer() {
           <div className="flex gap-4">
             <a href="/privacy-policy.html" className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Privacy Policy</a>
             <a href="/cookie-policy.html" className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Cookie Policy</a>
+            <button onClick={riapriBannerCookie} className="text-white/60 hover:text-[#F5B800] text-xs transition-colors">Gestisci cookie</button>
           </div>
         </div>
 

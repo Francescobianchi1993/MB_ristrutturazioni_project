@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { EMAIL, TEL_DISPLAY, TEL_HREF, whatsappHref } from '@/lib/contatti';
+import { trackLead } from '@/lib/consent';
 
 // Supabase Storage: crea il bucket "sopralluogo-files" con accesso pubblico
 // Dashboard → Storage → New bucket → Name: sopralluogo-files → Public: ON
@@ -217,6 +218,7 @@ export default function Contact() {
       if (numFile > 0 && allegati.length < numFile) {
         setWarnMsg(`Alcuni allegati non sono stati caricati. Se vuoi, inviaci le foto via WhatsApp al +39 ${TEL_DISPLAY}.`);
       }
+      trackLead(); // conversione: sopralluogo richiesto (no valore monetario)
       setIsSubmitted(true);
       setFormData({ name: '', email: '', phone: '', message: '' });
       setFiles([]);

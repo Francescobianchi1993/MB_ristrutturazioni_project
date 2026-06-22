@@ -48,6 +48,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import ConfirmDialog from './ConfirmDialog';
 import { VOCI_INTERVENTO, SINONIMI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
+import { trackLead } from '@/lib/consent';
 
 /** minuscolo + senza accenti, per una ricerca tollerante. */
 function normalizzaRicerca(s: string): string {
@@ -465,6 +466,7 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
       return;
     }
     // Conferme al cliente (email + WhatsApp) partono lato server.
+    trackLead(costi.totale); // conversione: intervento prenotato
     setConfermato(true);
   }
 
