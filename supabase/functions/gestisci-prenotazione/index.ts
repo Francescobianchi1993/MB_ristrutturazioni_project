@@ -173,7 +173,31 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'stesso_orario' }, 409);
       }
 
+      // Controllo "un appuntamento a settimana" anche sullo spostamento: evita di
+      // spostare nella settimana dove il cliente ha già un altro appuntamento attivo
+      // (esclude quello corrente). Coerente col flusso riprenota/crea-prenotazione.
+      {
+        const emailLc = (row.email ?? '').trim().toLowerCase();
+        const telN = normTel(row.telefono);
+        if (emailLc || telN) {
+          const { from, to } = settimanaISO(data);
+          const { data: rows } = await supabase
+            .from('prenotazioni_intervento')
+            .select('id, email, telefono, stato')
+            .gte('data_intervento', from)
+            .lte('data_intervento', to)
+            .neq('stato', 'annullata');
+          const conflitto = (rows ?? []).some((r) =>
+            r.id !== id &&
+            ((emailLc && (r.email ?? '').trim().toLowerCase() === emailLc) ||
+              (telN && normTel(r.telefono) === telN))
+          );
+          if (conflitto) return jsonResponse({ error: 'conflitto_settimana' }, 409);
+        }
+      }
+
       const start = romeWallToUTC(data, ora);
+      if (start.getTime() < Date.now()) return jsonResponse({ error: 'passato' }, 409);
       const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
       const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);
       if (busy.length > 0) return jsonResponse({ error: 'slot_occupato' }, 409);
@@ -215,6 +239,7 @@ Deno.serve(async (req) => {
       }
 
       const start = romeWallToUTC(data, ora);
+      if (start.getTime() < Date.now()) return jsonResponse({ error: 'passato' }, 409);
       const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
       const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);
       if (busy.length > 0) return jsonResponse({ error: 'slot_occupato' }, 409);

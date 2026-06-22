@@ -210,7 +210,9 @@ function SelettoreSlot({
               <button
                 key={slot}
                 onClick={() => !occupato && onOra(slot)}
-                disabled={occupato}
+                // Lo slot già selezionato (es. proposto via deep-link) resta cliccabile
+                // anche se risulta occupato: la disponibilità è validata alla conferma.
+                disabled={occupato && !sel}
                 className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
                   sel
                     ? 'border-[#F5B800] bg-[#F5B800] text-[#1A1A1A]'
@@ -384,7 +386,8 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
         if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
         else if (res?.error === 'stesso_orario') setErrMsg('Hai scelto lo stesso orario attuale: scegline uno diverso.');
         else if (res?.error === 'gia_annullata') setErrMsg('Questo appuntamento risulta annullato: ricarica la pagina per riprenotarlo.');
-        else if (res?.error === 'passato') setErrMsg('Questo appuntamento è già passato e non è più modificabile.');
+        else if (res?.error === 'passato') setErrMsg('Quella data è già passata: scegline una futura.');
+        else if (res?.error === 'conflitto_settimana') setErrMsg('Hai già un appuntamento attivo in quella settimana: scegline un\'altra.');
         else setErrMsg('Non è stato possibile spostare l\'appuntamento. Riprova.');
         setInviando(false);
         return;
@@ -409,6 +412,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
       // andato a buon fine (niente più "conferma fantasma").
       if (error || !res?.ok || !res?.id) {
         if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        else if (res?.error === 'passato') setErrMsg('Quella data è già passata: scegline una futura.');
         else if (res?.error === 'conflitto_settimana') setErrMsg('Hai già un appuntamento attivo in quella settimana. Annulla prima quello, oppure scegli un\'altra settimana.');
         else setErrMsg('Non è stato possibile prenotare. Riprova.');
         setInviando(false);

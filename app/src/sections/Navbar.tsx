@@ -74,8 +74,9 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden md:block">
+          {/* CTA Button — stesso breakpoint dei link desktop (lg), così nel range
+              tablet resta solo l'hamburger (che ha già il suo CTA) e non si duplica. */}
+          <div className="hidden lg:block">
             <Button
               onClick={() => scrollToSection('#preventivo')}
               className="bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] font-semibold px-6 py-2 rounded-full transition-all hover:scale-105 hover:shadow-lg text-sm"

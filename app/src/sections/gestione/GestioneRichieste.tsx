@@ -326,7 +326,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
                   <CheckCircle2 className="w-4 h-4" /> Segna come gestita
                 </button>
               ) : (
-                <button onClick={() => segna(sel, 'nuovo')} className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]">
+                <button onClick={() => segna(sel, sel.tipo === 'sopralluogo' ? 'nuova' : 'nuovo')} className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]">
                   Rimetti tra le nuove
                 </button>
               )}

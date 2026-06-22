@@ -14,6 +14,7 @@ export type Consent = 'granted' | 'denied';
 interface PixelWindow {
   loadMetaPixel?: () => void;
   fbq?: (...args: unknown[]) => void;
+  __mbPixelLoaded?: boolean;
 }
 function w(): PixelWindow {
   return window as unknown as PixelWindow;
@@ -34,7 +35,13 @@ export function setConsent(c: Consent): void {
   } catch {
     /* localStorage non disponibile: procediamo comunque in memoria */
   }
-  if (c === 'granted') w().loadMetaPixel?.();
+  if (c === 'granted') {
+    w().loadMetaPixel?.();
+  } else if (w().__mbPixelLoaded) {
+    // Revoca nella stessa sessione: il Pixel era già caricato → stop tracciamento.
+    // (trackLead è comunque gated su hasMarketingConsent, ma fermiamo anche il Pixel.)
+    w().fbq?.('consent', 'revoke');
+  }
 }
 
 export function hasMarketingConsent(): boolean {
@@ -48,6 +55,7 @@ export function initPixelSeConsentito(): void {
 
 /** Evento di conversione "Lead" (no-op se il Pixel non è attivo / consenso negato). */
 export function trackLead(value?: number): void {
+  if (!hasMarketingConsent()) return; // rispetta la scelta anche dopo una revoca in-sessione
   const fbq = w().fbq;
   if (typeof fbq !== 'function') return;
   if (typeof value === 'number' && value > 0) fbq('track', 'Lead', { value, currency: 'EUR' });

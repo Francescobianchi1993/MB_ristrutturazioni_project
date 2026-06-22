@@ -13,7 +13,7 @@ import { X, CheckCircle, Send } from 'lucide-react';
 import { useProgetto } from './state';
 import { calcolaPrezzo, fmt } from './pricing';
 import { MACRO_SLOT_BY_ID, FINITURE, TEMPISTICHE } from './data';
-import { mqTotaliEffettivi } from '@/lib/preventivoModel';
+import { mqTotaliEffettivi, mqPerTipo } from '@/lib/preventivoModel';
 import type { MacroSlotId } from '@/lib/preventivoModel';
 import { supabase } from '@/lib/supabase';
 import { EMAIL, TEL_DISPLAY } from '@/lib/contatti';
@@ -38,7 +38,16 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
     (id) => state.macroSlot[id]?.attivo
   );
   const interventiLabels = slotAttivi.map((id) => MACRO_SLOT_BY_ID[id]?.label ?? id);
-  const mq = mqTotaliEffettivi(state);
+  // Superficie coerente con gli interventi attivi: i mq totali della casa solo se
+  // c'è un intervento "su tutta la casa", altrimenti la somma delle stanze
+  // puntuali; null (riga omessa) se sono solo infissi/niente metratura.
+  const haTutto = (['completa', 'elettrico', 'idraulico', 'termico', 'tinteggiatura'] as MacroSlotId[])
+    .some((id) => state.macroSlot[id]?.attivo);
+  const mqStanze =
+    (state.macroSlot.cucina?.attivo ? mqPerTipo(state, 'cucina') : 0) +
+    (state.macroSlot.bagno?.attivo ? mqPerTipo(state, 'bagno') : 0) +
+    (state.macroSlot.camera?.attivo ? mqPerTipo(state, 'camera') + mqPerTipo(state, 'soggiorno') : 0);
+  const mq: number | null = haTutto ? mqTotaliEffettivi(state) : (mqStanze > 0 ? mqStanze : null);
   const finituraLabel = FINITURE.find((f) => f.id === state.finitura)?.label ?? state.finitura;
   const tempLabel = TEMPISTICHE.find((t) => t.id === state.tempistica)?.label ?? state.tempistica;
 
@@ -47,10 +56,12 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
     const righe = [
       '[Richiesta dal configuratore preventivo online]',
       `Interventi: ${interventiLabels.join(', ') || '—'}`,
-      `Superficie indicata: ~${mq} m²`,
+    ];
+    if (mq != null) righe.push(`Superficie indicata: ~${mq} m²`);
+    righe.push(
       `Finitura: ${finituraLabel} · Tempistica: ${tempLabel}`,
       `Stima indicativa: ${fmt(result.totale)} (range ${fmt(result.range.min)}–${fmt(result.range.max)}, ±15%)`,
-    ];
+    );
     if (form.note.trim()) {
       righe.push('', `Note del cliente: ${form.note.trim()}`);
     }
@@ -153,9 +164,14 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
                   <span className="font-medium">{interventiLabels.join(', ') || '—'}</span>
                 </div>
                 <div>
-                  <span className="text-[#666]">Superficie: </span>
-                  <span className="font-medium">~{mq} m²</span>
-                  <span className="text-[#666]"> · {finituraLabel} · {tempLabel}</span>
+                  {mq != null && (
+                    <>
+                      <span className="text-[#666]">Superficie: </span>
+                      <span className="font-medium">~{mq} m²</span>
+                      <span className="text-[#666]"> · </span>
+                    </>
+                  )}
+                  <span className="text-[#666]">{finituraLabel} · {tempLabel}</span>
                 </div>
                 <div className="flex items-baseline gap-2 pt-1">
                   <span className="font-display text-2xl font-bold text-[#F5B800]">
