@@ -261,7 +261,7 @@ type Fase =
   | 'errore'
   | 'non-trovata';
 
-export default function GestioneAppuntamento({ id, azioneIniziale }: { id: string; azioneIniziale?: string }) {
+export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale, oraIniziale }: { id: string; azioneIniziale?: string; dataIniziale?: string; oraIniziale?: string }) {
   const [fase, setFase] = useState<Fase>('caricamento');
   const [dettagli, setDettagli] = useState<Dettagli | null>(null);
   const [errMsg, setErrMsg] = useState('');
@@ -292,7 +292,14 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
         }
         const det: Dettagli = { tipo: res.tipo, data: res.data, ora: res.ora, stato: res.stato, passato: !!res.passato };
         setDettagli(det);
-        if (det.stato === 'annullata') {
+        if (azioneIniziale === 'riprenota') {
+          // Deep-link "riprenota" (es. dalla proposta di MB): si va direttamente
+          // al selettore, con lo slot proposto già pre-selezionato se presente.
+          // Funziona anche se l'appuntamento risulta annullato/passato.
+          if (dataIniziale) setData(dataIniziale);
+          if (oraIniziale) setOra(oraIniziale);
+          setFase('riprenota');
+        } else if (det.stato === 'annullata') {
           setFase('fatto-annulla');
         } else if (det.passato) {
           setFase('passato');
@@ -312,7 +319,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale }: { id: strin
     return () => {
       attivo = false;
     };
-  }, [id, azioneIniziale]);
+  }, [id, azioneIniziale, dataIniziale, oraIniziale]);
 
   const caricaMese = useCallback(async (from: string, to: string) => {
     setCaricandoSlot(true);

@@ -17,26 +17,37 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const BUCKET = 'sopralluogo-files';
 const SCADENZA_SEC = 60 * 60 * 24 * 365;
 
-/** Email al cliente quando è MB ad annullare l'appuntamento (best-effort). */
+/** Email al cliente quando è MB ad annullare l'appuntamento (best-effort).
+ *  Se MB propone un nuovo orario, l'email lo include con un link che apre la
+ *  riprenota già pre-compilata (il cliente conferma con un tap o sceglie altro). */
 // deno-lint-ignore no-explicit-any
-async function inviaEmailAnnullamentoCliente(row: any): Promise<void> {
+async function inviaEmailAnnullamentoCliente(row: any, propostaData?: string, propostaOra?: string): Promise<void> {
   const user = Deno.env.get('GMAIL_USER');
   const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
   if (!user || !passRaw || !row.email) return;
   const password = passRaw.replace(/\s/g, '');
   const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
-  const riprenotaUrl = `${base}/?gestisci=${encodeURIComponent(row.id)}`;
+  const haProposta = !!(propostaData && propostaOra);
+  const riprenotaUrl = `${base}/?gestisci=${encodeURIComponent(row.id)}&do=riprenota`
+    + (haProposta ? `&data=${encodeURIComponent(propostaData!)}&ora=${encodeURIComponent(propostaOra!)}` : '');
   const quando = row.data_intervento
     ? `${String(row.data_intervento).split('-').reverse().join('/')}${row.ora_intervento ? ' alle ' + row.ora_intervento : ''}`
     : '';
-  const testo = [
+  const propostaLeggibile = haProposta
+    ? `${String(propostaData).split('-').reverse().join('/')} alle ${propostaOra}`
+    : '';
+  const righe = [
     'Appuntamento annullato — MB Ristrutturazioni',
     `Ciao ${row.nome || 'gentile cliente'},`,
     `abbiamo dovuto annullare l'appuntamento${quando ? ' del ' + quando : ''}. Ci scusiamo per il disagio.`,
-    `Puoi riprenotare quando vuoi da qui: ${riprenotaUrl}`,
-    'Oppure chiamaci o scrivici su WhatsApp al +39 339 126 8722.',
-    'MB Ristrutturazioni · Roma',
-  ].join('\n');
+  ];
+  if (haProposta) {
+    righe.push('', `Ti proponiamo un nuovo orario: ${propostaLeggibile}.`, `Per confermarlo (o sceglierne un altro): ${riprenotaUrl}`);
+  } else {
+    righe.push(`Puoi riprenotare quando vuoi da qui: ${riprenotaUrl}`);
+  }
+  righe.push('Oppure chiamaci o scrivici su WhatsApp al +39 339 126 8722.', 'MB Ristrutturazioni · Roma');
+  const testo = righe.join('\n');
   const client = new SMTPClient({ connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password } } });
   try {
     await client.send({
@@ -57,7 +68,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
     const body = await req.json();
-    const { password, azione, tipo, id, paths, stato } = body ?? {};
+    const { password, azione, tipo, id, paths, stato, propostaData, propostaOra } = body ?? {};
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -124,7 +135,7 @@ Deno.serve(async (req) => {
         }
       }
       await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', id);
-      if (row.email) await inviaEmailAnnullamentoCliente(row);
+      if (row.email) await inviaEmailAnnullamentoCliente(row, propostaData, propostaOra);
       return jsonResponse({ ok: true, stato: 'annullata' });
     }
 

@@ -13,6 +13,8 @@ import { Loader2, Lock, RefreshCw, X, CheckCircle2, FileText, ExternalLink, Eye,
 import { supabase } from '@/lib/supabase';
 
 const PW_KEY = 'mb_admin_pw';
+const SLOT_ORARI = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+const oggiISO = () => new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 
 interface Sopralluogo {
   id: string; created_at: string; nome: string | null; email: string | null;
@@ -49,6 +51,10 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   const [sel, setSel] = useState<Riga | null>(null);
   const [firme, setFirme] = useState<{ nome: string; url: string | null }[]>([]);
   const [azioneErr, setAzioneErr] = useState('');
+  const [annullaTarget, setAnnullaTarget] = useState<Riga | null>(null);
+  const [propData, setPropData] = useState('');
+  const [propOra, setPropOra] = useState('');
+  const [annullando, setAnnullando] = useState(false);
 
   const chiama = useCallback(async (azione: string, extra: Record<string, unknown> = {}, password = pw) => {
     if (!supabase) throw new Error('config');
@@ -123,19 +129,28 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     }
   }
 
-  async function annullaIntervento(r: Riga) {
+  function apriAnnulla(r: Riga) {
     if (r.tipo !== 'intervento') return;
-    if (!window.confirm("Annullare questo appuntamento? Verrà rimosso dal calendario e il cliente riceverà un'email con il link per riprenotare.")) return;
-    setAzioneErr('');
+    setPropData(''); setPropOra(''); setAzioneErr('');
+    setAnnullaTarget(r);
+  }
+
+  async function confermaAnnulla() {
+    const r = annullaTarget;
+    if (!r || annullando) return;
+    setAnnullando(true); setAzioneErr('');
+    const proposta = propData && propOra ? { propostaData: propData, propostaOra: propOra } : {};
     try {
-      await chiama('annulla', { tipo: 'intervento', id: r.id });
+      await chiama('annulla', { tipo: 'intervento', id: r.id, ...proposta });
       setRighe((prev) => prev.map((x) => (x.id === r.id && x.tipo === r.tipo ? { ...x, stato: 'annullata' } : x)));
       setSel((s) => (s ? { ...s, stato: 'annullata' } as Riga : s));
+      setAnnullaTarget(null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
-      if (msg === 'password_errata') { esci(); setErrore('Sessione scaduta, accedi di nuovo.'); }
+      if (msg === 'password_errata') { setAnnullaTarget(null); esci(); setErrore('Sessione scaduta, accedi di nuovo.'); }
       else setAzioneErr('Annullamento non riuscito. Riprova.');
     }
+    setAnnullando(false);
   }
 
   function login(e: React.FormEvent) {
@@ -320,12 +335,51 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
 
             {sel.tipo === 'intervento' && sel.stato !== 'annullata' && (
               <button
-                onClick={() => annullaIntervento(sel)}
+                onClick={() => apriAnnulla(sel)}
                 className="mt-2 w-full py-3 rounded-xl border-2 border-[#C0392B] text-[#C0392B] font-semibold hover:bg-[#C0392B]/5 flex items-center justify-center gap-2"
               >
                 <X className="w-4 h-4" /> Annulla appuntamento
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {annullaTarget && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" onClick={() => !annullando && setAnnullaTarget(null)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <h3 className="font-bold text-lg mb-1">Annulla appuntamento</h3>
+            <p className="text-sm text-[#666] mb-4">
+              Il cliente riceverà un'email con il link per riprenotare. Puoi anche
+              <strong> proporgli un nuovo orario</strong> (facoltativo): lo accetterà con un tap.
+            </p>
+            <div className="grid grid-cols-2 gap-2 mb-1">
+              <label className="text-xs text-[#666]">
+                Data proposta
+                <input type="date" min={oggiISO()} value={propData} onChange={(e) => setPropData(e.target.value)}
+                  className="mt-1 w-full h-10 px-2 rounded-lg border border-[#E5E5E5] focus:border-[#F5B800] outline-none text-sm" />
+              </label>
+              <label className="text-xs text-[#666]">
+                Ora proposta
+                <select value={propOra} onChange={(e) => setPropOra(e.target.value)}
+                  className="mt-1 w-full h-10 px-2 rounded-lg border border-[#E5E5E5] focus:border-[#F5B800] outline-none text-sm bg-white">
+                  <option value="">—</option>
+                  {SLOT_ORARI.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </label>
+            </div>
+            <p className="text-[11px] text-[#999] mb-4">Lascia vuoto per annullare senza proposta.</p>
+            {azioneErr && <p className="text-sm text-[#C0392B] mb-3">{azioneErr}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => setAnnullaTarget(null)} disabled={annullando}
+                className="flex-1 py-2.5 rounded-full border-2 border-[#E5E5E5] font-semibold text-sm hover:bg-[#F7F7F7] disabled:opacity-50">
+                Indietro
+              </button>
+              <button onClick={confermaAnnulla} disabled={annullando}
+                className="flex-1 py-2.5 rounded-full bg-[#C0392B] text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50">
+                {annullando ? 'Annullo…' : (propData && propOra ? 'Annulla e proponi' : 'Annulla appuntamento')}
+              </button>
+            </div>
           </div>
         </div>
       )}
