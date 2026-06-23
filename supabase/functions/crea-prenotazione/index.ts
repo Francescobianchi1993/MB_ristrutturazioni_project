@@ -101,7 +101,10 @@ async function inviaNotificaAzienda(p: Payload, tipo: string, id: string | null)
   const user = Deno.env.get('GMAIL_USER');
   const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
   const destinatario = Deno.env.get('LEAD_EMAIL') ?? user;
-  if (!user || !passRaw || !destinatario) return;
+  if (!user || !passRaw || !destinatario) {
+    console.warn('[crea-prenotazione] secret email mancanti (GMAIL_USER/GMAIL_APP_PASSWORD/LEAD_EMAIL): notifica azienda non inviata');
+    return;
+  }
   const password = passRaw.replace(/\s/g, '');
   const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
   const adminUrl = id ? `${base}/?admin=1&lead=${id}` : `${base}/?admin=1`;

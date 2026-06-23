@@ -51,6 +51,9 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   const [sel, setSel] = useState<Riga | null>(null);
   const [firme, setFirme] = useState<{ nome: string; url: string | null }[]>([]);
   const [azioneErr, setAzioneErr] = useState('');
+  // Esito dell'invio email al cliente dopo un annullamento: { ok } distingue
+  // "annullato + email partita" da "annullato ma email non inviata".
+  const [annullaEsito, setAnnullaEsito] = useState<{ ok: boolean; testo: string } | null>(null);
   const [annullaTarget, setAnnullaTarget] = useState<Riga | null>(null);
   const [propData, setPropData] = useState('');
   const [propOra, setPropOra] = useState('');
@@ -102,6 +105,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   async function apri(r: Riga) {
     setSel(r);
     setFirme([]);
+    setAnnullaEsito(null);
     if (r.tipo === 'sopralluogo' && r.allegati?.length) {
       try {
         const data = await chiama('firma', { paths: r.allegati.map((a) => a.path) });
@@ -141,10 +145,21 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     setAnnullando(true); setAzioneErr('');
     const proposta = propData && propOra ? { propostaData: propData, propostaOra: propOra } : {};
     try {
-      await chiama('annulla', { tipo: 'intervento', id: r.id, ...proposta });
+      const res = await chiama('annulla', { tipo: 'intervento', id: r.id, ...proposta });
       setRighe((prev) => prev.map((x) => (x.id === r.id && x.tipo === r.tipo ? { ...x, stato: 'annullata' } : x)));
       setSel((s) => (s ? { ...s, stato: 'annullata' } as Riga : s));
       setAnnullaTarget(null);
+      const esitoEmail = (res as { email?: string } | null)?.email;
+      if (esitoEmail === 'inviata') {
+        setAnnullaEsito({ ok: true, testo: 'Appuntamento annullato ed email inviata al cliente.' });
+      } else if (esitoEmail) {
+        const motivo = esitoEmail === 'senza_email'
+          ? 'il cliente non ha lasciato un indirizzo email'
+          : esitoEmail === 'non_configurata'
+            ? 'le credenziali email del server non sono configurate'
+            : "l'invio è fallito";
+        setAnnullaEsito({ ok: false, testo: `Appuntamento annullato, ma l'email al cliente NON è partita (${motivo}). Avvisa tu il cliente.` });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
       if (msg === 'password_errata') { setAnnullaTarget(null); esci(); setErrore('Sessione scaduta, accedi di nuovo.'); }
@@ -319,6 +334,12 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
             )}
 
             {azioneErr && <p className="text-sm text-[#C0392B] mt-4">{azioneErr}</p>}
+
+            {annullaEsito && (
+              <p className={`text-sm mt-4 rounded-lg px-3 py-2 ${annullaEsito.ok ? 'text-[#2E7D32] bg-[#2E7D32]/8' : 'text-[#B26A00] bg-[#F5B800]/12'}`}>
+                {annullaEsito.ok ? '✓ ' : '⚠️ '}{annullaEsito.testo}
+              </p>
+            )}
 
             <div className="mt-3 flex gap-2">
               {(sel.stato === 'nuovo' || sel.stato === 'nuova') ? (
