@@ -36,9 +36,10 @@ export default function PreventivoV2() {
   return (
     <ProgettoProvider>
       <Toaster richColors position="top-center" />
+      {/* L'ancora #preventivo è sul contenitore lazy in App.tsx (LazyOnVisible),
+          così la CTA della navbar la raggiunge anche prima che questo chunk si carichi. */}
       <section
-        id="preventivo"
-        className="pt-16 pb-10 lg:pt-24 lg:pb-12 bg-gradient-to-b from-[#FFF8E7]/40 to-white"
+        className="scroll-mt-20 pt-16 pb-10 lg:pt-24 lg:pb-12 bg-gradient-to-b from-[#FFF8E7]/40 to-white"
       >
         {modalita === 'hub' && <Hub onScegli={(m) => { setRapidaInitialStep(1); setModalita(m); }} />}
         {modalita === 'rapida' && (

@@ -1,9 +1,13 @@
-import { StrictMode } from 'react'
+import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import GestioneAppuntamento from './sections/gestione/GestioneAppuntamento.tsx'
-import GestioneRichieste from './sections/gestione/GestioneRichieste.tsx'
+
+// Il gestionale (admin) e la pagina self-service del cliente servono solo sugli
+// URL ?admin e ?gestisci: li carichiamo come chunk separati, così non pesano sul
+// caricamento del sito per i normali visitatori.
+const GestioneAppuntamento = lazy(() => import('./sections/gestione/GestioneAppuntamento.tsx'))
+const GestioneRichieste = lazy(() => import('./sections/gestione/GestioneRichieste.tsx'))
 
 // Routing minimale senza librerie:
 //  ?admin           → mini-gestionale richieste (protetto da password)
@@ -21,9 +25,9 @@ const oraIniziale = params.get('ora') ?? undefined
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {adminMode
-      ? <GestioneRichieste leadId={leadId} />
+      ? <Suspense fallback={null}><GestioneRichieste leadId={leadId} /></Suspense>
       : gestisciId
-        ? <GestioneAppuntamento id={gestisciId} azioneIniziale={azione} dataIniziale={dataIniziale} oraIniziale={oraIniziale} />
+        ? <Suspense fallback={null}><GestioneAppuntamento id={gestisciId} azioneIniziale={azione} dataIniziale={dataIniziale} oraIniziale={oraIniziale} /></Suspense>
         : <App />}
   </StrictMode>,
 )
