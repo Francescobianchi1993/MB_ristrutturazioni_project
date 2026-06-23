@@ -13,4 +13,18 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Librerie in chunk separati e stabili → il browser li tiene in cache
+        // tra un deploy e l'altro (cambiamo il codice nostro, non React/GSAP).
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) return 'react';
+          if (id.includes('gsap')) return 'gsap';
+          return 'vendor';
+        },
+      },
+    },
+  },
 });
