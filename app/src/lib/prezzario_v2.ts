@@ -85,7 +85,6 @@ export async function caricaPrezzario(): Promise<PrezzarioData> {
     .order('voce', { ascending: true });
 
   if (error) {
-    // eslint-disable-next-line no-console
     console.error('[prezzario_v2] errore caricamento voci', error.message);
     return { ...EMPTY, errore: error.message };
   }

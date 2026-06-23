@@ -306,6 +306,7 @@ export function ProgettoProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook esposto accanto al Provider (pattern Context standard)
 export function useProgetto(): ProgettoContextValue {
   const ctx = useContext(ProgettoContext);
   if (!ctx) throw new Error('useProgetto: missing ProgettoProvider');

@@ -20,11 +20,17 @@ const SCADENZA_SEC = 60 * 60 * 24 * 365;
 /** Email al cliente quando è MB ad annullare l'appuntamento (best-effort).
  *  Se MB propone un nuovo orario, l'email lo include con un link che apre la
  *  riprenota già pre-compilata (il cliente conferma con un tap o sceglie altro). */
+type EsitoEmail = 'inviata' | 'non_inviata' | 'non_configurata' | 'senza_email';
+
 // deno-lint-ignore no-explicit-any
-async function inviaEmailAnnullamentoCliente(row: any, propostaData?: string, propostaOra?: string): Promise<void> {
+async function inviaEmailAnnullamentoCliente(row: any, propostaData?: string, propostaOra?: string): Promise<EsitoEmail> {
   const user = Deno.env.get('GMAIL_USER');
   const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
-  if (!user || !passRaw || !row.email) return;
+  if (!user || !passRaw) {
+    console.warn('[admin] secret email mancanti (GMAIL_USER/GMAIL_APP_PASSWORD): nessuna email di annullamento inviata');
+    return 'non_configurata';
+  }
+  if (!row.email) return 'senza_email';
   const password = passRaw.replace(/\s/g, '');
   const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
   const haProposta = !!(propostaData && propostaOra);
@@ -57,8 +63,10 @@ async function inviaEmailAnnullamentoCliente(row: any, propostaData?: string, pr
       subject: 'Appuntamento annullato — MB Ristrutturazioni',
       content: testo,
     });
+    return 'inviata';
   } catch (e) {
     console.error('[admin] email annullamento fallita:', e instanceof Error ? e.message : String(e));
+    return 'non_inviata';
   } finally {
     try { await client.close(); } catch { /* best-effort */ }
   }
@@ -135,8 +143,8 @@ Deno.serve(async (req) => {
         }
       }
       await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', id);
-      if (row.email) await inviaEmailAnnullamentoCliente(row, propostaData, propostaOra);
-      return jsonResponse({ ok: true, stato: 'annullata' });
+      const email = await inviaEmailAnnullamentoCliente(row, propostaData, propostaOra);
+      return jsonResponse({ ok: true, stato: 'annullata', email });
     }
 
     return jsonResponse({ error: 'azione_sconosciuta' }, 400);

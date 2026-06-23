@@ -20,4 +20,14 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Componenti shadcn/ui vendored: esportano sia il componente sia le sue
+    // varianti/hook nello stesso file. Le regole react-refresh/react-hooks
+    // non si applicano a questo codice di libreria non scritto da noi.
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      'react-hooks/purity': 'off',
+    },
+  },
 ])
