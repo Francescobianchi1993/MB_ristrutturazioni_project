@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowUpRight, Phone, ShieldCheck, Leaf, Building2 } from 'lucide-react';
+import { ArrowRight, Phone, ShieldCheck, Leaf, Building2 } from 'lucide-react';
 import { TEL_DISPLAY, TEL_HREF } from '@/lib/contatti';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -9,12 +9,13 @@ gsap.registerPlugin(ScrollTrigger);
 /**
  * HeroPremium — anteprima del riposizionamento "premium" di MB Ristrutturazioni.
  *
- * Estetica istituzionale (Apple/Netflix-like): antracite + panna, accento salvia
- * desaturato per richiamare efficienza energetica / "green". Tipografia Inter
- * gigante, ampi spazi bianchi, micro-interazioni legate allo scroll non invasive.
+ * Layout/tipografia/animazioni in chiave premium (Apple/Netflix-like), ma con la
+ * PALETTE DEL SITO ATTUALE (bianco / oro #F5B800 / antracite #1A1A1A / panna
+ * #FFF8E7) per un confronto reale a parità di brand. Titoli in Playfair Display
+ * (regola h1..h6 di index.css), testo Inter.
  *
  * COMPLETAMENTE ISOLATO: non importa né modifica nulla del sito in produzione.
- * Viene montato solo da /src/preview.tsx (entry preview.html).
+ * Viene montato solo dalla pagina di anteprima (entry preview.html).
  */
 
 const stats = [
@@ -79,18 +80,18 @@ export default function HeroPremium() {
   return (
     <div
       ref={root}
-      className="relative min-h-screen w-full overflow-hidden bg-[#13161A] text-[#F3EFE7] antialiased"
+      className="relative min-h-screen w-full overflow-hidden bg-white text-[#1A1A1A] antialiased"
       style={{ fontFamily: 'Inter, sans-serif' }}
     >
-      {/* Texture / glow di fondo, molto sobri */}
+      {/* Texture / glow di fondo, molto sobri (palette brand) */}
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -top-32 right-[-10%] h-[42rem] w-[42rem] rounded-full bg-[#93B3A3]/10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] left-[-10%] h-[36rem] w-[36rem] rounded-full bg-[#2A3138]/40 blur-[120px]" />
+        <div className="absolute -top-32 right-[-10%] h-[42rem] w-[42rem] rounded-full bg-[#F5B800]/10 blur-[120px]" />
+        <div className="absolute bottom-0 left-0 h-[36rem] w-[36rem] rounded-full bg-[#FFF8E7] blur-[120px]" />
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage:
-              'linear-gradient(#F3EFE7 1px, transparent 1px), linear-gradient(90deg, #F3EFE7 1px, transparent 1px)',
+              'linear-gradient(#1A1A1A 1px, transparent 1px), linear-gradient(90deg, #1A1A1A 1px, transparent 1px)',
             backgroundSize: '64px 64px',
           }}
         />
@@ -99,19 +100,19 @@ export default function HeroPremium() {
       {/* Top bar minimale */}
       <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 pt-6 sm:px-8 lg:px-10">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#F3EFE7]/15 bg-[#F3EFE7]/[0.03] font-semibold tracking-tight">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E5E5] bg-[#F8F8F8] font-semibold tracking-tight">
             MB
           </div>
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-tight">MB Ristrutturazioni</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-[#93B3A3]">Roma · Premium</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[#F5B800]">Roma · Premium</p>
           </div>
         </div>
         <a
           href={TEL_HREF}
-          className="hidden items-center gap-2 rounded-full border border-[#F3EFE7]/15 px-4 py-2 text-sm text-[#C9C7C0] transition-colors hover:border-[#93B3A3]/50 hover:text-[#F3EFE7] sm:flex"
+          className="hidden items-center gap-2 rounded-full border border-[#E5E5E5] px-4 py-2 text-sm text-[#666666] transition-colors hover:border-[#F5B800] hover:text-[#1A1A1A] sm:flex"
         >
-          <Phone className="h-4 w-4 text-[#93B3A3]" />
+          <Phone className="h-4 w-4 text-[#F5B800]" />
           {TEL_DISPLAY}
         </a>
       </header>
@@ -122,13 +123,13 @@ export default function HeroPremium() {
         <div>
           <div
             data-anim="eyebrow"
-            className="mb-7 inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-[#93B3A3]"
+            className="mb-7 inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.22em] text-[#F5B800]"
           >
-            <span className="h-px w-9 bg-[#93B3A3]" />
+            <span className="h-px w-9 bg-[#F5B800]" />
             Ristrutturazioni chiavi in mano
           </div>
 
-          <h1 className="font-semibold leading-[0.98] tracking-[-0.03em] text-[2.75rem] xs:text-5xl sm:text-6xl lg:text-[4.6rem]">
+          <h1 className="font-display font-bold leading-[1.0] tracking-[-0.02em] text-[2.75rem] xs:text-5xl sm:text-6xl lg:text-[4.6rem]">
             <span className="block overflow-hidden">
               <span data-anim="line" className="block">
                 Solidità che
@@ -136,7 +137,7 @@ export default function HeroPremium() {
             </span>
             <span className="block overflow-hidden">
               <span data-anim="line" className="block">
-                si vede. <span className="text-[#93B3A3]">Tecnologia</span>
+                si vede. <span className="text-[#F5B800]">Tecnologia</span>
               </span>
             </span>
             <span className="block overflow-hidden">
@@ -148,7 +149,7 @@ export default function HeroPremium() {
 
           <p
             data-anim="lead"
-            className="mt-7 max-w-md text-base leading-relaxed text-[#C9C7C0] sm:text-lg"
+            className="mt-7 max-w-md text-base leading-relaxed text-[#666666] sm:text-lg"
           >
             Riqualifichiamo immobili ad alta efficienza energetica con un metodo
             preciso e trasparente. Estetica, comfort e valore che durano nel tempo.
@@ -159,15 +160,15 @@ export default function HeroPremium() {
             <a
               data-anim="cta"
               href="#contatti"
-              className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#93B3A3] px-7 py-4 text-sm font-semibold text-[#13161A] transition-all hover:bg-[#A8C7B8] hover:shadow-[0_12px_40px_-12px_rgba(147,179,163,0.6)]"
+              className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#F5B800] px-7 py-4 text-sm font-semibold text-[#1A1A1A] transition-all hover:bg-[#D9A200] hover:shadow-[0_12px_40px_-12px_rgba(245,184,0,0.6)]"
             >
               Richiedi un sopralluogo
-              <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </a>
             <a
               data-anim="cta"
               href="#metodo"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#F3EFE7]/20 px-7 py-4 text-sm font-semibold text-[#F3EFE7] transition-colors hover:border-[#F3EFE7]/45"
+              className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#1A1A1A] px-7 py-[14px] text-sm font-semibold text-[#1A1A1A] transition-colors hover:bg-[#1A1A1A] hover:text-white"
             >
               Scopri il metodo
             </a>
@@ -179,9 +180,9 @@ export default function HeroPremium() {
               <div
                 key={label}
                 data-anim="pillar"
-                className="flex items-center gap-2 text-sm text-[#C9C7C0]"
+                className="flex items-center gap-2 text-sm text-[#666666]"
               >
-                <Icon className="h-4 w-4 text-[#93B3A3]" />
+                <Icon className="h-4 w-4 text-[#F5B800]" />
                 {label}
               </div>
             ))}
@@ -192,7 +193,7 @@ export default function HeroPremium() {
         <div className="relative">
           <div
             data-anim="visual"
-            className="relative aspect-[4/5] w-full overflow-hidden rounded-[1.75rem] border border-[#F3EFE7]/10 bg-[#1C2024] shadow-[0_40px_120px_-40px_rgba(0,0,0,0.8)] sm:aspect-[3/4]"
+            className="relative aspect-[4/5] w-full overflow-hidden rounded-[1.75rem] border border-[#E5E5E5] bg-[#F8F8F8] shadow-[0_40px_120px_-40px_rgba(26,26,26,0.35)] sm:aspect-[3/4]"
           >
             <img
               data-anim="visual-img"
@@ -201,24 +202,23 @@ export default function HeroPremium() {
               loading="eager"
               className="absolute inset-0 h-[112%] w-full object-cover"
             />
-            {/* Gradiente per leggibilità e tono antracite */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#13161A] via-[#13161A]/20 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-br from-[#13161A]/30 to-transparent" />
+            {/* Gradiente per leggibilità del badge */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/55 via-transparent to-transparent" />
 
             {/* Badge efficienza energetica */}
             <div
               data-anim="badge"
-              className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-2xl border border-[#F3EFE7]/12 bg-[#13161A]/70 px-5 py-4 backdrop-blur-md"
+              className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-2xl border border-white/60 bg-white/85 px-5 py-4 backdrop-blur-md"
             >
               <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-[#93B3A3]">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[#D9A200]">
                   Efficienza energetica
                 </p>
-                <p className="mt-1 text-lg font-semibold tracking-tight">
+                <p className="mt-1 text-lg font-semibold tracking-tight text-[#1A1A1A]">
                   Salto di 2 classi garantito
                 </p>
               </div>
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[#93B3A3] text-xl font-bold text-[#13161A]">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[#F5B800] text-xl font-bold text-[#1A1A1A]">
                 A
               </div>
             </div>
@@ -227,14 +227,14 @@ export default function HeroPremium() {
       </section>
 
       {/* Striscia statistiche */}
-      <section className="relative z-10 border-t border-[#F3EFE7]/10">
-        <div className="mx-auto grid max-w-7xl grid-cols-3 divide-x divide-[#F3EFE7]/10 px-5 sm:px-8 lg:px-10">
+      <section className="relative z-10 border-t border-[#E5E5E5]">
+        <div className="mx-auto grid max-w-7xl grid-cols-3 divide-x divide-[#E5E5E5] px-5 sm:px-8 lg:px-10">
           {stats.map((s) => (
             <div key={s.label} data-anim="stat" className="px-3 py-7 text-center sm:py-9">
-              <p className="text-2xl font-semibold tracking-tight text-[#F3EFE7] sm:text-4xl">
+              <p className="font-display text-2xl font-bold tracking-tight text-[#1A1A1A] sm:text-4xl">
                 {s.value}
               </p>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#8A8F8B] sm:text-xs">
+              <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#666666] sm:text-xs">
                 {s.label}
               </p>
             </div>
