@@ -15,6 +15,12 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      // Due entry: il sito (index.html) e l'anteprima isolata della Hero premium
+      // (preview.html). L'anteprima non tocca in alcun modo il sito di produzione.
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        preview: path.resolve(__dirname, 'preview.html'),
+      },
       output: {
         // Librerie in chunk separati e stabili → il browser li tiene in cache
         // tra un deploy e l'altro (cambiamo il codice nostro, non React/GSAP).
