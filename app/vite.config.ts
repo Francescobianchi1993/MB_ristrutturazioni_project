@@ -28,6 +28,9 @@ export default defineConfig({
           if (!id.includes('node_modules')) return;
           if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) return 'react';
           if (id.includes('gsap')) return 'gsap';
+          // Lenis è usato SOLO dall'anteprima premium: chunk dedicato, così il
+          // bundle di produzione (index.html) non lo carica nemmeno.
+          if (id.includes('lenis')) return 'lenis';
           return 'vendor';
         },
       },

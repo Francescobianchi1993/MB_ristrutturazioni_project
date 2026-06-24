@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, Phone } from 'lucide-react';
 import { TEL_DISPLAY, TEL_HREF } from '@/lib/contatti';
+import SplitReveal from './SplitReveal';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -42,12 +43,10 @@ export default function ChiusuraCTA() {
       </div>
 
       <div className="relative mx-auto max-w-4xl text-center">
-        <h2
-          data-reveal
-          className="mx-auto max-w-3xl font-display text-4xl font-bold leading-[1.06] tracking-[-0.02em] sm:text-5xl lg:text-[3.8rem]"
-        >
-          Pronto a dare valore al tuo immobile?
-        </h2>
+        <SplitReveal
+          className="mx-auto block max-w-3xl font-display text-4xl font-bold leading-[1.06] tracking-[-0.02em] sm:text-5xl lg:text-[3.8rem]"
+          segments={[{ text: 'Pronto a dare valore al tuo immobile?' }]}
+        />
         <p data-reveal className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-[#CCCCCC] sm:text-lg">
           Un sopralluogo tecnico gratuito è il primo passo. Analizziamo lo stato dei
           luoghi e ti proponiamo la soluzione su misura.

@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, Phone, ShieldCheck, Leaf, Building2 } from 'lucide-react';
 import { TEL_DISPLAY, TEL_HREF } from '@/lib/contatti';
+import CountUp from './premium/CountUp';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -231,9 +232,10 @@ export default function HeroPremium() {
         <div className="mx-auto grid max-w-7xl grid-cols-3 divide-x divide-[#E5E5E5] px-5 sm:px-8 lg:px-10">
           {stats.map((s) => (
             <div key={s.label} data-anim="stat" className="px-3 py-7 text-center sm:py-9">
-              <p className="font-display text-2xl font-bold tracking-tight text-[#1A1A1A] sm:text-4xl">
-                {s.value}
-              </p>
+              <CountUp
+                value={s.value}
+                className="block font-display text-2xl font-bold tracking-tight text-[#1A1A1A] sm:text-4xl"
+              />
               <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[#666666] sm:text-xs">
                 {s.label}
               </p>

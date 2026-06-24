@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { MoveHorizontal } from 'lucide-react';
+import SplitReveal from './SplitReveal';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -65,12 +66,14 @@ export default function PrimaDopo() {
             <span className="h-px w-9 bg-[#D9A200]" />
             Il nostro metodo · Prima / Dopo
           </div>
-          <h2
-            data-reveal
+          <SplitReveal
             className="font-display text-4xl font-bold leading-[1.05] tracking-[-0.02em] sm:text-5xl lg:text-[3.6rem]"
-          >
-            La precisione che <span className="text-[#F5B800]">trasforma</span> gli ambienti.
-          </h2>
+            segments={[
+              { text: 'La precisione che' },
+              { text: 'trasforma', accent: true },
+              { text: 'gli ambienti.' },
+            ]}
+          />
           <p data-reveal className="mt-6 text-base leading-relaxed text-[#666666] sm:text-lg">
             Ogni cantiere segue un processo controllato in ogni fase. Trascina la maniglia
             per vedere la differenza.
