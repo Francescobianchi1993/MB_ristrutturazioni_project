@@ -149,7 +149,7 @@ function DimensioneStanza({ tipo }: { tipo: AmbienteTipo }) {
         />
         <div className="flex justify-between text-[10px] text-[#999] mt-1">
           <span>{range.min}</span>
-          <span>{range.max} (medio)</span>
+          <span>{range.max}</span>
         </div>
       </div>
     </div>

@@ -96,8 +96,24 @@ export interface VoceSelezionata {
 // Stato del progetto
 // ────────────────────────────────────────────────────────────────────────────
 
-export type Finitura = 'base' | 'medio' | 'premium' | 'luxury';
+export type Finitura = 'intelligent' | 'smart' | 'prestige';
 export type Tempistica = 'urgente' | 'normale' | 'flessibile';
+
+/**
+ * Mappa i vecchi id finitura (4 livelli) verso i 3 attuali, così gli stati
+ * salvati su localStorage da versioni precedenti non rompono la UI.
+ */
+const FINITURA_LEGACY: Record<string, Finitura> = {
+  base: 'intelligent',
+  medio: 'smart',
+  premium: 'prestige',
+  luxury: 'prestige',
+};
+
+export function normalizzaFinitura(value: unknown): Finitura {
+  if (value === 'intelligent' || value === 'smart' || value === 'prestige') return value;
+  return FINITURA_LEGACY[String(value)] ?? 'smart';
+}
 
 export interface Contatti {
   name: string;
@@ -211,7 +227,7 @@ export function statoIniziale(): ProgettoState {
     mqTotaliDichiarati: MQ_TOTALI_DEFAULT,
     ambienti: ambientiDefault(),
     macroSlot: {},
-    finitura: 'medio',
+    finitura: 'smart',
     tempistica: 'normale',
     contatti: { name: '', email: '', phone: '' },
     vociDettagliate: [],
@@ -281,7 +297,12 @@ export function caricaDaLocalStorage(): ProgettoState | null {
     const macroSlotSanificato = Object.fromEntries(
       Object.entries(parsed.macroSlot ?? {}).filter(([id]) => validIds.has(id))
     ) as ProgettoState['macroSlot'];
-    return { ...parsed, macroSlot: macroSlotSanificato };
+    return {
+      ...parsed,
+      macroSlot: macroSlotSanificato,
+      // Migrazione finiture 4→3 livelli per stati salvati da versioni precedenti.
+      finitura: normalizzaFinitura(parsed.finitura),
+    };
   } catch {
     return null;
   }

@@ -24,7 +24,7 @@ import {
 import { calcolaPrezzo, fmt } from './pricing';
 import RiepilogoSticky from './RiepilogoSticky';
 import Dimensioni from './Dimensioni';
-import { isCompletaAttiva, PIANI, mqTotaliEffettivi, mqDistribuiti, mqPerTipo } from '@/lib/preventivoModel';
+import { isCompletaAttiva, mqTotaliEffettivi, mqDistribuiti, mqPerTipo } from '@/lib/preventivoModel';
 import type { MacroSlotId, Finitura, Tempistica } from '@/lib/preventivoModel';
 
 const STEPS = [
@@ -377,7 +377,7 @@ function StepFiniture() {
       <h3 className="font-display text-2xl font-bold mb-2">Livello di finiture</h3>
       <p className="text-[#666] mb-6">La qualità dei materiali incide sul prezzo finale.</p>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
+      <div className="grid sm:grid-cols-3 gap-3 mb-10">
         {FINITURE.map((f) => {
           const sel = state.finitura === f.id;
           return (
@@ -391,10 +391,7 @@ function StepFiniture() {
               }`}
             >
               <div className="font-display text-xl font-bold mb-1">{f.label}</div>
-              <div className="text-xs text-[#666] leading-tight mb-3">{f.desc}</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[#F5B800]">
-                ×{f.mult.toFixed(2)}
-              </div>
+              <div className="text-xs text-[#666] leading-tight">{f.desc}</div>
             </button>
           );
         })}
@@ -422,6 +419,10 @@ function StepFiniture() {
           );
         })}
       </div>
+      <p className="text-xs text-[#666] mt-3 leading-snug">
+        La tempistica non incide sul prezzo: serve solo a noi di MB per organizzare al meglio la tua
+        richiesta.
+      </p>
     </div>
   );
 }
@@ -436,7 +437,6 @@ function StepRiepilogo() {
     (id) => state.macroSlot[id]?.attivo
   );
   const completa = isCompletaAttiva(state);
-  const pianoLabel = PIANI.find((p) => p.id === state.piano)?.label ?? '—';
 
   return (
     <div>
@@ -452,7 +452,7 @@ function StepRiepilogo() {
             <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5">
               <div className="text-[10px] font-mono uppercase text-[#666] mb-1">Casa</div>
               <div className="text-sm font-medium">
-                {mqTotaliEffettivi(state)} m² · {state.ambienti.length} ambienti · {pianoLabel}
+                {mqTotaliEffettivi(state)} m² · {state.ambienti.length} ambienti
               </div>
               <div className="text-xs text-[#666] mt-1">
                 {mqDistribuiti(state) > 0

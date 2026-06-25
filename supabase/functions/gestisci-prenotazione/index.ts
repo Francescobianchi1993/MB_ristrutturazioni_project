@@ -31,6 +31,13 @@ function tipoLabel(categoria: string): string {
   return categoria === 'idro' ? 'Idraulico' : 'Elettricista';
 }
 
+/** Sabato/domenica non sono prenotabili: si lavora solo lun–ven. */
+function isWeekend(dateStr: string): boolean {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=dom, 6=sab
+  return dow === 0 || dow === 6;
+}
+
 /** Lunedì–domenica (ISO) che contengono la data. */
 function settimanaISO(dateStr: string): { from: string; to: string } {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -167,6 +174,7 @@ Deno.serve(async (req) => {
     // ── sposta ─────────────────────────────────────────────────────────────--
     if (azione === 'sposta') {
       if (!data || !ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
+      if (isWeekend(data)) return jsonResponse({ error: 'giorno_non_valido' }, 400);
       if (row.stato === 'annullata') return jsonResponse({ error: 'gia_annullata' }, 409);
       if (passato) return jsonResponse({ error: 'passato' }, 409);
       if (data === row.data_intervento && ora === row.ora_intervento) {
@@ -216,6 +224,7 @@ Deno.serve(async (req) => {
     // ── riprenota: crea una NUOVA prenotazione clone (stesso intervento) ──────
     if (azione === 'riprenota') {
       if (!data || !ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
+      if (isWeekend(data)) return jsonResponse({ error: 'giorno_non_valido' }, 400);
 
       // Controllo "un appuntamento a settimana": come nel flusso di prenotazione,
       // blocca se il cliente ha già un appuntamento ATTIVO nella stessa settimana
