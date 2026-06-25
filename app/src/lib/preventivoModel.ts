@@ -248,19 +248,17 @@ export function mqTotali(state: ProgettoState): number {
 export const mqDistribuiti = mqTotali;
 
 /**
- * Mq totali "effettivi" su cui ragionare per le voci che agiscono su tutta la
- * casa. La fonte dipende dalla modalità, così display e prezzo restano sempre
- * coerenti tra loro:
+ * Mq totali "effettivi" su cui si basa la stima delle voci che agiscono su tutta
+ * la casa (ristrutturazione completa, impianti trasversali, tinteggiatura).
  *
- *  - Ristrutturazione completa: la metratura si inserisce ambiente per ambiente,
- *    quindi il totale è la SOMMA degli ambienti (può essere 0 finché l'utente
- *    non compila i m² — lo step "Dimensioni" obbliga comunque a inserirli).
- *  - Interventi trasversali (elettrico/idraulico/termico/tinteggiatura): l'utente
- *    indica i m² totali della casa con lo slider dedicato → mqTotaliDichiarati,
- *    con fallback alla somma ambienti e poi al default "appartamento medio".
+ * Sorgente: i m² TOTALI dichiarati dall'utente con lo slider "metratura
+ * appartamento". Sia in ristrutturazione completa sia per gli interventi
+ * trasversali il prezzo si basa sulla superficie totale dichiarata; la
+ * distribuzione negli ambienti è un dettaglio opzionale. Fallback alla somma
+ * degli ambienti e poi al default "appartamento medio", così la stima non è mai
+ * 0 € quando a video c'è una metratura.
  */
 export function mqTotaliEffettivi(state: ProgettoState): number {
-  if (isCompletaAttiva(state)) return mqTotali(state);
   return state.mqTotaliDichiarati || mqTotali(state) || MQ_TOTALI_DEFAULT;
 }
 
