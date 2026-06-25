@@ -357,7 +357,6 @@ function SottoVociList({ slot }: { slot: MacroSlot }) {
             <span className={`flex-1 ${!attiva ? 'line-through text-[#999]' : ''}`}>
               {sv.label}
             </span>
-            <span className="font-mono text-[10px] text-[#666]">{sv.pesoPct}%</span>
           </label>
         );
       })}
