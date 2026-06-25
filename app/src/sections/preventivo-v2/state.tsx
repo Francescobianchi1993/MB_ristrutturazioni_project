@@ -140,6 +140,9 @@ function reducer(state: ProgettoState, action: ProgettoAction): ProgettoState {
     }
 
     case 'AGGIORNA_AMBIENTE':
+      // Il totale "casa intera" deriva direttamente dalla somma degli ambienti
+      // (vedi mqTotaliEffettivi): non serve toccare mqTotaliDichiarati, che resta
+      // riservato allo slider dei m² totali usato dagli interventi trasversali.
       return {
         ...state,
         ambienti: state.ambienti.map((a) =>

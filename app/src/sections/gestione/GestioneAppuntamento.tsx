@@ -128,8 +128,9 @@ function CalendarioInline({
           if (!d) return <div key={`vuoto-${i}`} />;
           const iso = toISODate(d);
           const passato = d < oggi;
-          const pieno = !passato && giorniPieni.has(iso);
-          const disabilitato = passato || pieno;
+          const weekend = d.getDay() === 0 || d.getDay() === 6; // dom/sab: niente prenotazioni
+          const pieno = !passato && !weekend && giorniPieni.has(iso);
+          const disabilitato = passato || weekend || pieno;
           const sel = iso === valore;
           const isOggi = d.getTime() === oggi.getTime();
           return (
@@ -386,6 +387,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
       });
       if (error || !res?.ok) {
         if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        else if (res?.error === 'giorno_non_valido') setErrMsg('Scegli un giorno feriale (lun–ven).');
         else if (res?.error === 'stesso_orario') setErrMsg('Hai scelto lo stesso orario attuale: scegline uno diverso.');
         else if (res?.error === 'gia_annullata') setErrMsg('Questo appuntamento risulta annullato: ricarica la pagina per riprenotarlo.');
         else if (res?.error === 'passato') setErrMsg('Quella data è già passata: scegline una futura.');
@@ -414,6 +416,7 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
       // andato a buon fine (niente più "conferma fantasma").
       if (error || !res?.ok || !res?.id) {
         if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        else if (res?.error === 'giorno_non_valido') setErrMsg('Scegli un giorno feriale (lun–ven).');
         else if (res?.error === 'passato') setErrMsg('Quella data è già passata: scegline una futura.');
         else if (res?.error === 'conflitto_settimana') setErrMsg('Hai già un appuntamento attivo in quella settimana. Annulla prima quello, oppure scegli un\'altra settimana.');
         else setErrMsg('Non è stato possibile prenotare. Riprova.');

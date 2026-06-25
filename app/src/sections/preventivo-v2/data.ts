@@ -318,22 +318,19 @@ export const MACRO_SLOT_BY_ID: Record<MacroSlotId, MacroSlot> = MACRO_SLOT.reduc
 // ────────────────────────────────────────────────────────────────────────────
 
 export const FINITURE = [
-  { id: 'base', label: 'Economiche', desc: 'Materiali standard, ottimo qualità/prezzo', mult: 0.85 },
-  { id: 'medio', label: 'Medie', desc: 'Marche note, buona qualità', mult: 1.0 },
-  { id: 'premium', label: 'Premium', desc: 'Alta gamma, design, materiali nobili', mult: 1.35 },
-  { id: 'luxury', label: 'Luxury', desc: 'Su misura, marmi, marchi di lusso', mult: 1.75 },
+  { id: 'intelligent', label: 'Intelligent', desc: 'Materiali standard, ottimo qualità/prezzo', mult: 0.85 },
+  { id: 'smart', label: 'Smart', desc: 'Marche note, buona qualità', mult: 1.0 },
+  { id: 'prestige', label: 'Prestige', desc: 'Alta gamma, design, materiali nobili', mult: 1.35 },
 ] as const;
 
+// La tempistica NON incide più sul prezzo: resta solo come informazione che il
+// cliente comunica all'azienda (registrata nel preventivo) per organizzare i lavori.
 export const TEMPISTICHE = [
-  { id: 'urgente', label: 'Urgente', desc: 'Inizio entro 2 settimane', mult: 1.15 },
-  { id: 'normale', label: 'Standard', desc: 'Inizio entro 1-2 mesi', mult: 1.0 },
-  { id: 'flessibile', label: 'Flessibile', desc: 'Migliori prezzi', mult: 0.93 },
+  { id: 'urgente', label: 'Urgente', desc: 'Inizio entro 2 settimane' },
+  { id: 'normale', label: 'Standard', desc: 'Inizio entro 1-2 mesi' },
+  { id: 'flessibile', label: 'Flessibile', desc: 'Tempistiche aperte' },
 ] as const;
 
 export const FINITURA_MULT: Record<string, number> = Object.fromEntries(
   FINITURE.map((f) => [f.id, f.mult])
-);
-
-export const TEMPISTICA_MULT: Record<string, number> = Object.fromEntries(
-  TEMPISTICHE.map((t) => [t.id, t.mult])
 );

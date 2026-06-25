@@ -301,6 +301,9 @@ export default function Contact() {
                 <div className="flex justify-between"><span>Sabato</span><span>09:00 - 13:00</span></div>
                 <div className="flex justify-between"><span>Domenica</span><span>Chiuso</span></div>
               </div>
+              <p className="text-xs text-white/60 mt-3">
+                <span className="underline">Il sabato solo interventi o contatti telefonici/email.</span>
+              </p>
             </div>
           </div>
 

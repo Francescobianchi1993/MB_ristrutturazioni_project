@@ -1,21 +1,18 @@
 /**
- * Editor della casa intera — versione minimale.
+ * Editor della casa intera (ristrutturazione completa).
  *
- * Contiene solo la "anagrafica casa":
- *   - Tipo immobile / piano (placeholder moltiplicatore)
- *   - mq totali (slider 20-500)
- *   - Preset rapidi (Bilocale/Trilocale/Quadrilocale)
- *   - Pulsanti aggiungi ambiente (Cucina/Bagno/...)
- *
- * La lista degli ambienti viene gestita direttamente nelle schede ambiente
- * del Livello 2 (rinomina, mq, elimina inline) — niente ridondanza qui.
+ * Due livelli, coerenti tra loro:
+ *  1. Metratura TOTALE dell'appartamento — barra/slider 0-500 m² (mqTotaliDichiarati).
+ *     È il valore su cui si basa la stima della ristrutturazione completa.
+ *  2. Distribuzione opzionale negli ambienti — la metratura si scrive ambiente per
+ *     ambiente; si aggiungono/eliminano vani. Un indicatore mostra quanti m²
+ *     restano da distribuire (o quanti sono stati distribuiti oltre il dichiarato).
  */
 
-import { Plus, Home, Building2, Info, AlertTriangle } from 'lucide-react';
+import { Plus, Home, Trash2, Info, AlertTriangle } from 'lucide-react';
 import {
   type AmbienteTipo,
   LABEL_AMBIENTE,
-  PIANI,
   mqDistribuiti,
 } from '@/lib/preventivoModel';
 import { useProgetto } from './state';
@@ -30,7 +27,7 @@ export default function EditorAmbienti() {
 
   return (
     <div className="bg-white border border-[#E5E5E5] rounded-2xl overflow-hidden">
-      {/* Header con totale */}
+      {/* Header con totale dichiarati / distribuiti / ambienti */}
       <div className="flex items-center justify-between gap-3 p-4 border-b border-[#E5E5E5]">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-[#F5B800]/10 text-[#F5B800] flex items-center justify-center flex-shrink-0">
@@ -40,50 +37,18 @@ export default function EditorAmbienti() {
             <div className="text-[10px] font-mono uppercase tracking-wider text-[#666]">La tua casa</div>
             <div className="font-semibold text-sm">
               <span className="text-[#F5B800]">{dichiarati} m²</span>
-              <span className="text-[#666] font-normal"> dichiarati · {state.ambienti.length}{' '}
-              ambienti · {distribuiti} m² distribuiti</span>
+              <span className="text-[#666] font-normal">
+                {' '}dichiarati · {state.ambienti.length} ambienti · {distribuiti} m² distribuiti
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Piano dell'immobile */}
+      {/* Metratura totale dell'appartamento — barra 0-500 */}
       <div className="p-4 border-b border-[#E5E5E5]">
         <div className="flex items-center justify-between mb-2">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] flex items-center gap-1.5">
-            <Building2 className="w-3 h-3" />
-            Piano
-          </div>
-          <div className="hidden sm:flex text-[10px] font-mono text-[#999] items-center gap-1">
-            <Info className="w-3 h-3" />
-            moltiplicatore costo: <span className="text-[#F5B800]">da inserire (DB)</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          {PIANI.map((p) => {
-            const sel = state.piano === p.id;
-            return (
-              <button
-                key={p.id}
-                onClick={() => dispatch({ type: 'SET_PIANO', piano: p.id })}
-                className={`text-center p-2.5 rounded-xl border-2 transition text-xs leading-tight ${
-                  sel
-                    ? 'border-[#F5B800] bg-[#F5B800]/10 font-semibold'
-                    : 'border-[#E5E5E5] hover:border-[#F5B800]/40'
-                }`}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Slider mq totali — modifica solo i mq DICHIARATI della casa.
-           Gli ambienti restano invariati: l'utente decide come distribuire. */}
-      <div className="p-4 border-b border-[#E5E5E5]">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-[#666]">Metri quadri totali della casa</span>
+          <span className="text-xs text-[#666]">Metri quadri totali dell'appartamento</span>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -98,6 +63,7 @@ export default function EditorAmbienti() {
                 })
               }
               className="w-20 text-right p-1 rounded border border-[#E5E5E5] focus:border-[#F5B800] outline-none font-mono text-sm font-semibold"
+              aria-label="Metri quadri totali dell'appartamento"
             />
             <span className="text-xs text-[#666]">m²</span>
           </div>
@@ -110,6 +76,7 @@ export default function EditorAmbienti() {
           value={dichiarati}
           onChange={(e) => dispatch({ type: 'IMPOSTA_MQ_TOTALI', mq: Number(e.target.value) })}
           className="w-full accent-[#F5B800]"
+          aria-label="Metri quadri totali dell'appartamento (slider)"
         />
         <div className="flex justify-between text-[10px] text-[#999] mt-1">
           <span>0</span>
@@ -132,8 +99,8 @@ export default function EditorAmbienti() {
               <>
                 <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
                 <span>
-                  Hai distribuito <strong>{Math.abs(residui)} m²</strong> oltre il dichiarato.
-                  Aumenta i m² casa o riduci gli ambienti.
+                  Hai distribuito <strong>{Math.abs(residui)} m²</strong> oltre il totale dichiarato.
+                  Aumenta i m² dell'appartamento o riduci gli ambienti.
                 </span>
               </>
             )}
@@ -141,8 +108,56 @@ export default function EditorAmbienti() {
         )}
       </div>
 
+      {/* Distribuzione opzionale: m² per ogni ambiente + elimina */}
+      <div className="divide-y divide-[#F0F0F0]">
+        {state.ambienti.length === 0 ? (
+          <div className="p-5 text-sm text-[#666] text-center">
+            Aggiungi gli ambienti della casa e indica i m² di ognuno (opzionale).
+          </div>
+        ) : (
+          state.ambienti.map((a) => (
+            <div key={a.id} className="flex items-center gap-3 p-3 sm:p-4">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm truncate">{a.nome}</div>
+                <div className="text-[10px] font-mono uppercase tracking-wider text-[#999]">
+                  {LABEL_AMBIENTE[a.tipo]}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={500}
+                  step={0.5}
+                  value={a.mq}
+                  onChange={(e) =>
+                    dispatch({
+                      type: 'AGGIORNA_AMBIENTE',
+                      id: a.id,
+                      patch: { mq: Math.max(0, Math.min(500, Number(e.target.value) || 0)) },
+                    })
+                  }
+                  className="w-20 text-right p-1.5 rounded border border-[#E5E5E5] focus:border-[#F5B800] outline-none font-mono text-base font-semibold"
+                  aria-label={`Metri quadri ${a.nome}`}
+                />
+                <span className="text-sm text-[#666]">m²</span>
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: 'RIMUOVI_AMBIENTE', id: a.id })}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-[#999] hover:text-[#C0392B] hover:bg-[#C0392B]/10 transition"
+                  aria-label={`Elimina ${a.nome}`}
+                  title="Elimina ambiente"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* Pulsanti aggiungi ambiente */}
-      <div className="p-4 bg-[#FAFAFA]">
+      <div className="p-4 bg-[#FAFAFA] border-t border-[#E5E5E5]">
         <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-2">
           Aggiungi un ambiente
         </div>

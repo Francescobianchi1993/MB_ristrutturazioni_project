@@ -96,8 +96,24 @@ export interface VoceSelezionata {
 // Stato del progetto
 // ────────────────────────────────────────────────────────────────────────────
 
-export type Finitura = 'base' | 'medio' | 'premium' | 'luxury';
+export type Finitura = 'intelligent' | 'smart' | 'prestige';
 export type Tempistica = 'urgente' | 'normale' | 'flessibile';
+
+/**
+ * Mappa i vecchi id finitura (4 livelli) verso i 3 attuali, così gli stati
+ * salvati su localStorage da versioni precedenti non rompono la UI.
+ */
+const FINITURA_LEGACY: Record<string, Finitura> = {
+  base: 'intelligent',
+  medio: 'smart',
+  premium: 'prestige',
+  luxury: 'prestige',
+};
+
+export function normalizzaFinitura(value: unknown): Finitura {
+  if (value === 'intelligent' || value === 'smart' || value === 'prestige') return value;
+  return FINITURA_LEGACY[String(value)] ?? 'smart';
+}
 
 export interface Contatti {
   name: string;
@@ -211,7 +227,7 @@ export function statoIniziale(): ProgettoState {
     mqTotaliDichiarati: MQ_TOTALI_DEFAULT,
     ambienti: ambientiDefault(),
     macroSlot: {},
-    finitura: 'medio',
+    finitura: 'smart',
     tempistica: 'normale',
     contatti: { name: '', email: '', phone: '' },
     vociDettagliate: [],
@@ -232,15 +248,15 @@ export function mqTotali(state: ProgettoState): number {
 export const mqDistribuiti = mqTotali;
 
 /**
- * Mq totali "effettivi" su cui ragionare per le voci che agiscono su tutta la
- * casa: i mq DICHIARATI dall'utente (slider "casa totale") se impostati,
- * altrimenti la somma dei mq distribuiti negli ambienti, altrimenti il default
- * "appartamento medio". Non è mai 0 → evita stime/display a 0 m².
+ * Mq totali "effettivi" su cui si basa la stima delle voci che agiscono su tutta
+ * la casa (ristrutturazione completa, impianti trasversali, tinteggiatura).
  *
- * Priorità ai dichiarati perché un intervento "su tutta la casa" (es. impianto
- * idraulico) si stima sui m² dell'intera casa, non solo su quelli delle singole
- * stanze già dettagliate. Stesso ordine usato nel display, così slider e prezzo
- * restano coerenti.
+ * Sorgente: i m² TOTALI dichiarati dall'utente con lo slider "metratura
+ * appartamento". Sia in ristrutturazione completa sia per gli interventi
+ * trasversali il prezzo si basa sulla superficie totale dichiarata; la
+ * distribuzione negli ambienti è un dettaglio opzionale. Fallback alla somma
+ * degli ambienti e poi al default "appartamento medio", così la stima non è mai
+ * 0 € quando a video c'è una metratura.
  */
 export function mqTotaliEffettivi(state: ProgettoState): number {
   return state.mqTotaliDichiarati || mqTotali(state) || MQ_TOTALI_DEFAULT;
@@ -281,7 +297,12 @@ export function caricaDaLocalStorage(): ProgettoState | null {
     const macroSlotSanificato = Object.fromEntries(
       Object.entries(parsed.macroSlot ?? {}).filter(([id]) => validIds.has(id))
     ) as ProgettoState['macroSlot'];
-    return { ...parsed, macroSlot: macroSlotSanificato };
+    return {
+      ...parsed,
+      macroSlot: macroSlotSanificato,
+      // Migrazione finiture 4→3 livelli per stati salvati da versioni precedenti.
+      finitura: normalizzaFinitura(parsed.finitura),
+    };
   } catch {
     return null;
   }

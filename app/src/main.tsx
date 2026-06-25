@@ -8,15 +8,18 @@ import App from './App.tsx'
 // caricamento del sito per i normali visitatori.
 const GestioneAppuntamento = lazy(() => import('./sections/gestione/GestioneAppuntamento.tsx'))
 const GestioneRichieste = lazy(() => import('./sections/gestione/GestioneRichieste.tsx'))
+const PreventivoCondiviso = lazy(() => import('./sections/preventivo-v2/PreventivoCondiviso.tsx'))
 
 // Routing minimale senza librerie:
-//  ?admin           → mini-gestionale richieste (protetto da password)
-//  ?gestisci=<id>   → pagina self-service del cliente (sposta/annulla)
-//  altrimenti       → sito
+//  ?admin            → mini-gestionale richieste (protetto da password)
+//  ?gestisci=<id>    → pagina self-service del cliente (sposta/annulla)
+//  ?preventivo=<id>  → stima condivisa (sola lettura)
+//  altrimenti        → sito
 const params = new URLSearchParams(window.location.search)
 const adminMode = params.has('admin')
 const leadId = params.get('lead') ?? undefined
 const gestisciId = params.get('gestisci')
+const preventivoId = params.get('preventivo')
 const azione = params.get('do') ?? undefined
 // Slot proposto da MB (deep-link "annulla con proposta"): pre-seleziona data/ora.
 const dataIniziale = params.get('data') ?? undefined
@@ -28,6 +31,8 @@ createRoot(document.getElementById('root')!).render(
       ? <Suspense fallback={null}><GestioneRichieste leadId={leadId} /></Suspense>
       : gestisciId
         ? <Suspense fallback={null}><GestioneAppuntamento id={gestisciId} azioneIniziale={azione} dataIniziale={dataIniziale} oraIniziale={oraIniziale} /></Suspense>
-        : <App />}
+        : preventivoId
+          ? <Suspense fallback={null}><PreventivoCondiviso id={preventivoId} /></Suspense>
+          : <App />}
   </StrictMode>,
 )

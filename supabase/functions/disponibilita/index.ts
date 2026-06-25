@@ -47,8 +47,16 @@ Deno.serve(async (req) => {
     const adesso = Date.now();
     const giorni: Record<string, Record<string, boolean>> = {};
     for (const giorno of intervalloGiorni(dal, al)) {
+      const [gy, gm, gd] = giorno.split('-').map(Number);
+      const dow = new Date(Date.UTC(gy, gm - 1, gd)).getUTCDay(); // 0=dom, 6=sab
+      const weekend = dow === 0 || dow === 6;
       const slots: Record<string, boolean> = {};
       for (const ora of SLOT_ORARI) {
+        if (weekend) {
+          // Sabato e domenica non sono prenotabili: nessuno slot libero.
+          slots[ora] = false;
+          continue;
+        }
         const inizio = romeWallToUTC(giorno, ora).getTime();
         const fine = inizio + SLOT_DURATA_MIN * 60_000;
         const passato = inizio < adesso;

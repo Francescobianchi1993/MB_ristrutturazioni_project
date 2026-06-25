@@ -17,7 +17,6 @@ import {
 import {
   MACRO_SLOT_BY_ID,
   FINITURA_MULT,
-  TEMPISTICA_MULT,
   type MacroSlot,
 } from './data';
 
@@ -86,9 +85,8 @@ function calcolaSlot(state: ProgettoState, slot: MacroSlot): number {
 
 export function calcolaPrezzo(state: ProgettoState): PricingResult {
   const completaAttiva = isCompletaAttiva(state);
-  const finituraMult = FINITURA_MULT[state.finitura] ?? 1;
-  const tempisticaMult = TEMPISTICA_MULT[state.tempistica] ?? 1;
-  const moltGlobal = finituraMult * tempisticaMult;
+  // Solo la finitura incide sul prezzo. La tempistica è informativa (non moltiplica).
+  const moltGlobal = FINITURA_MULT[state.finitura] ?? 1;
 
   const perSlot: Partial<Record<MacroSlotId, number>> = {};
   let totaleBase = 0;

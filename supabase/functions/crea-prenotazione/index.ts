@@ -131,6 +131,13 @@ Deno.serve(async (req) => {
     const p = (await req.json()) as Payload;
     if (!p?.data || !p?.ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
 
+    // Niente prenotazioni nel weekend (sab/dom): si lavora solo lun–ven.
+    {
+      const [gy, gm, gd] = p.data.split('-').map(Number);
+      const dow = new Date(Date.UTC(gy, gm - 1, gd)).getUTCDay(); // 0=dom, 6=sab
+      if (dow === 0 || dow === 6) return jsonResponse({ error: 'giorno_non_valido' }, 400);
+    }
+
     const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID');
     if (!calendarId) throw new Error('GOOGLE_CALENDAR_ID mancante');
 

@@ -1145,8 +1145,9 @@ function CalendarioInline({
           if (!d) return <div key={`vuoto-${i}`} />;
           const iso = toISODate(d);
           const passato = d < oggi;
-          const pieno = !passato && giorniPieni.has(iso);
-          const disabilitato = passato || pieno;
+          const weekend = d.getDay() === 0 || d.getDay() === 6; // dom/sab: niente prenotazioni
+          const pieno = !passato && !weekend && giorniPieni.has(iso);
+          const disabilitato = passato || weekend || pieno;
           const sel = iso === valore;
           const isOggi = d.getTime() === oggi.getTime();
           return (
