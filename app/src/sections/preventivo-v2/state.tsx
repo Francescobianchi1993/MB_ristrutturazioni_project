@@ -20,6 +20,7 @@ import {
   type MacroSlotId,
   type Finitura,
   type Tempistica,
+  type TipoCasa,
   type Contatti,
   type VoceSelezionata,
   type PresetKey,
@@ -50,6 +51,7 @@ export type ProgettoAction =
   | { type: 'IMPOSTA_NUM_INFISSI'; numPorte?: number; numFinestre?: number }
   | { type: 'SET_FINITURA'; finitura: Finitura }
   | { type: 'SET_TEMPISTICA'; tempistica: Tempistica }
+  | { type: 'SET_TIPO_CASA'; tipoCasa: TipoCasa }
   | { type: 'SET_CONTATTI'; patch: Partial<Contatti> }
   | { type: 'AGGIORNA_VOCE_DETTAGLIATA'; voce: VoceSelezionata }
   | { type: 'RIMUOVI_VOCE_DETTAGLIATA'; voceId: number; ambienteId: string }
@@ -238,6 +240,9 @@ function reducer(state: ProgettoState, action: ProgettoAction): ProgettoState {
 
     case 'SET_TEMPISTICA':
       return { ...state, tempistica: action.tempistica };
+
+    case 'SET_TIPO_CASA':
+      return { ...state, tipoCasa: action.tipoCasa };
 
     case 'SET_CONTATTI':
       return { ...state, contatti: { ...state.contatti, ...action.patch } };

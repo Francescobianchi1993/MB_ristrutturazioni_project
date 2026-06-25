@@ -28,7 +28,7 @@ export default function RiepilogoSticky({
   onSwitchModalita,
   switchLabel,
 }: RiepilogoStickyProps) {
-  const { state } = useProgetto();
+  const { state, dispatch } = useProgetto();
   const result = calcolaPrezzo(state);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [condividendo, setCondividendo] = useState(false);
@@ -58,8 +58,10 @@ export default function RiepilogoSticky({
           totale: result.totale,
           totale_min: result.range.min,
           totale_max: result.range.max,
+          totale_ivato: result.totaleIvato,
           finitura: state.finitura,
           tempistica: state.tempistica,
+          tipo_casa: state.tipoCasa,
           mq: mqTotaliEffettivi(state),
           interventi: interventiAttivi,
           contatti: state.contatti,
@@ -96,19 +98,73 @@ export default function RiepilogoSticky({
       <div className="text-[10px] font-mono uppercase tracking-wider text-[#666]">
         {result.haDettaglio ? 'Totale dettagliato' : 'Stima totale'}
       </div>
-      <div className="font-display text-4xl font-bold text-[#F5B800] mt-1 transition-all">
-        {fmt(result.totale)}
-      </div>
-      {!result.haDettaglio && result.totale > 0 && (
-        <div className="text-xs text-[#666] mt-1">
-          Prezzo finale stimato{' '}
-          <strong className="text-[#1A1A1A]">{fmt(result.range.min)} – {fmt(result.range.max)}</strong>
-        </div>
-      )}
-      {result.totale === 0 && (
-        <div className="text-xs text-[#666] mt-1">
-          Seleziona almeno un intervento per vedere la stima
-        </div>
+
+      {result.totale === 0 ? (
+        <>
+          <div className="font-display text-4xl font-bold text-[#F5B800] mt-1">{fmt(0)}</div>
+          <div className="text-xs text-[#666] mt-1">
+            Seleziona almeno un intervento per vedere la stima
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Tipo immobile → aliquota IVA della ristrutturazione */}
+          <div className="mt-3 mb-3">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+              Tipo immobile (IVA)
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {([
+                ['prima', 'Prima casa', '10%'],
+                ['seconda', 'Seconda casa', '22%'],
+              ] as const).map(([id, label, pct]) => {
+                const sel = state.tipoCasa === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_TIPO_CASA', tipoCasa: id })}
+                    className={`text-left px-2.5 py-1.5 rounded-lg border-2 text-xs transition ${
+                      sel
+                        ? 'border-[#F5B800] bg-[#F5B800]/10 font-semibold'
+                        : 'border-[#E5E5E5] hover:border-[#F5B800]/40'
+                    }`}
+                  >
+                    {label}
+                    <span className="block text-[10px] font-normal text-[#666]">IVA {pct}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Imponibile + IVA + totale finale (IVA inclusa) */}
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between gap-2">
+              <span className="text-[#666]">Imponibile (IVA escl.)</span>
+              <span className="font-mono">{fmt(result.imponibile)}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-[#666]">IVA {result.ivaPct}%</span>
+              <span className="font-mono">{fmt(result.iva)}</span>
+            </div>
+          </div>
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mt-3">
+            Totale (IVA incl.)
+          </div>
+          <div className="font-display text-4xl font-bold text-[#F5B800] mt-0.5 transition-all">
+            {fmt(result.totaleIvato)}
+          </div>
+          {!result.haDettaglio && (
+            <div className="text-xs text-[#666] mt-1">
+              Imponibile orientativo{' '}
+              <strong className="text-[#1A1A1A]">
+                {fmt(result.range.min)} – {fmt(result.range.max)}
+              </strong>{' '}
+              (oltre IVA)
+            </div>
+          )}
+        </>
       )}
 
       {mostraDettaglio && slotAttivi.length > 0 && (
