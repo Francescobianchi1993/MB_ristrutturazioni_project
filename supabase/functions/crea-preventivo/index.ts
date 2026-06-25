@@ -17,8 +17,10 @@ interface Body {
   totale?: number;
   totale_min?: number;
   totale_max?: number;
+  totale_ivato?: number;
   finitura?: string;
   tempistica?: string;
+  tipo_casa?: string;
   mq?: number;
   interventi?: unknown;
   contatti?: unknown;
@@ -49,8 +51,10 @@ Deno.serve(async (req) => {
         totale,
         totale_min: b.totale_min != null ? Number(b.totale_min) : null,
         totale_max: b.totale_max != null ? Number(b.totale_max) : null,
+        totale_ivato: b.totale_ivato != null ? Number(b.totale_ivato) : null,
         finitura: b.finitura ?? null,
         tempistica: b.tempistica ?? null,
+        tipo_casa: b.tipo_casa ?? null,
         mq: b.mq != null ? Number(b.mq) : null,
         interventi,
         contatti: b.contatti ?? null,

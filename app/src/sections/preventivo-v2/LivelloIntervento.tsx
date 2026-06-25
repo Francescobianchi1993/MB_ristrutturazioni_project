@@ -1144,10 +1144,11 @@ function CalendarioInline({
         {celle.map((d, i) => {
           if (!d) return <div key={`vuoto-${i}`} />;
           const iso = toISODate(d);
-          const passato = d < oggi;
           const weekend = d.getDay() === 0 || d.getDay() === 6; // dom/sab: niente prenotazioni
-          const pieno = !passato && !weekend && giorniPieni.has(iso);
-          const disabilitato = passato || weekend || pieno;
+          // Prima disponibilità sempre dal giorno SUCCESSIVO: oggi e i giorni passati non sono prenotabili.
+          const troppoPresto = d.getTime() <= oggi.getTime();
+          const pieno = !troppoPresto && !weekend && giorniPieni.has(iso);
+          const disabilitato = troppoPresto || weekend || pieno;
           const sel = iso === valore;
           const isOggi = d.getTime() === oggi.getTime();
           return (
@@ -1406,9 +1407,12 @@ function StepRiepilogo({
           )}
         </div>
 
-        <div className="border-t border-[#E5E5E5] mt-4 pt-4 flex items-end justify-between">
-          <span className="font-display text-lg font-bold">Totale stimato</span>
-          <span className="font-display text-3xl font-bold text-[#F5B800]">€ {costi.totale.toFixed(2)}</span>
+        <div className="border-t border-[#E5E5E5] mt-4 pt-4">
+          <div className="flex items-end justify-between">
+            <span className="font-display text-lg font-bold">Totale stimato</span>
+            <span className="font-display text-3xl font-bold text-[#F5B800]">€ {costi.totale.toFixed(2)}</span>
+          </div>
+          <div className="text-right text-[11px] text-[#666] mt-0.5">IVA compresa</div>
         </div>
 
         <div className="border-t border-[#E5E5E5] mt-4 pt-4">

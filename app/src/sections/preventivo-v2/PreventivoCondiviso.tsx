@@ -10,6 +10,7 @@ import { Loader2, Home } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { fmt } from './pricing';
 import { FINITURE, TEMPISTICHE } from './data';
+import { IVA_PCT } from '@/lib/preventivoModel';
 
 interface PreventivoRecord {
   id: string;
@@ -17,8 +18,10 @@ interface PreventivoRecord {
   totale: number;
   totale_min: number | null;
   totale_max: number | null;
+  totale_ivato: number | null;
   finitura: string | null;
   tempistica: string | null;
+  tipo_casa: string | null;
   mq: number | null;
   interventi: string[] | null;
 }
@@ -63,6 +66,12 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
     ? TEMPISTICHE.find((t) => t.id === rec.tempistica)?.label ?? rec.tempistica
     : null;
 
+  // IVA della ristrutturazione: 10% prima casa, 22% seconda. Fallback 10%.
+  const ivaPct = rec?.tipo_casa === 'seconda' ? IVA_PCT.seconda : IVA_PCT.prima;
+  const imponibile = rec?.totale ?? 0;
+  const totaleIvato = rec?.totale_ivato ?? Math.round(imponibile * (1 + ivaPct / 100));
+  const iva = totaleIvato - imponibile;
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center px-4 py-10">
       <div className="w-full max-w-lg">
@@ -99,18 +108,29 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
                 <Home className="w-4 h-4 text-[#F5B800]" />
                 Stima condivisa
               </div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[#666]">
-                Stima totale
+              <div className="space-y-1 text-sm mb-1">
+                <div className="flex justify-between gap-2">
+                  <span className="text-[#666]">Imponibile (IVA escl.)</span>
+                  <span className="font-mono">{fmt(imponibile)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-[#666]">IVA {ivaPct}%</span>
+                  <span className="font-mono">{fmt(iva)}</span>
+                </div>
               </div>
-              <div className="font-display text-4xl font-bold text-[#F5B800] mt-1">
-                {fmt(rec.totale)}
+              <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mt-3">
+                Totale (IVA incl.)
+              </div>
+              <div className="font-display text-4xl font-bold text-[#F5B800] mt-0.5">
+                {fmt(totaleIvato)}
               </div>
               {rec.totale_min != null && rec.totale_max != null && (
                 <div className="text-xs text-[#666] mt-1">
-                  Prezzo finale stimato{' '}
+                  Imponibile orientativo{' '}
                   <strong className="text-[#1A1A1A]">
                     {fmt(rec.totale_min)} – {fmt(rec.totale_max)}
-                  </strong>
+                  </strong>{' '}
+                  (oltre IVA)
                 </div>
               )}
 

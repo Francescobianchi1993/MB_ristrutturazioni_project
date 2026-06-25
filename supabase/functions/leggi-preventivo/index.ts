@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
 
     const { data, error } = await supabase
       .from('preventivi')
-      .select('id, created_at, totale, totale_min, totale_max, finitura, tempistica, mq, interventi')
+      .select('id, created_at, totale, totale_min, totale_max, totale_ivato, finitura, tempistica, tipo_casa, mq, interventi')
       .eq('id', id)
       .maybeSingle();
 

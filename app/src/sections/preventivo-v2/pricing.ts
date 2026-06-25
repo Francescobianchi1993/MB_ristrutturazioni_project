@@ -13,6 +13,7 @@ import {
   mqPerTipo,
   mqTotaliEffettivi,
   isCompletaAttiva,
+  IVA_PCT,
 } from '@/lib/preventivoModel';
 import {
   MACRO_SLOT_BY_ID,
@@ -31,6 +32,14 @@ export interface PricingResult {
   totaleDettagliato: number;
   /** True se ci sono voci dettagliate che sovrascrivono la stima aggregata */
   haDettaglio: boolean;
+  /** Imponibile (= totale, IVA esclusa) della ristrutturazione. */
+  imponibile: number;
+  /** Aliquota IVA applicata: 10 (prima casa) o 22 (seconda casa). */
+  ivaPct: number;
+  /** Importo IVA sull'imponibile. */
+  iva: number;
+  /** Totale finale IVA inclusa (imponibile + iva). */
+  totaleIvato: number;
 }
 
 const RANGE_PCT = 0.15;
@@ -114,11 +123,18 @@ export function calcolaPrezzo(state: ProgettoState): PricingResult {
   // Se ci sono voci dettagliate, usiamo quelle come fonte primaria
   const totale = haDettaglio ? totaleDettagliato : totaleBase;
 
+  // Imponibile (IVA esclusa) arrotondato all'euro. L'IVA della ristrutturazione
+  // dipende dal tipo di casa: 10% prima casa, 22% seconda casa.
+  const imponibile = Math.round(totale);
+  const ivaPct = IVA_PCT[state.tipoCasa] ?? 10;
+  const iva = Math.round((imponibile * ivaPct) / 100);
+  const totaleIvato = imponibile + iva;
+
   return {
     // Somma reale dei costi, arrotondata solo all'euro (niente più scatti da 50€,
     // così la deselezione di una voce riduce il totale dell'importo esatto e una
     // stima piccola non viene mai azzerata).
-    totale: Math.round(totale),
+    totale: imponibile,
     range: {
       min: Math.round(totale * (1 - RANGE_PCT)),
       max: Math.round(totale * (1 + RANGE_PCT)),
@@ -126,6 +142,10 @@ export function calcolaPrezzo(state: ProgettoState): PricingResult {
     perSlot,
     totaleDettagliato,
     haDettaglio,
+    imponibile,
+    ivaPct,
+    iva,
+    totaleIvato,
   };
 }
 

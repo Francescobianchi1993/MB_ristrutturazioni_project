@@ -99,6 +99,20 @@ export interface VoceSelezionata {
 export type Finitura = 'intelligent' | 'smart' | 'prestige';
 export type Tempistica = 'urgente' | 'normale' | 'flessibile';
 
+/** Tipo di abitazione: incide solo sull'aliquota IVA della ristrutturazione. */
+export type TipoCasa = 'prima' | 'seconda';
+
+/**
+ * Aliquota IVA della ristrutturazione: 10% sulla prima casa, 22% sulla seconda.
+ * Si applica solo al flusso "stima rapida" (ristrutturazione); nel flusso
+ * "intervento" i prezzi a listino sono già IVA compresa.
+ */
+export const IVA_PCT: Record<TipoCasa, number> = { prima: 10, seconda: 22 };
+
+export function normalizzaTipoCasa(value: unknown): TipoCasa {
+  return value === 'seconda' ? 'seconda' : 'prima';
+}
+
 /**
  * Mappa i vecchi id finitura (4 livelli) verso i 3 attuali, così gli stati
  * salvati su localStorage da versioni precedenti non rompono la UI.
@@ -149,6 +163,8 @@ export interface ProgettoState {
   macroSlot: Partial<Record<MacroSlotId, MacroSlotConfig>>;
   finitura: Finitura;
   tempistica: Tempistica;
+  /** Prima/seconda casa: determina l'aliquota IVA della ristrutturazione. */
+  tipoCasa: TipoCasa;
   contatti: Contatti;
   vociDettagliate: VoceSelezionata[];
   ultimoAggiornamento: string;
@@ -229,6 +245,7 @@ export function statoIniziale(): ProgettoState {
     macroSlot: {},
     finitura: 'smart',
     tempistica: 'normale',
+    tipoCasa: 'prima',
     contatti: { name: '', email: '', phone: '' },
     vociDettagliate: [],
     ultimoAggiornamento: new Date().toISOString(),
@@ -302,6 +319,8 @@ export function caricaDaLocalStorage(): ProgettoState | null {
       macroSlot: macroSlotSanificato,
       // Migrazione finiture 4→3 livelli per stati salvati da versioni precedenti.
       finitura: normalizzaFinitura(parsed.finitura),
+      // tipoCasa introdotto dopo: default "prima" per gli stati salvati senza il campo.
+      tipoCasa: normalizzaTipoCasa(parsed.tipoCasa),
     };
   } catch {
     return null;

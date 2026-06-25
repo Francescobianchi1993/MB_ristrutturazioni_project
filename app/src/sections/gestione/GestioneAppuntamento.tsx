@@ -127,10 +127,11 @@ function CalendarioInline({
         {celle.map((d, i) => {
           if (!d) return <div key={`vuoto-${i}`} />;
           const iso = toISODate(d);
-          const passato = d < oggi;
           const weekend = d.getDay() === 0 || d.getDay() === 6; // dom/sab: niente prenotazioni
-          const pieno = !passato && !weekend && giorniPieni.has(iso);
-          const disabilitato = passato || weekend || pieno;
+          // Prima disponibilità sempre dal giorno SUCCESSIVO: oggi e i giorni passati non sono prenotabili.
+          const troppoPresto = d.getTime() <= oggi.getTime();
+          const pieno = !troppoPresto && !weekend && giorniPieni.has(iso);
+          const disabilitato = troppoPresto || weekend || pieno;
           const sel = iso === valore;
           const isOggi = d.getTime() === oggi.getTime();
           return (
