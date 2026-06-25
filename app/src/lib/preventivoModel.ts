@@ -249,16 +249,18 @@ export const mqDistribuiti = mqTotali;
 
 /**
  * Mq totali "effettivi" su cui ragionare per le voci che agiscono su tutta la
- * casa: i mq DICHIARATI dall'utente (slider "casa totale") se impostati,
- * altrimenti la somma dei mq distribuiti negli ambienti, altrimenti il default
- * "appartamento medio". Non è mai 0 → evita stime/display a 0 m².
+ * casa. La fonte dipende dalla modalità, così display e prezzo restano sempre
+ * coerenti tra loro:
  *
- * Priorità ai dichiarati perché un intervento "su tutta la casa" (es. impianto
- * idraulico) si stima sui m² dell'intera casa, non solo su quelli delle singole
- * stanze già dettagliate. Stesso ordine usato nel display, così slider e prezzo
- * restano coerenti.
+ *  - Ristrutturazione completa: la metratura si inserisce ambiente per ambiente,
+ *    quindi il totale è la SOMMA degli ambienti (può essere 0 finché l'utente
+ *    non compila i m² — lo step "Dimensioni" obbliga comunque a inserirli).
+ *  - Interventi trasversali (elettrico/idraulico/termico/tinteggiatura): l'utente
+ *    indica i m² totali della casa con lo slider dedicato → mqTotaliDichiarati,
+ *    con fallback alla somma ambienti e poi al default "appartamento medio".
  */
 export function mqTotaliEffettivi(state: ProgettoState): number {
+  if (isCompletaAttiva(state)) return mqTotali(state);
   return state.mqTotaliDichiarati || mqTotali(state) || MQ_TOTALI_DEFAULT;
 }
 

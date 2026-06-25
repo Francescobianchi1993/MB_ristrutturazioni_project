@@ -64,11 +64,6 @@ export type ProgettoAction =
 
 const uid = (): string => Math.random().toString(36).slice(2, 9);
 
-/** Somma dei m² degli ambienti — il totale casa deriva da qui (niente più
- *  "dichiarati vs distribuiti"): la metratura si inserisce per ogni ambiente. */
-const sommaMqAmbienti = (ambienti: Ambiente[]): number =>
-  ambienti.reduce((s, a) => s + (a.mq || 0), 0);
-
 function defaultMacroSlotConfig(slot: MacroSlotId) {
   const meta = MACRO_SLOT_BY_ID[slot];
   const sottoVociAttive: Record<string, boolean> = {};
@@ -144,36 +139,37 @@ function reducer(state: ProgettoState, action: ProgettoAction): ProgettoState {
       };
     }
 
-    case 'AGGIORNA_AMBIENTE': {
-      const ambienti = state.ambienti.map((a) =>
-        a.id === action.id ? { ...a, ...action.patch } : a
-      );
-      // Il totale casa segue la somma degli ambienti.
-      return { ...state, ambienti, mqTotaliDichiarati: sommaMqAmbienti(ambienti) };
-    }
-
-    case 'AGGIUNGI_AMBIENTE': {
-      const ambienti = [
-        ...state.ambienti,
-        {
-          id: uid(),
-          tipo: action.tipo,
-          nome: LABEL_AMBIENTE[action.tipo],
-          mq: 0, // l'utente deve compilare la metratura del nuovo vano
-        },
-      ];
-      return { ...state, ambienti, mqTotaliDichiarati: sommaMqAmbienti(ambienti) };
-    }
-
-    case 'RIMUOVI_AMBIENTE': {
-      const ambienti = state.ambienti.filter((a) => a.id !== action.id);
+    case 'AGGIORNA_AMBIENTE':
+      // Il totale "casa intera" deriva direttamente dalla somma degli ambienti
+      // (vedi mqTotaliEffettivi): non serve toccare mqTotaliDichiarati, che resta
+      // riservato allo slider dei m² totali usato dagli interventi trasversali.
       return {
         ...state,
-        ambienti,
-        mqTotaliDichiarati: sommaMqAmbienti(ambienti),
+        ambienti: state.ambienti.map((a) =>
+          a.id === action.id ? { ...a, ...action.patch } : a
+        ),
+      };
+
+    case 'AGGIUNGI_AMBIENTE':
+      return {
+        ...state,
+        ambienti: [
+          ...state.ambienti,
+          {
+            id: uid(),
+            tipo: action.tipo,
+            nome: LABEL_AMBIENTE[action.tipo],
+            mq: 0, // l'utente deve compilare la metratura del nuovo vano
+          },
+        ],
+      };
+
+    case 'RIMUOVI_AMBIENTE':
+      return {
+        ...state,
+        ambienti: state.ambienti.filter((a) => a.id !== action.id),
         vociDettagliate: state.vociDettagliate.filter((v) => v.ambienteId !== action.id),
       };
-    }
 
     case 'IMPOSTA_MQ_TOTALI':
       // Aggiorna SOLO la metratura dichiarata della casa.
