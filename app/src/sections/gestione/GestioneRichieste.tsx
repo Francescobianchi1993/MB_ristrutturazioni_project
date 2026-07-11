@@ -235,10 +235,17 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   }
 
   // ── LISTA ───────────────────────────────────────────────────────────────
-  const badge = (r: Riga) =>
-    r.tipo === 'sopralluogo'
-      ? <span className="text-[10px] font-bold uppercase tracking-wide bg-[#F5B800]/20 text-[#8a6d00] px-2 py-0.5 rounded">Sopralluogo</span>
-      : <span className="text-[10px] font-bold uppercase tracking-wide bg-[#1A1A1A]/10 text-[#1A1A1A] px-2 py-0.5 rounded">{r.categoria === 'idro' ? 'Idraulico' : 'Elettricista'}</span>;
+  const badge = (r: Riga) => {
+    if (r.tipo === 'sopralluogo') {
+      // Le richieste di certificazione arrivano nella stessa tabella lead_sopralluogo:
+      // le distinguiamo dalla nota, così in lista non si confondono con i sopralluoghi.
+      if (r.note?.startsWith('[Richiesta CERTIFICAZIONE')) {
+        return <span className="text-[10px] font-bold uppercase tracking-wide bg-[#2E7D32]/15 text-[#2E7D32] px-2 py-0.5 rounded">Certificazione</span>;
+      }
+      return <span className="text-[10px] font-bold uppercase tracking-wide bg-[#F5B800]/20 text-[#8a6d00] px-2 py-0.5 rounded">Sopralluogo</span>;
+    }
+    return <span className="text-[10px] font-bold uppercase tracking-wide bg-[#1A1A1A]/10 text-[#1A1A1A] px-2 py-0.5 rounded">{r.categoria === 'idro' ? 'Idraulico' : 'Elettricista'}</span>;
+  };
   const statoCol = (s: string) => s === 'nuovo' || s === 'nuova' ? 'text-[#C0392B]' : 'text-[#2E7D32]';
 
   return (
@@ -347,7 +354,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
                   <CheckCircle2 className="w-4 h-4" /> Segna come gestita
                 </button>
               ) : (
-                <button onClick={() => segna(sel, sel.tipo === 'sopralluogo' ? 'nuova' : 'nuovo')} className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]">
+                <button onClick={() => segna(sel, sel.tipo === 'sopralluogo' ? 'nuovo' : 'nuova')} className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]">
                   Rimetti tra le nuove
                 </button>
               )}

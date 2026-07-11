@@ -284,6 +284,15 @@ Deno.serve(async (req) => {
       }
 
       const newId = newRow.id;
+      // Se la prenotazione di origine è ancora ATTIVA (non annullata e non
+      // passata), la annulliamo ora che il clone è salvato: evita il doppione
+      // (due appuntamenti attivi). Il controllo "un appuntamento a settimana"
+      // esclude l'origine per id, quindi senza questo passaggio resterebbero
+      // entrambi. Se era già annullata/passata non tocchiamo nulla.
+      if (row.stato !== 'annullata' && !passato) {
+        if (row.google_event_id) await cancellaEvento(token, calendarId, row.google_event_id);
+        await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', id);
+      }
       if (row.email) await inviaEmailConferma(buildDatiEmail(row, newId, data, ora));
       return jsonResponse({ ok: true, id: newId, data, ora });
     }
