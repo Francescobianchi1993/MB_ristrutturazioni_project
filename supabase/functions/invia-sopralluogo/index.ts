@@ -44,7 +44,12 @@ Deno.serve(async (req) => {
       allegati,
     }).select('id').single();
     if (insErr) console.error('[sopralluogo] insert fallita:', insErr.message);
+    const dbOk = !insErr && !!row;
     const id = row?.id ?? null;
+    // Traccia se la notifica email è andata a buon fine: se NÉ il DB NÉ l'email
+    // funzionano, il lead sarebbe perso in silenzio → in quel caso rispondiamo
+    // 500 così il sito mostra il fallback (telefono), invece di "Inviato!".
+    let mailOk = false;
 
     const user = Deno.env.get('GMAIL_USER');
     const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
@@ -92,6 +97,7 @@ Deno.serve(async (req) => {
           content: testo,
           html,
         });
+        mailOk = true;
       } catch (e) {
         console.error('[sopralluogo] email fallita:', e instanceof Error ? e.message : String(e));
       } finally {
@@ -99,7 +105,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    return jsonResponse({ ok: true });
+    // Il lead è "salvo" se almeno un canale ha funzionato (DB o email all'azienda).
+    // Se entrambi falliscono NON diciamo "ok": il sito mostrerà il fallback.
+    if (!dbOk && !mailOk) {
+      return jsonResponse({ error: 'salvataggio_fallito' }, 500);
+    }
+    return jsonResponse({ ok: true, id });
   } catch (e) {
     return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
