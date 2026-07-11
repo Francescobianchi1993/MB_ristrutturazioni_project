@@ -17,7 +17,7 @@
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { getAccessToken, getBusy } from '../_shared/google.ts';
-import { SLOT_DURATA_MIN, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
+import { SLOT_DURATA_MIN, SLOT_ORARI, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
 import { inviaWhatsApp } from '../_shared/whatsapp.ts';
 import { inviaEmailConferma } from '../_shared/email.ts';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
@@ -131,6 +131,13 @@ Deno.serve(async (req) => {
     const p = (await req.json()) as Payload;
     if (!p?.data || !p?.ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
 
+    // Validazione formato/valori: la data deve essere una data ISO reale e l'ora
+    // uno degli slot ammessi. Senza questo controllo un'ora fuori range (es.
+    // '24:00') verrebbe normalizzata da romeWallToUTC facendo scivolare il
+    // giorno in avanti e aggirando il blocco weekend qui sotto.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(p.data)) return jsonResponse({ error: 'data_non_valida' }, 400);
+    if (!SLOT_ORARI.includes(p.ora)) return jsonResponse({ error: 'ora_non_valida' }, 400);
+
     // Niente prenotazioni nel weekend (sab/dom): si lavora solo lun–ven.
     {
       const [gy, gm, gd] = p.data.split('-').map(Number);
@@ -237,6 +244,9 @@ Deno.serve(async (req) => {
       } catch {
         // best-effort
       }
+      // 23505 = unique violation: un'altra prenotazione ha occupato lo slot tra il
+      // controllo freeBusy e l'insert (race). Trattiamolo come slot occupato.
+      if (error?.code === '23505') return jsonResponse({ error: 'slot_occupato' }, 409);
       return jsonResponse({ error: 'insert_fallita' }, 500);
     }
 

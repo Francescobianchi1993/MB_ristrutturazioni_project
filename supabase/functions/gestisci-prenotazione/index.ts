@@ -166,8 +166,17 @@ Deno.serve(async (req) => {
     // ── annulla ──────────────────────────────────────────────────────────────
     if (azione === 'annulla') {
       if (row.stato === 'annullata') return jsonResponse({ ok: true, stato: 'annullata' });
+      // Aggiorniamo prima il DB e solo dopo cancelliamo l'evento (best-effort):
+      // se l'UPDATE fallisce non diciamo "ok" con la riga ancora attiva.
+      const { error: updErr } = await supabase
+        .from('prenotazioni_intervento')
+        .update({ stato: 'annullata' })
+        .eq('id', id);
+      if (updErr) {
+        console.error('[gestisci] annulla update fallita:', updErr.message);
+        return jsonResponse({ error: 'annulla_fallita' }, 500);
+      }
       if (row.google_event_id) await cancellaEvento(token, calendarId, row.google_event_id);
-      await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', id);
       return jsonResponse({ ok: true, stato: 'annullata' });
     }
 
@@ -211,11 +220,21 @@ Deno.serve(async (req) => {
       if (busy.length > 0) return jsonResponse({ error: 'slot_occupato' }, 409);
 
       const newEventId = await creaEvento(token, calendarId, summary, descrizione(row, tipo, true), start, end);
-      if (row.google_event_id) await cancellaEvento(token, calendarId, row.google_event_id);
-      await supabase
+      // Aggiorniamo il DB PRIMA di cancellare il vecchio evento: se l'UPDATE
+      // fallisce annulliamo il nuovo evento e lasciamo intatti riga + vecchio
+      // evento (niente evento orfano né conferma "fantasma"). Coerente con riprenota.
+      const { error: updErr } = await supabase
         .from('prenotazioni_intervento')
         .update({ data_intervento: data, ora_intervento: ora, google_event_id: newEventId, stato: 'spostata' })
         .eq('id', id);
+      if (updErr) {
+        console.error('[gestisci] sposta update fallita:', updErr.message);
+        await cancellaEvento(token, calendarId, newEventId);
+        // 23505 = slot occupato da un'altra prenotazione tra il check e l'update (race).
+        if (updErr.code === '23505') return jsonResponse({ error: 'slot_occupato' }, 409);
+        return jsonResponse({ error: 'update_fallita' }, 500);
+      }
+      if (row.google_event_id) await cancellaEvento(token, calendarId, row.google_event_id);
 
       if (row.email) await inviaEmailConferma(buildDatiEmail(row, id, data, ora));
       return jsonResponse({ ok: true, data, ora });
@@ -280,6 +299,8 @@ Deno.serve(async (req) => {
       if (insErr || !newRow) {
         console.error('[gestisci] riprenota insert fallita:', insErr?.message);
         await cancellaEvento(token, calendarId, newEventId);
+        // 23505 = slot occupato da un'altra prenotazione tra il check e l'insert (race).
+        if (insErr?.code === '23505') return jsonResponse({ error: 'slot_occupato' }, 409);
         return jsonResponse({ error: 'insert_fallita' }, 500);
       }
 

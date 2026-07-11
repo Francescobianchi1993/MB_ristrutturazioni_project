@@ -2,8 +2,9 @@
 -- Aggiunge il riferimento all'evento Google e i contatti del cliente.
 --
 -- L'insert ora passa dalla Edge Function `crea-prenotazione` (service role),
--- che scrive anche google_event_id: la policy anon_insert resta per retro-
--- compatibilità ma il flusso principale non la usa più.
+-- che scrive anche google_event_id. La vecchia policy anon_insert è stata
+-- rimossa (vedi supabase_audit_hardening.sql): il flusso non la usa più e
+-- permetteva insert diretti che saltavano le validazioni della function.
 
 alter table public.prenotazioni_intervento
   add column if not exists google_event_id text,   -- id evento sul Google Calendar società

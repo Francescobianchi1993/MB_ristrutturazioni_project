@@ -75,15 +75,23 @@ Deno.serve(async (req) => {
         </div>
         <p style='color:#999;font-size:12px;margin-top:14px'>Lì trovi tutti i dati e gli allegati. Rispondendo a questa email scrivi direttamente al cliente.</p>
       </div>`;
+      // Elenchiamo nome+path degli allegati nel testo: se l'INSERT su DB fallisce
+      // (dbOk=false) il link al gestionale è "morto", ma dai path l'azienda può
+      // comunque recuperare i file dal bucket → il lead non va perso in silenzio.
+      const allegatiTxt = allegati.length
+        ? allegati.map((a) => `  - ${a.nome} (${a.path})`).join('\n')
+        : '—';
       const testo = [
         'Nuova richiesta di sopralluogo',
         `Nome: ${nome || '—'}`,
         `Telefono: ${telefono || '—'}`,
         `Email: ${email || '—'}`,
-        `Allegati: ${allegati.length}`,
+        `Allegati (${allegati.length}):`,
+        allegatiTxt,
         `Note: ${note || '—'}`,
         `Apri nel gestionale: ${adminUrl}`,
-      ].join('\n');
+        dbOk ? '' : '⚠️ NB: archiviazione su gestionale non riuscita — usa i path qui sopra per recuperare gli allegati.',
+      ].filter(Boolean).join('\n');
 
       const client = new SMTPClient({
         connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password } },

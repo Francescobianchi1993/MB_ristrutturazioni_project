@@ -52,14 +52,16 @@ export default function EditorAmbienti() {
           <div className="flex items-center gap-2">
             <input
               type="number"
-              min={0}
+              min={20}
               max={500}
               step={5}
               value={dichiarati}
               onChange={(e) =>
                 dispatch({
                   type: 'IMPOSTA_MQ_TOTALI',
-                  mq: Math.max(0, Math.min(500, Number(e.target.value) || 0)),
+                  // Minimo 20 m²: a 0 la UI mostrava "0 m²" ma la stima usa il
+                  // fallback (80 m²) → prezzo incoerente. Un pavimento evita il gap.
+                  mq: Math.max(20, Math.min(500, Number(e.target.value) || 0)),
                 })
               }
               className="w-20 text-right p-1 rounded border border-[#E5E5E5] focus:border-[#F5B800] outline-none font-mono text-sm font-semibold"
@@ -70,16 +72,16 @@ export default function EditorAmbienti() {
         </div>
         <input
           type="range"
-          min={0}
+          min={20}
           max={500}
           step={5}
           value={dichiarati}
-          onChange={(e) => dispatch({ type: 'IMPOSTA_MQ_TOTALI', mq: Number(e.target.value) })}
+          onChange={(e) => dispatch({ type: 'IMPOSTA_MQ_TOTALI', mq: Math.max(20, Number(e.target.value)) })}
           className="w-full accent-[#F5B800]"
           aria-label="Metri quadri totali dell'appartamento (slider)"
         />
         <div className="flex justify-between text-[10px] text-[#999] mt-1">
-          <span>0</span>
+          <span>20</span>
           <span>500</span>
         </div>
         {dichiarati > 0 && residui !== 0 && (

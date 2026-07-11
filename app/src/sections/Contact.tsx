@@ -133,8 +133,15 @@ export default function Contact() {
     setFileError('');
     const arr = Array.from(incoming);
     const valid: File[] = [];
+    // Estensioni ammesse: molti browser NON popolano file.type per HEIC/HEIF
+    // (foto iPhone) e a volte per .mov/.docx → controllare anche l'estensione.
+    const acceptedExt = ACCEPTED.split(',').map((e) => e.trim().toLowerCase());
     for (const f of arr) {
-      if (!ACCEPTED_TYPES.has(f.type)) {
+      const dot = f.name.lastIndexOf('.');
+      const ext = dot >= 0 ? f.name.slice(dot).toLowerCase() : '';
+      const tipoOk = !!f.type && ACCEPTED_TYPES.has(f.type);
+      const estOk = !!ext && acceptedExt.includes(ext);
+      if (!tipoOk && !estOk) {
         setFileError(`Formato non supportato: ${f.name}`);
         continue;
       }
@@ -173,12 +180,15 @@ export default function Contact() {
     if (!supabase || files.length === 0) return [];
     const prefix = `${Date.now()}-${formData.name.replace(/\s+/g, '_').toLowerCase() || 'anon'}`;
     const out: { nome: string; path: string }[] = [];
-    for (const original of files) {
+    for (let i = 0; i < files.length; i++) {
+      const original = files[i];
       const file = await comprimiImmagine(original);
       try {
+        // Prefissiamo l'indice al nome: due file con lo stesso nome nella stessa
+        // richiesta avrebbero la stessa chiave e con upsert:true si sovrascriverebbero.
         const { data, error } = await supabase.storage
           .from(BUCKET)
-          .upload(`${prefix}/${file.name}`, file, { upsert: true, contentType: file.type });
+          .upload(`${prefix}/${i}-${file.name}`, file, { upsert: true, contentType: file.type });
         if (!error && data) out.push({ nome: original.name, path: data.path });
       } catch {
         // upload singolo fallito: lo saltiamo

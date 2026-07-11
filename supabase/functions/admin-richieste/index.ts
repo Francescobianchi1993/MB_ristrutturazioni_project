@@ -13,6 +13,7 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { getAccessToken } from '../_shared/google.ts';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { clientIp, confrontoSicuro, registraTentativo, tentativiRecenti } from '../_shared/ratelimit.ts';
 
 const BUCKET = 'sopralluogo-files';
 const SCADENZA_SEC = 60 * 60 * 24 * 365;
@@ -85,7 +86,17 @@ Deno.serve(async (req) => {
     const { data: cfg } = await supabase.from('app_config').select('valore').eq('chiave', 'admin_password').single();
     const pw = cfg?.valore ?? Deno.env.get('ADMIN_PASSWORD');
     if (!pw) return jsonResponse({ error: 'non_configurato' }, 503);
-    if (password !== pw) return jsonResponse({ error: 'password_errata' }, 401);
+
+    // Anti brute-force: max 10 tentativi ERRATI / 10 min per IP. I login corretti
+    // non incrementano il contatore (nessun auto-lockout per la sessione admin).
+    const ipKey = `admin-fail:${clientIp(req)}`;
+    if (await tentativiRecenti(supabase, ipKey, 600) >= 10) {
+      return jsonResponse({ error: 'troppi_tentativi' }, 429);
+    }
+    if (!confrontoSicuro(String(password ?? ''), String(pw))) {
+      await registraTentativo(supabase, ipKey, 600);
+      return jsonResponse({ error: 'password_errata' }, 401);
+    }
 
     if (azione === 'lista') {
       const { data: sopralluoghi } = await supabase
@@ -149,6 +160,8 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ error: 'azione_sconosciuta' }, 400);
   } catch (e) {
-    return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
+    // Non rimandiamo il messaggio grezzo al client (può rivelare dettagli interni).
+    console.error('[admin-richieste] errore:', e instanceof Error ? e.message : String(e));
+    return jsonResponse({ error: 'errore_interno' }, 500);
   }
 });

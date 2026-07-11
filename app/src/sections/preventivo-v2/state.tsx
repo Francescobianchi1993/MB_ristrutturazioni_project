@@ -125,13 +125,18 @@ function reducer(state: ProgettoState, action: ProgettoAction): ProgettoState {
       ambientiDelTipo.forEach((a, i) => {
         let v: number;
         if (i === n - 1) {
-          v = action.mq - assegnato; // l'ultimo prende il resto → somma esatta
+          // L'ultimo prende il resto → somma esatta. È sempre >= 0 perché i
+          // precedenti sono clampati al budget residuo (niente over-assegnazione).
+          v = action.mq - assegnato;
         } else {
           const quota = totaleAttuale > 0 ? a.mq / totaleAttuale : 1 / n;
-          v = Math.round(action.mq * quota);
+          // Clamp al budget ancora disponibile: evita che l'arrotondamento
+          // sfori action.mq e mandi l'ultimo elemento in negativo (→ clamp a 0
+          // rompeva l'invariante "somma esatta" e faceva rimbalzare l'input).
+          v = Math.min(action.mq - assegnato, Math.max(0, Math.round(action.mq * quota)));
           assegnato += v;
         }
-        nuoviMq.set(a.id, Math.max(0, v));
+        nuoviMq.set(a.id, v);
       });
       return {
         ...state,
