@@ -177,10 +177,14 @@ Deno.serve(async (req) => {
         (telN && normTel(r.telefono) === telN)
       );
       if (match) {
+        // NON restituiamo l'id (UUID) della prenotazione esistente: è il token
+        // capacità per gestirla (annulla/sposta) e chi conosce solo l'email/telefono
+        // della vittima potrebbe altrimenti ottenerlo e manipolarne l'appuntamento.
+        // Per la sostituzione basta tipo/data/ora da mostrare: l'annullamento del
+        // precedente è deciso lato server (vedi ramo confermaSettimana).
         return jsonResponse({
           conflitto: true,
           esistente: {
-            id: match.id,
             tipo: tipoLabel(match.categoria),
             data: match.data_intervento,
             ora: match.ora_intervento,
@@ -253,25 +257,36 @@ Deno.serve(async (req) => {
     // 4b. notifica all'azienda (best-effort): parte sempre, anche senza contatti cliente
     await inviaNotificaAzienda(p, tipo, row.id);
 
-    // 5. sostituzione: annulla il precedente DOPO aver creato il nuovo
-    if (p.confermaSettimana && p.annullaId) {
-      const { data: prev } = await supabase
+    // 5. sostituzione: se il cliente ha confermato, annulla i SUOI altri
+    // appuntamenti attivi nella stessa settimana DOPO aver creato il nuovo. Li
+    // identifichiamo lato server via email/telefono (come il controllo conflitto):
+    // così non serve — e non si espone — l'UUID della prenotazione esistente.
+    if (p.confermaSettimana && (p.email || p.telefono)) {
+      const { from, to } = settimanaISO(p.data);
+      const { data: altri } = await supabase
         .from('prenotazioni_intervento')
-        .select('google_event_id, stato')
-        .eq('id', p.annullaId)
-        .single();
-      if (prev && prev.stato !== 'annullata') {
-        if (prev.google_event_id) {
+        .select('id, google_event_id, email, telefono, stato')
+        .gte('data_intervento', from)
+        .lte('data_intervento', to)
+        .neq('stato', 'annullata');
+      const emailLc = (p.email ?? '').trim().toLowerCase();
+      const telN = normTel(p.telefono);
+      for (const r of altri ?? []) {
+        if (r.id === row.id) continue; // non annullare quella appena creata
+        const suo = (emailLc && (r.email ?? '').trim().toLowerCase() === emailLc) ||
+                    (telN && normTel(r.telefono) === telN);
+        if (!suo) continue;
+        if (r.google_event_id) {
           try {
             await fetch(
-              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${prev.google_event_id}`,
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${r.google_event_id}`,
               { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
             );
           } catch {
             // best-effort
           }
         }
-        await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', p.annullaId);
+        await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', r.id);
       }
     }
 

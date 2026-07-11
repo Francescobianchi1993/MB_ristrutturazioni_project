@@ -16,7 +16,7 @@
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { getAccessToken, getBusy } from '../_shared/google.ts';
-import { SLOT_DURATA_MIN, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
+import { SLOT_DURATA_MIN, SLOT_ORARI, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
 import { inviaEmailConferma } from '../_shared/email.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -29,6 +29,16 @@ interface Body {
 
 function tipoLabel(categoria: string): string {
   return categoria === 'idro' ? 'Idraulico' : 'Elettricista';
+}
+
+/** Valida data (ISO) + ora (slot ammesso). Ritorna un codice errore o null.
+ *  Necessario prima di romeWallToUTC: un'ora fuori range (es. '24:00') verrebbe
+ *  normalizzata facendo scivolare il giorno e aggirando il blocco weekend.
+ *  Coerente con la validazione di crea-prenotazione. */
+function validaDataOra(data: string, ora: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return 'data_non_valida';
+  if (!SLOT_ORARI.includes(ora)) return 'ora_non_valida';
+  return null;
 }
 
 /** Sabato/domenica non sono prenotabili: si lavora solo lun–ven. */
@@ -183,6 +193,7 @@ Deno.serve(async (req) => {
     // ── sposta ─────────────────────────────────────────────────────────────--
     if (azione === 'sposta') {
       if (!data || !ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
+      { const err = validaDataOra(data, ora); if (err) return jsonResponse({ error: err }, 400); }
       if (isWeekend(data)) return jsonResponse({ error: 'giorno_non_valido' }, 400);
       if (row.stato === 'annullata') return jsonResponse({ error: 'gia_annullata' }, 409);
       if (passato) return jsonResponse({ error: 'passato' }, 409);
@@ -243,6 +254,7 @@ Deno.serve(async (req) => {
     // ── riprenota: crea una NUOVA prenotazione clone (stesso intervento) ──────
     if (azione === 'riprenota') {
       if (!data || !ora) return jsonResponse({ error: 'data_ora_mancante' }, 400);
+      { const err = validaDataOra(data, ora); if (err) return jsonResponse({ error: err }, 400); }
       if (isWeekend(data)) return jsonResponse({ error: 'giorno_non_valido' }, 400);
 
       // Controllo "un appuntamento a settimana": come nel flusso di prenotazione,
