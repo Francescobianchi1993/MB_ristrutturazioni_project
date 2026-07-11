@@ -293,7 +293,10 @@ export function isCompletaAttiva(state: ProgettoState): boolean {
 // Localstorage sync
 // ────────────────────────────────────────────────────────────────────────────
 
-const LS_KEY = 'mb_preventivo_v2_7';
+// v8: invalidata la cache dopo l'introduzione del minimo 20 m² nell'editor
+// "casa completa" (stati legacy con mqTotaliDichiarati < 20 mostravano un valore
+// incoerente col prezzo, che usa il fallback quando è 0).
+const LS_KEY = 'mb_preventivo_v2_8';
 const LS_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 giorni
 
 export function caricaDaLocalStorage(): ProgettoState | null {

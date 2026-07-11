@@ -178,7 +178,11 @@ export default function Contact() {
   // successo come { nome, path } (gli upload falliti vengono semplicemente saltati).
   const uploadFiles = async (): Promise<{ nome: string; path: string }[]> => {
     if (!supabase || files.length === 0) return [];
-    const prefix = `${Date.now()}-${formData.name.replace(/\s+/g, '_').toLowerCase() || 'anon'}`;
+    // Chiave storage: solo [A-Za-z0-9._-]; caratteri anomali (spazi, '/', accenti…)
+    // in nome cliente o file spezzerebbero il path e farebbero fallire l'upload.
+    const safe = (s: string) =>
+      (s || '').replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_+/g, '_').replace(/^[_.]+|_+$/g, '') || 'file';
+    const prefix = `${Date.now()}-${safe(formData.name.toLowerCase()) || 'anon'}`;
     const out: { nome: string; path: string }[] = [];
     for (let i = 0; i < files.length; i++) {
       const original = files[i];
@@ -188,7 +192,7 @@ export default function Contact() {
         // richiesta avrebbero la stessa chiave e con upsert:true si sovrascriverebbero.
         const { data, error } = await supabase.storage
           .from(BUCKET)
-          .upload(`${prefix}/${i}-${file.name}`, file, { upsert: true, contentType: file.type });
+          .upload(`${prefix}/${i}-${safe(file.name)}`, file, { upsert: true, contentType: file.type });
         if (!error && data) out.push({ nome: original.name, path: data.path });
       } catch {
         // upload singolo fallito: lo saltiamo

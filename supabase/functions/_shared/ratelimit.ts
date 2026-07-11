@@ -70,9 +70,21 @@ export function confrontoSicuro(a: string, b: string): boolean {
   return diff === 0;
 }
 
-/** Estrae un identificatore IP dal client (best-effort, dietro proxy Supabase). */
+/**
+ * Identificatore IP del client per il rate limiting (best-effort dietro il proxy
+ * Supabase). Il client può falsificare `x-forwarded-for` prependendo IP arbitrari,
+ * ma NON può controllare l'ultimo elemento, che è quello appeso dal proxy di
+ * fiducia. Usiamo quindi header impostati dalla piattaforma se presenti, e come
+ * fallback l'ULTIMO hop di XFF (non il primo, che sarebbe spoofabile → bypass del
+ * limite anti brute-force).
+ */
 export function clientIp(req: Request): string {
+  const platform = req.headers.get('cf-connecting-ip') ?? req.headers.get('x-real-ip');
+  if (platform) return platform.trim();
   const xff = req.headers.get('x-forwarded-for');
-  if (xff) return xff.split(',')[0].trim();
-  return req.headers.get('cf-connecting-ip') ?? 'unknown';
+  if (xff) {
+    const parti = xff.split(',').map((s) => s.trim()).filter(Boolean);
+    if (parti.length) return parti[parti.length - 1]; // ultimo hop = proxy fidato
+  }
+  return 'unknown';
 }

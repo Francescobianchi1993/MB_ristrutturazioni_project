@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowRight, Phone, CheckCircle, Quote, ImageIcon } from 'lucide-react';
+import { ArrowRight, Phone, CheckCircle, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TEL_DISPLAY, TEL_HREF } from '@/lib/contatti';
 
@@ -10,8 +10,6 @@ gsap.registerPlugin(ScrollTrigger);
 const slides = [
   { type: 'image' as const, src: '/marco-bianchi.png', caption: 'Marco Bianchi', subtitle: 'Fondatore & Artigiano' },
   { type: 'image' as const, src: '/alessandro-bianchi.jpg', caption: 'Alessandro Bianchi', subtitle: 'Titolare' },
-  { type: 'placeholder' as const, caption: 'I Nostri Lavori', subtitle: 'Roma e provincia' },
-  { type: 'placeholder' as const, caption: 'Artigianato Italiano', subtitle: 'Dal 1989' },
 ];
 
 export default function Hero() {
@@ -166,20 +164,11 @@ export default function Hero() {
                     key={i}
                     className={`absolute inset-0 transition-opacity duration-700 ${i === currentSlide ? 'opacity-100' : 'opacity-0'}`}
                   >
-                    {slide.type === 'image' ? (
-                      <img
-                        src={slide.src}
-                        alt={slide.caption}
-                        className="w-full h-full object-cover object-top"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[#F5F5F5] to-[#E8E8E8] flex flex-col items-center justify-center gap-4">
-                        <div className="w-20 h-20 rounded-2xl bg-[#F5B800]/20 flex items-center justify-center">
-                          <ImageIcon className="w-10 h-10 text-[#F5B800]" />
-                        </div>
-                        <p className="text-[#BBBBBB] text-sm font-medium">Foto in arrivo</p>
-                      </div>
-                    )}
+                    <img
+                      src={slide.src}
+                      alt={slide.caption}
+                      className="w-full h-full object-cover object-top"
+                    />
                   </div>
                 ))}
 
