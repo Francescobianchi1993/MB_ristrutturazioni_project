@@ -197,7 +197,6 @@ function StepInterventi() {
   }
 
   const macroSlot = MACRO_SLOT.filter((s) => s.gruppo === 'macro');
-  const trasversali = MACRO_SLOT.filter((s) => s.gruppo === 'trasversale');
 
   return (
     <div>
@@ -210,20 +209,8 @@ function StepInterventi() {
       <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-2">
         Interventi principali
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-        {macroSlot.map((slot) => (
-          <CardIntervento key={slot.id} slot={slot} onToggle={handleToggle} />
-        ))}
-      </div>
-
-      <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-2">
-        Interventi specifici (cumulabili)
-        {completaAttiva && (
-          <span className="ml-2 text-[#F5B800]">· tutti inclusi nella ristrutturazione completa</span>
-        )}
-      </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {trasversali.map((slot) => (
+        {macroSlot.map((slot) => (
           <CardIntervento key={slot.id} slot={slot} onToggle={handleToggle} />
         ))}
       </div>

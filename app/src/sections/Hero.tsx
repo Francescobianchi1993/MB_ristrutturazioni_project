@@ -9,6 +9,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const slides = [
   { type: 'image' as const, src: '/marco-bianchi.png', caption: 'Marco Bianchi', subtitle: 'Fondatore & Artigiano' },
+  { type: 'image' as const, src: '/alessandro-bianchi.jpg', caption: 'Alessandro Bianchi', subtitle: 'Titolare' },
   { type: 'placeholder' as const, caption: 'I Nostri Lavori', subtitle: 'Roma e provincia' },
   { type: 'placeholder' as const, caption: 'Artigianato Italiano', subtitle: 'Dal 1989' },
 ];
