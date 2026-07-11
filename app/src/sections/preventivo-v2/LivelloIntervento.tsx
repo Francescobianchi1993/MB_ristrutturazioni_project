@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { TEL_DISPLAY } from '@/lib/contatti';
 import ConfirmDialog from './ConfirmDialog';
 import { VOCI_INTERVENTO, SINONIMI_INTERVENTO, type VoceIntervento, type CategoriaIntervento } from './interventiData';
 import { trackLead } from '@/lib/consent';
@@ -463,6 +464,16 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
     if (esito.conflitto && esito.esistente) {
       // Doppio appuntamento nella stessa settimana → chiediamo conferma.
       setConflitto(esito.esistente);
+      return;
+    }
+    if (!esito.ok) {
+      // Il backend NON ha registrato la prenotazione (500, calendario/DB in
+      // errore, rete assente): NON mostrare la conferma "fantasma". Il server
+      // in questi casi fa già rollback dell'evento Google, quindi non resta
+      // nulla di appeso. Invitiamo l'utente a riprovare o a contattarci.
+      toast.error('Prenotazione non riuscita', {
+        description: `Non siamo riusciti a registrare l’appuntamento. Riprova tra poco oppure chiamaci/scrivici su WhatsApp al +39 ${TEL_DISPLAY}.`,
+      });
       return;
     }
     // Conferme al cliente (email + WhatsApp) partono lato server.
@@ -1322,6 +1333,9 @@ function StepRiepilogo({
     cap: false,
     citta: false,
   });
+  // Consenso privacy obbligatorio (coerente con gli altri form del sito che
+  // raccolgono dati personali). È solo un gate UI: non viene persistito.
+  const [consenso, setConsenso] = useState(false);
   const nomeOk = nome.trim().length >= 2;
   const telOk = telefonoValido(telefono);
   const emailOk = emailValida(email);
@@ -1535,6 +1549,28 @@ function StepRiepilogo({
           </p>
         </div>
 
+        <label className="flex items-start gap-2 mt-5 text-[12px] text-[#666] leading-snug cursor-pointer">
+          <input
+            type="checkbox"
+            checked={consenso}
+            onChange={(e) => setConsenso(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-[#F5B800] flex-shrink-0"
+          />
+          <span>
+            Ho letto e accetto la{' '}
+            <a
+              href="/privacy-policy.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#F5B800] hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              privacy policy
+            </a>{' '}
+            e acconsento al trattamento dei miei dati per essere ricontattato.
+          </span>
+        </label>
+
         <button
           onClick={() => {
             if (inviando) return;
@@ -1549,6 +1585,12 @@ function StepRiepilogo({
               });
               toast.error('Completa i tuoi dati', {
                 description: 'Indirizzo, nome, telefono ed email sono obbligatori per confermare.',
+              });
+              return;
+            }
+            if (!consenso) {
+              toast.error('Consenso richiesto', {
+                description: 'Accetta la privacy policy per confermare la prenotazione.',
               });
               return;
             }

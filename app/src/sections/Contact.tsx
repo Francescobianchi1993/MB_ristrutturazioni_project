@@ -11,8 +11,11 @@ import { supabase } from '@/lib/supabase';
 import { EMAIL, TEL_DISPLAY, TEL_HREF, whatsappHref } from '@/lib/contatti';
 import { trackLead } from '@/lib/consent';
 
-// Supabase Storage: crea il bucket "sopralluogo-files" con accesso pubblico
-// Dashboard → Storage → New bucket → Name: sopralluogo-files → Public: ON
+// Supabase Storage: il bucket "sopralluogo-files" DEVE restare PRIVATO (Public: OFF).
+// Contiene foto/planimetrie dei clienti: l'accesso avviene solo tramite signed URL
+// generati lato server (service role). L'upload da anon è permesso da una policy
+// INSERT dedicata; la lettura pubblica va lasciata disattivata.
+// Dashboard → Storage → New bucket → Name: sopralluogo-files → Public: OFF
 const BUCKET = 'sopralluogo-files';
 const MAX_FILES = 5;
 const MAX_MB = 8;

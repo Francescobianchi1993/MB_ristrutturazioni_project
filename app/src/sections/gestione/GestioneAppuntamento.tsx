@@ -20,6 +20,31 @@ const GIORNI_SETT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
 type Disponibilita = Record<string, Record<string, boolean>>;
 
+/**
+ * Estrae il codice d'errore applicativo (es. 'slot_occupato') dall'esito di una
+ * `functions.invoke`. L'edge function `gestisci-prenotazione` risponde con status
+ * NON-2xx (400/404/409/500): con supabase-js v2 questo fa lanciare un
+ * FunctionsHttpError e mette `data` a null, quindi il codice va letto dal body
+ * della Response in `error.context` (non da `data.error`, che sarebbe sempre
+ * undefined). Se il BE rispondesse 200 + {error}, lo prendiamo comunque da `res`.
+ */
+async function codiceErrore(
+  res: { error?: string } | null,
+  error: unknown,
+): Promise<string | undefined> {
+  if (res?.error) return res.error;
+  const ctx = (error as { context?: unknown })?.context;
+  if (ctx && typeof (ctx as Response).json === 'function') {
+    try {
+      const body = await (ctx as Response).json();
+      return body?.error as string | undefined;
+    } catch {
+      // corpo non-JSON o già consumato: nessun codice granulare
+    }
+  }
+  return undefined;
+}
+
 interface Dettagli {
   tipo: string;
   data: string | null;
@@ -387,12 +412,13 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
         body: { azione: 'sposta', id, data, ora },
       });
       if (error || !res?.ok) {
-        if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
-        else if (res?.error === 'giorno_non_valido') setErrMsg('Scegli un giorno feriale (lun–ven).');
-        else if (res?.error === 'stesso_orario') setErrMsg('Hai scelto lo stesso orario attuale: scegline uno diverso.');
-        else if (res?.error === 'gia_annullata') setErrMsg('Questo appuntamento risulta annullato: ricarica la pagina per riprenotarlo.');
-        else if (res?.error === 'passato') setErrMsg('Quella data è già passata: scegline una futura.');
-        else if (res?.error === 'conflitto_settimana') setErrMsg('Hai già un appuntamento attivo in quella settimana: scegline un\'altra.');
+        const code = await codiceErrore(res, error);
+        if (code === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        else if (code === 'giorno_non_valido') setErrMsg('Scegli un giorno feriale (lun–ven).');
+        else if (code === 'stesso_orario') setErrMsg('Hai scelto lo stesso orario attuale: scegline uno diverso.');
+        else if (code === 'gia_annullata') setErrMsg('Questo appuntamento risulta annullato: ricarica la pagina per riprenotarlo.');
+        else if (code === 'passato') setErrMsg('Quella data è già passata: scegline una futura.');
+        else if (code === 'conflitto_settimana') setErrMsg('Hai già un appuntamento attivo in quella settimana: scegline un\'altra.');
         else setErrMsg('Non è stato possibile spostare l\'appuntamento. Riprova.');
         setInviando(false);
         return;
@@ -416,10 +442,11 @@ export default function GestioneAppuntamento({ id, azioneIniziale, dataIniziale,
       // Non confermiamo se manca l'id: significa che il salvataggio su DB non è
       // andato a buon fine (niente più "conferma fantasma").
       if (error || !res?.ok || !res?.id) {
-        if (res?.error === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
-        else if (res?.error === 'giorno_non_valido') setErrMsg('Scegli un giorno feriale (lun–ven).');
-        else if (res?.error === 'passato') setErrMsg('Quella data è già passata: scegline una futura.');
-        else if (res?.error === 'conflitto_settimana') setErrMsg('Hai già un appuntamento attivo in quella settimana. Annulla prima quello, oppure scegli un\'altra settimana.');
+        const code = await codiceErrore(res, error);
+        if (code === 'slot_occupato') setErrMsg('Quella fascia è appena stata occupata. Scegline un\'altra.');
+        else if (code === 'giorno_non_valido') setErrMsg('Scegli un giorno feriale (lun–ven).');
+        else if (code === 'passato') setErrMsg('Quella data è già passata: scegline una futura.');
+        else if (code === 'conflitto_settimana') setErrMsg('Hai già un appuntamento attivo in quella settimana. Annulla prima quello, oppure scegli un\'altra settimana.');
         else setErrMsg('Non è stato possibile prenotare. Riprova.');
         setInviando(false);
         return;
