@@ -85,7 +85,9 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
       localStorage.setItem(PW_KEY, password);
       if (leadId) {
         const r = tutte.find((x) => x.id === leadId);
-        if (r) apri(r);
+        // Passiamo la password appena usata: al primo login lo stato `pw` non è
+        // ancora aggiornato, quindi apri() userebbe una password stale (vuota).
+        if (r) apri(r, password);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
@@ -102,13 +104,13 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function apri(r: Riga) {
+  async function apri(r: Riga, password = pw) {
     setSel(r);
     setFirme([]);
     setAnnullaEsito(null);
     if (r.tipo === 'sopralluogo' && r.allegati?.length) {
       try {
-        const data = await chiama('firma', { paths: r.allegati.map((a) => a.path) });
+        const data = await chiama('firma', { paths: r.allegati.map((a) => a.path) }, password);
         const map = new Map<string, string | null>((data.urls ?? []).map((u: { path: string; url: string | null }) => [u.path, u.url]));
         setFirme(r.allegati.map((a) => ({ nome: a.nome, url: map.get(a.path) ?? null })));
       } catch { /* allegati non firmabili */ }
@@ -353,6 +355,13 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
                 <button onClick={() => segna(sel, 'gestito')} className="flex-1 flex items-center justify-center gap-2 bg-[#1A1A1A] text-white font-bold py-3 rounded-xl hover:opacity-90">
                   <CheckCircle2 className="w-4 h-4" /> Segna come gestita
                 </button>
+              ) : sel.stato === 'annullata' ? (
+                // Un appuntamento annullato non va "rimesso tra le nuove": l'evento
+                // Calendar è stato cancellato, riattivarlo creerebbe incoerenza. Il
+                // cliente riprenota dal link nell'email di annullamento.
+                <div className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] text-center text-sm font-semibold text-[#999]">
+                  Appuntamento annullato
+                </div>
               ) : (
                 <button onClick={() => segna(sel, sel.tipo === 'sopralluogo' ? 'nuovo' : 'nuova')} className="flex-1 py-3 rounded-xl border-2 border-[#E5E5E5] font-semibold hover:bg-[#F7F7F7]">
                   Rimetti tra le nuove

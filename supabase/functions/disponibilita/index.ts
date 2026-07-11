@@ -35,6 +35,14 @@ Deno.serve(async (req) => {
     const al: string | undefined = to ?? date;
     if (!dal || !al) return jsonResponse({ error: 'parametri_mancanti' }, 400);
 
+    // Endpoint pubblico: valida formato e limita l'ampiezza dell'intervallo, così
+    // un client non può forzare iterazioni/richieste enormi (amplificazione risorse).
+    const ISO = /^\d{4}-\d{2}-\d{2}$/;
+    if (!ISO.test(dal) || !ISO.test(al)) return jsonResponse({ error: 'data_non_valida' }, 400);
+    const spanGiorni = (Date.parse(al) - Date.parse(dal)) / 86_400_000;
+    if (!Number.isFinite(spanGiorni) || spanGiorni < 0) return jsonResponse({ error: 'intervallo_non_valido' }, 400);
+    if (spanGiorni > 62) return jsonResponse({ error: 'intervallo_troppo_ampio' }, 400);
+
     const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID');
     if (!calendarId) throw new Error('GOOGLE_CALENDAR_ID mancante');
 
