@@ -13,8 +13,9 @@ import Hub from './Hub';
 import LivelloRapido from './LivelloRapido';
 import LivelloDettaglio from './LivelloDettaglio';
 import LivelloIntervento from './LivelloIntervento';
+import LivelloCertificazione from './LivelloCertificazione';
 
-type Modalita = 'hub' | 'rapida' | 'esperto' | 'intervento';
+type Modalita = 'hub' | 'rapida' | 'esperto' | 'intervento' | 'certificazione';
 
 export default function PreventivoV2() {
   const [modalita, setModalita] = useState<Modalita>('hub');
@@ -59,6 +60,9 @@ export default function PreventivoV2() {
         )}
         {modalita === 'intervento' && (
           <LivelloIntervento onTorna={() => setModalita('hub')} />
+        )}
+        {modalita === 'certificazione' && (
+          <LivelloCertificazione onTorna={vaiAHub} />
         )}
       </section>
     </ProgettoProvider>

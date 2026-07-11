@@ -3,10 +3,10 @@
  * Stima rapida (L1) o Preventivo dettagliato (L2).
  */
 
-import { Zap, Wrench } from 'lucide-react';
+import { Zap, Wrench, ShieldCheck } from 'lucide-react';
 
 interface HubProps {
-  onScegli: (modalita: 'rapida' | 'esperto' | 'intervento') => void;
+  onScegli: (modalita: 'rapida' | 'esperto' | 'intervento' | 'certificazione') => void;
 }
 
 export default function Hub({ onScegli }: HubProps) {
@@ -21,7 +21,7 @@ export default function Hub({ onScegli }: HubProps) {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-5 max-w-3xl mx-auto">
+      <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
         <button
           onClick={() => onScegli('intervento')}
           className="group text-left bg-white border-2 border-[#E5E5E5] hover:border-[#F5B800] rounded-2xl sm:rounded-3xl p-5 sm:p-8 transition shadow-sm hover:shadow-md"
@@ -75,10 +75,37 @@ export default function Hub({ onScegli }: HubProps) {
             <span className="group-hover:translate-x-1 transition">→</span>
           </div>
         </button>
+
+        <button
+          onClick={() => onScegli('certificazione')}
+          className="group text-left bg-white border-2 border-[#E5E5E5] hover:border-[#F5B800] rounded-2xl sm:rounded-3xl p-5 sm:p-8 transition shadow-sm hover:shadow-md"
+        >
+          <div className="flex items-center justify-between mb-5">
+            <div className="w-14 h-14 rounded-2xl bg-[#F5B800]/10 group-hover:bg-[#F5B800] flex items-center justify-center transition">
+              <ShieldCheck className="w-7 h-7 text-[#F5B800] group-hover:text-[#1A1A1A]" />
+            </div>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#666]">
+              ~ 1 minuto
+            </span>
+          </div>
+          <div className="font-display text-xl sm:text-2xl font-bold mb-2">Richiedi certificazione</div>
+          <p className="text-sm text-[#666] mb-5">
+            Gas, elettrica, idraulica o altro. Scegli il tipo, lascia i tuoi dati e ti richiamiamo noi al telefono.
+          </p>
+          <ul className="text-sm space-y-2">
+            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Gas · Elettrica · Idraulica · Altro</li>
+            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Pochi dati, nessun impegno</li>
+            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Ti richiamiamo noi</li>
+          </ul>
+          <div className="mt-6 inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm">
+            Richiedi certificazione
+            <span className="group-hover:translate-x-1 transition">→</span>
+          </div>
+        </button>
       </div>
 
       <p className="text-center text-xs text-[#666] mt-8">
-        Dopo qualsiasi delle tre strade, sopralluogo gratuito di conferma con MB.
+        Qualunque strada scegli, ti seguiamo noi di MB — consulenza e sopralluogo gratuiti.
       </p>
     </div>
   );

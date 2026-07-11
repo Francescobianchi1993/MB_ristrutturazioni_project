@@ -147,7 +147,6 @@ export const MACRO_SLOT: MacroSlot[] = [
       { id: 'pavimenti', label: 'Pavimenti e rivestimenti', descBreve: 'Posa nuova in tutti gli ambienti', pesoPct: 22 },
       { id: 'pittura', label: 'Pittura e finiture', descBreve: 'Tinteggiatura completa', pesoPct: 6 },
       { id: 'bagno_cm', label: 'Bagno chiavi in mano', descBreve: 'Sanitari, box doccia, rivestimenti', pesoPct: 16 },
-      { id: 'cucina_cm', label: 'Cucina chiavi in mano', descBreve: 'Demolizioni, impianti, finiture', pesoPct: 16 },
     ],
   },
   {
