@@ -13,8 +13,12 @@ export const WHATSAPP_NUMERO = '393391268722';
 /** Numero formattato per la lettura a schermo. */
 export const TEL_DISPLAY = '339 126 8722';
 
-/** Indirizzo pubblico mostrato sul sito e sui PDF (quello che MB legge davvero). */
-export const EMAIL = 'mbristrutturazioni@yahoo.com';
+/**
+ * Indirizzo pubblico mostrato sul sito e sui PDF. È la stessa casella che il
+ * backend usa per spedire (GMAIL_USER) e su cui riceve le richieste
+ * (LEAD_EMAIL): mittente e indirizzo pubblicato coincidono.
+ */
+export const EMAIL = 'mbristrutturazioniroma@gmail.com';
 
 /** Ragione sociale e dati fiscali, come sul preventivo cartaceo di MB. */
 export const RAGIONE_SOCIALE = 'MB Ristrutturazioni';

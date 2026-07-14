@@ -1,18 +1,24 @@
 /**
  * Recapiti pubblici di MB, lato backend. Gemello di `app/src/lib/contatti.ts`.
  *
- * ATTENZIONE alla differenza tra i due indirizzi in gioco:
+ * Oggi i due indirizzi in gioco coincidono, ma restano concetti distinti:
  *
- *   GMAIL_USER      → account SMTP che SPEDISCE. Deve restare la Gmail: è
- *                     l'utenza autenticata su smtp.gmail.com, e usare un `from`
- *                     diverso farebbe rifiutare o marcare come spam l'invio.
- *   EMAIL_PUBBLICA  → la casella che MB LEGGE. È quella che il cliente vede sul
- *                     sito, che riceve le notifiche interne e su cui finiscono
- *                     le risposte (replyTo).
+ *   GMAIL_USER      → account SMTP che SPEDISCE (utenza autenticata su
+ *                     smtp.gmail.com). Un `from` diverso da questo farebbe
+ *                     rifiutare l'invio o finire in spam: non cambiarlo.
+ *   EMAIL_PUBBLICA  → la casella che MB LEGGE: mostrata sul sito e sui PDF,
+ *                     riceve le notifiche interne e le risposte (replyTo).
+ *
+ * Se un giorno MB passasse a un'altra casella, si cambia EMAIL_PUBBLICA (e il
+ * secret LEAD_EMAIL) lasciando GMAIL_USER com'è.
  */
 
-/** Casella presidiata da MB: ci arrivano lead e risposte dei clienti. */
-export const EMAIL_PUBBLICA = 'mbristrutturazioni@yahoo.com';
+/**
+ * Casella presidiata da MB: ci arrivano lead e risposte dei clienti.
+ * Coincide con GMAIL_USER (il mittente SMTP), ed è voluto: il cliente vede,
+ * riceve e risponde sempre allo stesso indirizzo.
+ */
+export const EMAIL_PUBBLICA = 'mbristrutturazioniroma@gmail.com';
 
 /**
  * Destinatario delle notifiche interne (nuovo lead, prenotazione, sopralluogo).
