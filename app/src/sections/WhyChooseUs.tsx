@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Check, Shield, Clock, Users, Award, Headphones } from 'lucide-react';
+import { FileCheck, Shield, Clock, Users, Award, Headphones } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -113,15 +113,15 @@ export default function WhyChooseUs() {
             <div className="bg-[#FFF8E7] rounded-2xl p-6">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-[#F5B800] rounded-full flex items-center justify-center flex-shrink-0">
-                  <Check className="w-6 h-6 text-[#1A1A1A]" />
+                  <FileCheck className="w-6 h-6 text-[#1A1A1A]" />
                 </div>
                 <div>
                   <p className="font-semibold text-[#1A1A1A] mb-1">
-                    Garanzia Soddisfatto o Rimborsato
+                    Sempre con contratto chiaro
                   </p>
                   <p className="text-sm text-[#666666]">
-                    Se non sei soddisfatto del nostro lavoro, ti rimborsiamo. 
-                    La tua fiducia è la nostra priorità.
+                    Ogni lavoro è definito per iscritto — tempi, costi e lavorazioni concordati
+                    prima di iniziare. Nessuna sorpresa, nel rispetto di ogni tua esigenza.
                   </p>
                 </div>
               </div>
