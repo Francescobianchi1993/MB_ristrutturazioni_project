@@ -20,7 +20,7 @@ const quickLinks = [
 const socialLinks = [
   { icon: Instagram, href: 'https://www.instagram.com/mb.ristrutturazioni/', label: 'Instagram' },
   { icon: Youtube, href: 'https://www.youtube.com/@RistrutturaLab', label: 'YouTube' },
-  { icon: TikTokIcon, href: 'https://www.tiktok.com/@mb.ristrutturazioni', label: 'TikTok' },
+  { icon: TikTokIcon, href: 'https://www.tiktok.com/@mbristrutturazioni', label: 'TikTok' },
 ];
 
 export default function Footer() {
