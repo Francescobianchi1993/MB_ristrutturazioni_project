@@ -346,10 +346,24 @@ function scaricaICS(p: PrenotazioneRiepilogo) {
 
 interface LivelloInterventoProps {
   onTorna: () => void;
+  /** Step corrente. Vive nel padre perché ogni step è una voce di cronologia. */
+  step: number;
+  /** Avanza a uno step (aggiunge una voce di cronologia). */
+  onStep: (step: number) => void;
+  /** Cambia step SENZA aggiungere una voce: per le correzioni, non per le navigazioni. */
+  onSostituisciStep: (step: number) => void;
+  /** Torna allo step precedente consumando la voce di cronologia. */
+  onIndietro: () => void;
 }
 
-export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
-  const [step, setStep] = useState<StepIndex>(0);
+export default function LivelloIntervento({
+  onTorna,
+  step: stepProp,
+  onStep,
+  onSostituisciStep,
+  onIndietro,
+}: LivelloInterventoProps) {
+  const step = stepProp as StepIndex;
   const [categoria, setCategoria] = useState<Categoria | null>(null);
   const [urgenza, setUrgenza] = useState<Urgenza | null>(null);
   const [selezionati, setSelezionati] = useState<number[]>([]);
@@ -426,7 +440,10 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   }
 
   function ricomincia() {
-    setStep(0);
+    // Non è una navigazione: azzera il wizard sul posto. Se aggiungesse una voce
+    // di cronologia, Indietro riporterebbe alla conferma di una prenotazione
+    // che l'utente ha appena deciso di rifare da capo.
+    onSostituisciStep(0);
     setCategoria(null);
     setUrgenza(null);
     setSelezionati([]);
@@ -454,7 +471,10 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
         description: 'Qualcuno ha appena prenotato questa fascia. Scegline un’altra.',
       });
       setOra('');
-      setStep(3);
+      // Correzione forzata dal backend, non una scelta dell'utente: niente voce
+      // di cronologia, altrimenti Indietro lo rimanderebbe sulla conferma di uno
+      // slot che nel frattempo è stato preso da qualcun altro.
+      onSostituisciStep(3);
       return;
     }
     if (esito.conflitto && esito.esistente) {
@@ -497,10 +517,12 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
     step === 4;
 
   function avanti() {
-    if (step < 4) setStep((s) => (s + 1) as StepIndex);
+    if (step < 4) onStep(step + 1);
   }
   function indietro() {
-    if (step > 0) setStep((s) => (s - 1) as StepIndex);
+    // Consuma la voce di cronologia invece di aggiungerne una: così il tasto
+    // Indietro del telefono e quello del sito fanno la stessa identica cosa.
+    if (step > 0) onIndietro();
   }
 
   return (

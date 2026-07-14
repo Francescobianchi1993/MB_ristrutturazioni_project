@@ -10,7 +10,7 @@
  * Tutti gli step leggono e scrivono su `useProgetto()`.
  */
 
-import { useState, useRef } from 'react';
+import { useRef } from 'react';
 import { Check, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProgetto } from './state';
@@ -37,17 +37,22 @@ const STEPS = [
 
 interface LivelloRapidoProps {
   onTorna: () => void;
-  initialStep?: number;
+  /** Step corrente. Vive nel padre perché ogni step è una voce di cronologia. */
+  step: number;
+  /** Avanza a uno step (aggiunge una voce di cronologia). */
+  onStep: (step: number) => void;
+  /** Torna allo step precedente consumando la voce di cronologia. */
+  onIndietro: () => void;
 }
 
-export default function LivelloRapido({ onTorna, initialStep = 1 }: LivelloRapidoProps) {
-  const [step, setStep] = useState(initialStep);
+export default function LivelloRapido({ onTorna, step, onStep, onIndietro }: LivelloRapidoProps) {
   const { state } = useProgetto();
   const result = calcolaPrezzo(state);
   const topRef = useRef<HTMLDivElement>(null);
 
-  // Quando il wizard monta, la vista torna in cima al riquadro.
-  useScrollInCima(topRef);
+  // In cima al riquadro all'apertura e a ogni cambio step — anche quando lo step
+  // cambia per il tasto Indietro del telefono, non solo per i pulsanti del sito.
+  useScrollInCima(topRef, [step]);
 
   const haAlmenoUnIntervento = Object.values(state.macroSlot).some((s) => s?.attivo);
 
@@ -97,7 +102,7 @@ export default function LivelloRapido({ onTorna, initialStep = 1 }: LivelloRapid
             <div />
           ) : (
             <button
-              onClick={() => setStep(step - 1)}
+              onClick={onIndietro}
               className={
                 step === 4
                   ? 'flex items-center gap-2 px-5 py-3 rounded-full bg-[#1A1A1A] hover:bg-black text-white font-semibold text-sm'
@@ -119,7 +124,7 @@ export default function LivelloRapido({ onTorna, initialStep = 1 }: LivelloRapid
 
           {step < 4 && (
             <button
-              onClick={() => setStep(step + 1)}
+              onClick={() => onStep(step + 1)}
               disabled={!canNext}
               className="flex items-center gap-2 bg-[#F5B800] hover:bg-[#D9A200] disabled:opacity-50 disabled:cursor-not-allowed text-[#1A1A1A] font-semibold px-6 py-3 rounded-full text-sm"
             >
