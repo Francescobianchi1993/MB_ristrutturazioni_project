@@ -8,7 +8,7 @@ const stats = [
   { value: 35, suffix: '+', label: 'Anni di Esperienza' },
   { value: 500, suffix: '+', label: 'Progetti Completati' },
   { value: 100, suffix: '%', label: 'Clienti Soddisfatti' },
-  { value: 24, suffix: '/7', label: 'Assistenza Disponibile' },
+  { value: 24, suffix: 'h', label: 'Tempo di risposta' },
 ];
 
 function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
