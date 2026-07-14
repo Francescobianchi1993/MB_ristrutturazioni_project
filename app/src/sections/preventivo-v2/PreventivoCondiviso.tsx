@@ -6,11 +6,19 @@
  * range. Nessun dato sensibile è esposto: l'id uuid funge da token del link.
  */
 import { useEffect, useState } from 'react';
-import { Loader2, Home } from 'lucide-react';
+import { Loader2, Home, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { fmt } from './pricing';
+import { calcolaPrezzo, fmt } from './pricing';
 import { FINITURE, TEMPISTICHE } from './data';
-import { IVA_PCT } from '@/lib/preventivoModel';
+import {
+  IVA_PCT,
+  normalizzaFinitura,
+  normalizzaTipoCasa,
+  statoIniziale,
+  type ProgettoState,
+} from '@/lib/preventivoModel';
+import { scaricaStimaPdf } from '@/lib/pdf/scaricaStima';
 
 interface PreventivoRecord {
   id: string;
@@ -24,6 +32,26 @@ interface PreventivoRecord {
   tipo_casa: string | null;
   mq: number | null;
   interventi: string[] | null;
+  /** Snapshot del configuratore, senza i contatti (rimossi lato edge function).
+   *  Serve per rigenerare il PDF con la ripartizione per intervento. */
+  stato?: Partial<ProgettoState> | null;
+}
+
+/**
+ * Ricostruisce uno stato valido dallo snapshot salvato: i campi mancanti (o i
+ * contatti, che il server non restituisce) prendono i default, così il PDF si
+ * genera anche da record creati da versioni precedenti del configuratore.
+ */
+function statoDaSnapshot(snapshot: Partial<ProgettoState>): ProgettoState {
+  const base = statoIniziale();
+  return {
+    ...base,
+    ...snapshot,
+    finitura: normalizzaFinitura(snapshot.finitura),
+    tipoCasa: normalizzaTipoCasa(snapshot.tipoCasa),
+    // Il link è pubblico: nessun contatto viene mostrato né stampato sul PDF.
+    contatti: { name: '', email: '', phone: '' },
+  };
 }
 
 type Fase = 'caricamento' | 'ok' | 'non-trovato' | 'errore';
@@ -31,6 +59,21 @@ type Fase = 'caricamento' | 'ok' | 'non-trovato' | 'errore';
 export default function PreventivoCondiviso({ id }: { id: string }) {
   const [fase, setFase] = useState<Fase>('caricamento');
   const [rec, setRec] = useState<PreventivoRecord | null>(null);
+  const [scaricando, setScaricando] = useState(false);
+
+  async function scaricaPdf() {
+    if (!rec?.stato || scaricando) return;
+    setScaricando(true);
+    try {
+      const state = statoDaSnapshot(rec.stato);
+      await scaricaStimaPdf(state, calcolaPrezzo(state), { id: rec.id });
+    } catch (e) {
+      console.error('[PreventivoCondiviso] PDF fallito:', e);
+      toast.error('Non è stato possibile generare il PDF. Riprova tra poco.');
+    } finally {
+      setScaricando(false);
+    }
+  }
 
   useEffect(() => {
     let attivo = true;
@@ -162,9 +205,20 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
                 variare di circa ±15% in base a materiali, stato dei luoghi e dettagli del progetto.
               </p>
 
+              {rec.stato && (
+                <button
+                  onClick={scaricaPdf}
+                  disabled={scaricando}
+                  className="mt-5 w-full inline-flex items-center justify-center gap-2 border-2 border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white font-semibold py-2.5 rounded-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {scaricando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {scaricando ? 'Preparo il PDF…' : 'Scarica la stima in PDF'}
+                </button>
+              )}
+
               <a
                 href="/#preventivo"
-                className="mt-5 w-full inline-flex items-center justify-center bg-[#1A1A1A] hover:bg-black text-white font-semibold py-3 rounded-full text-sm"
+                className="mt-2 w-full inline-flex items-center justify-center bg-[#1A1A1A] hover:bg-black text-white font-semibold py-3 rounded-full text-sm"
               >
                 Crea la tua stima
               </a>

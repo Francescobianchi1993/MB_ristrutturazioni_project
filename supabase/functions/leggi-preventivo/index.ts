@@ -1,11 +1,16 @@
 /**
  * Restituisce un preventivo condiviso, dato il suo id (token del link pubblico).
  * Lettura via service role: la tabella `preventivi` non è leggibile da anon.
- * Espone solo i campi necessari al riepilogo pubblico (niente `stato` interno).
+ *
+ * Include lo `stato` del configuratore (serve a chi apre il link per scaricare
+ * il PDF con la ripartizione per intervento), ma con i `contatti` RIMOSSI: il
+ * link viene inoltrato a terzi e non deve esporre nome/email/telefono di chi ha
+ * creato la stima.
  *
  * Input (JSON):  { id }
  * Output (JSON): { preventivo: { id, created_at, totale, totale_min, totale_max,
- *                                finitura, tempistica, mq, interventi } }
+ *                                totale_ivato, finitura, tempistica, tipo_casa,
+ *                                mq, interventi, stato } }
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -23,7 +28,9 @@ Deno.serve(async (req) => {
 
     const { data, error } = await supabase
       .from('preventivi')
-      .select('id, created_at, totale, totale_min, totale_max, totale_ivato, finitura, tempistica, tipo_casa, mq, interventi')
+      .select(
+        'id, created_at, totale, totale_min, totale_max, totale_ivato, finitura, tempistica, tipo_casa, mq, interventi, stato',
+      )
       .eq('id', id)
       .maybeSingle();
 
@@ -33,7 +40,12 @@ Deno.serve(async (req) => {
     }
     if (!data) return jsonResponse({ error: 'non_trovato' }, 404);
 
-    return jsonResponse({ preventivo: data });
+    // Lo `stato` è uno snapshot dell'intero configuratore e contiene anche i
+    // contatti di chi ha creato la stima: chi apre il link non deve vederli.
+    const { stato, ...resto } = data as Record<string, unknown> & { stato?: Record<string, unknown> | null };
+    const statoPubblico = stato && typeof stato === 'object' ? { ...stato, contatti: undefined } : null;
+
+    return jsonResponse({ preventivo: { ...resto, stato: statoPubblico } });
   } catch (e) {
     return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
   }

@@ -1,11 +1,11 @@
 /**
- * Card riepilogo sticky con totale, range, subtotali per slot e i 3 pulsanti
- * di output (PDF / Email / Condividi). Usata da L1 (sotto il wizard) e da L2
- * (colonna destra fissa).
+ * Card riepilogo sticky con totale, range, subtotali per slot e i pulsanti di
+ * output (scarica il PDF / condividi il link). Usata da L1 (sotto il wizard) e
+ * da L2 (colonna destra fissa).
  */
 
 import { useState } from 'react';
-import { Share2, Loader2 } from 'lucide-react';
+import { Share2, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProgetto } from './state';
 import { calcolaPrezzo, fmt } from './pricing';
@@ -13,6 +13,7 @@ import { MACRO_SLOT_BY_ID } from './data';
 import { mqTotaliEffettivi } from '@/lib/preventivoModel';
 import type { MacroSlotId } from '@/lib/preventivoModel';
 import { supabase } from '@/lib/supabase';
+import { scaricaStimaPdf } from '@/lib/pdf/scaricaStima';
 import RichiediSopralluogoDialog from './RichiediSopralluogoDialog';
 
 interface RiepilogoStickyProps {
@@ -32,6 +33,7 @@ export default function RiepilogoSticky({
   const result = calcolaPrezzo(state);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [condividendo, setCondividendo] = useState(false);
+  const [scaricando, setScaricando] = useState(false);
 
   const slotAttivi = (Object.keys(result.perSlot) as MacroSlotId[]).filter(
     (id) => (result.perSlot[id] ?? 0) > 0
@@ -39,6 +41,19 @@ export default function RiepilogoSticky({
 
   // La stima è "completa" (condivisibile) quando ha un valore.
   const stimaCompleta = result.totale > 0;
+
+  async function scaricaPdf() {
+    if (!stimaCompleta || scaricando) return;
+    setScaricando(true);
+    try {
+      await scaricaStimaPdf(state, result);
+    } catch (e) {
+      console.error('[scaricaPdf] errore:', e);
+      toast.error('Non è stato possibile generare il PDF. Riprova tra poco.');
+    } finally {
+      setScaricando(false);
+    }
+  }
 
   async function condividiStima() {
     if (!stimaCompleta || condividendo) return;
@@ -198,15 +213,27 @@ export default function RiepilogoSticky({
           variare di circa ±15% in base a materiali, stato dei luoghi e dettagli del progetto.
         </p>
 
-        <button
-          onClick={condividiStima}
-          disabled={!stimaCompleta || condividendo}
-          title={!stimaCompleta ? 'Completa la stima per poterla condividere' : undefined}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {condividendo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
-          {condividendo ? 'Creazione link…' : 'Condividi la stima'}
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={scaricaPdf}
+            disabled={!stimaCompleta || scaricando}
+            title={!stimaCompleta ? 'Completa la stima per poterla scaricare' : undefined}
+            className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-xl border-2 border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white font-semibold text-xs disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#1A1A1A]"
+          >
+            {scaricando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {scaricando ? 'Preparo…' : 'Scarica PDF'}
+          </button>
+
+          <button
+            onClick={condividiStima}
+            disabled={!stimaCompleta || condividendo}
+            title={!stimaCompleta ? 'Completa la stima per poterla condividere' : undefined}
+            className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-xl border border-[#E5E5E5] hover:bg-[#F8F8F8] text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {condividendo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            {condividendo ? 'Link…' : 'Condividi'}
+          </button>
+        </div>
 
         {onSwitchModalita && (
           <button

@@ -15,6 +15,12 @@ export const TEL_DISPLAY = '339 126 8722';
 
 export const EMAIL = 'mbristrutturazioniroma@gmail.com';
 
+/** Ragione sociale e dati fiscali, come sul preventivo cartaceo di MB. */
+export const RAGIONE_SOCIALE = 'MB Ristrutturazioni';
+export const TITOLARE = 'Marco Bianchi';
+export const INDIRIZZO = 'Via G. di Vittorio 43 · 00015 Monterotondo (RM)';
+export const PARTITA_IVA = '09986981000';
+
 /** Link `tel:` pronto all'uso in un anchor. */
 export const TEL_HREF = `tel:${TEL_E164}`;
 
