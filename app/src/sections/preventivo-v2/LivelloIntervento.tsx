@@ -377,6 +377,12 @@ export default function LivelloIntervento({
   const [cap, setCap] = useState('');
   const [citta, setCitta] = useState('');
   const [confermato, setConfermato] = useState(false);
+  // Snapshot del riepilogo al momento dell'invio: la schermata di conferma deve
+  // mostrare ESATTAMENTE ciò che è stato prenotato. Senza, un utente che dopo il
+  // "Conferma" torna indietro col tasto del telefono e cambia orario vedrebbe una
+  // conferma (e link "aggiungi al calendario") con lo slot NUOVO, mentre il server
+  // ha registrato quello vecchio.
+  const [riepilogoConfermato, setRiepilogoConfermato] = useState<PrenotazioneRiepilogo | null>(null);
   const [inviando, setInviando] = useState(false);
   const [conflitto, setConflitto] = useState<EsistenteSettimana | null>(null);
 
@@ -457,12 +463,17 @@ export default function LivelloIntervento({
     setCap('');
     setCitta('');
     setConfermato(false);
+    setRiepilogoConfermato(null);
   }
 
   async function inviaPrenotazione(opts?: { confermaSettimana?: boolean; annullaId?: string }) {
     if (!riepilogo || inviando) return;
+    // Congeliamo QUI ciò che stiamo inviando: è quello che il server registra e
+    // quello che la conferma deve mostrare, a prescindere da cosa l'utente tocchi
+    // durante l'attesa.
+    const inviato = riepilogo;
     setInviando(true);
-    const esito = await creaPrenotazione(riepilogo, opts);
+    const esito = await creaPrenotazione(inviato, opts);
     setInviando(false);
 
     if (esito.slotOccupato) {
@@ -494,6 +505,7 @@ export default function LivelloIntervento({
     }
     // Conferme al cliente (email + WhatsApp) partono lato server.
     trackLead(costi.totale); // conversione: intervento prenotato
+    setRiepilogoConfermato(inviato); // la conferma mostra ciò che è stato prenotato
     setConfermato(true);
   }
 
@@ -540,8 +552,8 @@ export default function LivelloIntervento({
         onConfirm={confermaSostituzione}
         onCancel={() => setConflitto(null)}
       />
-      {confermato && riepilogo ? (
-        <SchermataConferma riepilogo={riepilogo} onRicomincia={ricomincia} onTorna={onTorna} />
+      {confermato && riepilogoConfermato ? (
+        <SchermataConferma riepilogo={riepilogoConfermato} onRicomincia={ricomincia} onTorna={onTorna} />
       ) : (
         <>
           <button

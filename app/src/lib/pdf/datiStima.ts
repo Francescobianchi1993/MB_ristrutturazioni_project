@@ -11,12 +11,11 @@
 
 import {
   IVA_PCT,
-  mqTotaliEffettivi,
   type MacroSlotId,
   type ProgettoState,
 } from '@/lib/preventivoModel';
 import { FINITURE, MACRO_SLOT_BY_ID, TEMPISTICHE } from '@/sections/preventivo-v2/data';
-import type { PricingResult } from '@/sections/preventivo-v2/pricing';
+import { mqDiRiferimento, type PricingResult } from '@/sections/preventivo-v2/pricing';
 
 /** Giorni di validità della stima, come sul preventivo cartaceo di MB. */
 export const VALIDITA_GIORNI = 20;
@@ -44,7 +43,8 @@ export interface DatiStimaPdf {
   descrizione: string;
   interventi: VoceIntervento[];
   ambienti: { nome: string; mq: number }[];
-  mq: number;
+  /** Superficie di riferimento coerente col prezzo; null se non pertinente (solo infissi). */
+  mq: number | null;
   finitura: string;
   tempistica: string;
   tipoCasa: 'prima' | 'seconda';
@@ -107,9 +107,17 @@ function costruisciInterventi(state: ProgettoState, result: PricingResult): Voce
       const slot = MACRO_SLOT_BY_ID[id];
       if (!slot) continue;
       const config = state.macroSlot[id];
-      const lavorazioni = slot.sottoVoci
-        .filter((sv) => config?.sottoVociAttive[sv.id] ?? true)
-        .map((sv) => `${sv.label} — ${sv.descBreve.toLowerCase()}`);
+      // Gli infissi si prezzano a pezzo: il documento deve elencare i CONTEGGI
+      // reali (porte/finestre), non i 6 tipi generici che darebbero l'idea di
+      // lavorazioni "incluse" a prescindere da cosa è stato indicato.
+      const lavorazioni = id === 'infissi'
+        ? [
+            `${config?.numPorte ?? 0} ${(config?.numPorte ?? 0) === 1 ? 'porta' : 'porte'} — fornitura e posa`,
+            `${config?.numFinestre ?? 0} ${(config?.numFinestre ?? 0) === 1 ? 'finestra' : 'finestre'} — fornitura e posa`,
+          ].filter((r) => !r.startsWith('0 '))
+        : slot.sottoVoci
+            .filter((sv) => config?.sottoVociAttive[sv.id] ?? true)
+            .map((sv) => `${sv.label} — ${sv.descBreve.toLowerCase()}`);
       righe.push({
         titolo: slot.label,
         sottotitolo: slot.desc,
@@ -162,8 +170,11 @@ export function costruisciDatiStima(
 
   const finitura = FINITURE.find((f) => f.id === state.finitura)?.label ?? state.finitura;
   const tempistica = TEMPISTICHE.find((t) => t.id === state.tempistica)?.label ?? state.tempistica;
-  const mq = mqTotaliEffettivi(state);
+  // Superficie coerente col prezzo (non il default 80 m² della casa su una stima
+  // di una sola stanza). null se non c'è una superficie sensata (es. solo infissi).
+  const mq = mqDiRiferimento(state);
   const elenco = interventi.map((i) => i.titolo.toLowerCase()).join(', ');
+  const frasePutSuperficie = mq != null ? `Superficie di riferimento ~${mq} m², ` : '';
 
   return {
     riferimento: `STIMA-${adesso.getFullYear()}/${suffisso}`,
@@ -173,7 +184,7 @@ export function costruisciDatiStima(
     ...costruisciTitolo(state, interventi),
     descrizione:
       `Stima preliminare degli interventi richiesti${elenco ? `: ${elenco}` : ''}. ` +
-      `Superficie di riferimento ~${mq} m², livello di finitura ${finitura}. ` +
+      `${frasePutSuperficie}livello di finitura ${finitura}. ` +
       `Gli importi comprendono lavorazioni e materiali di base e sono orientativi: ` +
       `il prezzo definitivo viene confermato dopo il sopralluogo gratuito.`,
     interventi,

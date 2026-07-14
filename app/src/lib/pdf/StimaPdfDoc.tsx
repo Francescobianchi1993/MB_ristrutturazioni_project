@@ -436,20 +436,22 @@ function DettaglioLavori({ dati }: { dati: DatiStimaPdf }) {
                 <Text style={{ fontSize: 8, color: GIALLO, fontWeight: 700 }}>{a.mq} m²</Text>
               </View>
             ))}
-            <View
-              style={{
-                backgroundColor: NERO,
-                borderRadius: 3,
-                paddingVertical: 5,
-                paddingHorizontal: 9,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-              }}
-            >
-              <Text style={{ fontSize: 8, fontWeight: 600, color: '#FFFFFF' }}>Superficie di riferimento</Text>
-              <Text style={{ fontSize: 8, color: GIALLO, fontWeight: 700 }}>~{dati.mq} m²</Text>
-            </View>
+            {dati.mq != null && (
+              <View
+                style={{
+                  backgroundColor: NERO,
+                  borderRadius: 3,
+                  paddingVertical: 5,
+                  paddingHorizontal: 9,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <Text style={{ fontSize: 8, fontWeight: 600, color: '#FFFFFF' }}>Superficie di riferimento</Text>
+                <Text style={{ fontSize: 8, color: GIALLO, fontWeight: 700 }}>~{dati.mq} m²</Text>
+              </View>
+            )}
           </View>
         </>
       )}
@@ -545,7 +547,7 @@ function Riepilogo({ dati }: { dati: DatiStimaPdf }) {
             ['DATA', dati.dataEmissione],
             ['VALIDITÀ', `${dati.validitaGiorni} giorni`],
             ['RIF.', dati.riferimento],
-            ['SUPERFICIE', `~${dati.mq} m² · finitura ${dati.finitura}`],
+            ['SUPERFICIE', dati.mq != null ? `~${dati.mq} m² · finitura ${dati.finitura}` : `Finitura ${dati.finitura}`],
           ].map(([k, v]) => (
             <View
               key={k}

@@ -276,7 +276,10 @@ function CardIntervento({
         </div>
       </button>
 
-      {attivo && <SottoVociList slot={slot} />}
+      {/* Per gli infissi NON mostriamo la checklist "Cosa includere": il prezzo
+          si basa sul numero di porte/finestre (sotto), non su quelle spunte, che
+          quindi sembrerebbero cambiare il totale senza farlo. */}
+      {attivo && slot.id !== 'infissi' && <SottoVociList slot={slot} />}
 
       {attivo && slot.id === 'infissi' && (
         <div className="px-4 pb-3 grid grid-cols-2 gap-2 border-t border-[#F5B800]/20">
@@ -518,8 +521,11 @@ function DimensioniRiepilogo() {
     state.macroSlot.termico?.attivo ||
     state.macroSlot.tinteggiatura?.attivo;
   if (haTrasversali) {
-    const tot = state.ambienti.reduce((s, a) => s + a.mq, 0);
-    dettagli.push(`Casa ${tot} m² (totali)`);
+    // Gli interventi trasversali si prezzano sui m² TOTALI dichiarati (con
+    // fallback al default), non sulla somma delle stanze: mostrare quella somma
+    // dava "Casa 0 m²" accanto a un prezzo pieno se l'utente non aveva distribuito
+    // le stanze. Usiamo lo stesso valore del prezzo.
+    dettagli.push(`Casa ${mqTotaliEffettivi(state)} m² (totali)`);
   }
   if (state.macroSlot.infissi?.attivo) {
     const c = state.macroSlot.infissi;

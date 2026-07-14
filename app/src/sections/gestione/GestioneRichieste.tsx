@@ -68,6 +68,13 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
       const status = (error as { context?: Response }).context?.status;
       if (status === 401) throw new Error('password_errata');
       if (status === 503) throw new Error('non_configurato');
+      // Il codice specifico sta nel body JSON della risposta di errore.
+      if (status === 502) {
+        try {
+          const body = await (error as { context?: Response }).context?.clone().json();
+          if (body?.error) throw new Error(String(body.error));
+        } catch { /* body non leggibile: cade nel throw generico sotto */ }
+      }
       throw error;
     }
     return data;
@@ -165,6 +172,12 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
       if (msg === 'password_errata') { setAnnullaTarget(null); esci(); setErrore('Sessione scaduta, accedi di nuovo.'); }
+      else if (msg === 'calendario_non_aggiornato') {
+        // L'evento non è stato rimosso dal calendario: NON è stato annullato
+        // nulla e il cliente NON è stato avvisato. Meglio ritentare che lasciare
+        // il tecnico con l'appuntamento in agenda.
+        setAzioneErr('Non è stato possibile aggiornare il calendario Google: l’appuntamento NON è stato annullato. Riprova tra poco.');
+      }
       else setAzioneErr('Annullamento non riuscito. Riprova.');
     }
     setAnnullando(false);

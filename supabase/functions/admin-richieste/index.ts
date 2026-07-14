@@ -148,19 +148,41 @@ Deno.serve(async (req) => {
       if (!row) return jsonResponse({ error: 'non_trovata' }, 404);
       if (row.stato === 'annullata') return jsonResponse({ ok: true, stato: 'annullata' });
 
+      // 1. Rimuovi l'evento dal calendario del tecnico PRIMA di dichiarare
+      //    annullato. Se questo fallisce e procedessimo lo stesso, il cliente
+      //    riceverebbe "annullato" ma il tecnico avrebbe ancora l'appuntamento in
+      //    agenda → trasferta a vuoto. In quel caso ci fermiamo: l'admin ritenta.
       const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID');
       if (calendarId && row.google_event_id) {
         try {
           const token = await getAccessToken();
-          await fetch(
+          const del = await fetch(
             `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${row.google_event_id}`,
             { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
           );
+          // 204 = rimosso; 404/410 = già assente (va bene lo stesso).
+          if (!del.ok && del.status !== 404 && del.status !== 410) {
+            console.error('[admin] cancella evento Google: HTTP', del.status);
+            return jsonResponse({ error: 'calendario_non_aggiornato' }, 502);
+          }
         } catch (e) {
           console.error('[admin] cancella evento Google fallita:', e instanceof Error ? e.message : String(e));
+          return jsonResponse({ error: 'calendario_non_aggiornato' }, 502);
         }
       }
-      await supabase.from('prenotazioni_intervento').update({ stato: 'annullata' }).eq('id', id);
+
+      // 2. Solo ora segna annullata sul DB. Se questo fallisce non avvisiamo il
+      //    cliente (l'evento è già rimosso: un ritento troverà 404 → ok → update).
+      const { error: updErr } = await supabase
+        .from('prenotazioni_intervento')
+        .update({ stato: 'annullata' })
+        .eq('id', id);
+      if (updErr) {
+        console.error('[admin] annulla update DB fallita:', updErr.message);
+        return jsonResponse({ error: 'update_fallita' }, 500);
+      }
+
+      // 3. Evento rimosso e DB aggiornato: ora possiamo avvisare il cliente.
       const email = await inviaEmailAnnullamentoCliente(row, propostaData, propostaOra);
       return jsonResponse({ ok: true, stato: 'annullata', email });
     }

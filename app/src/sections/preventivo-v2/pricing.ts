@@ -21,6 +21,41 @@ import {
   type MacroSlot,
 } from './data';
 
+/**
+ * Superficie di riferimento COERENTE con gli interventi scelti — la stessa che
+ * alimenta il prezzo. Serve a non mostrare "~80 m²" (il default della casa) su
+ * una stima del solo bagno da 6 m², o "Casa 0 m²" con un prezzo pieno accanto.
+ *
+ * Regola (identica a come il prezzo usa i mq in `calcolaSlot`):
+ *   - se è attivo almeno un intervento "su tutta la casa" (ristrutturazione
+ *     completa o un impianto trasversale) → i m² totali dichiarati/effettivi;
+ *   - altrimenti → la somma dei m² delle sole stanze toccate dagli interventi
+ *     puntuali attivi;
+ *   - `null` se non c'è una superficie sensata (es. solo infissi): chi mostra
+ *     il dato omette la riga.
+ */
+export function mqDiRiferimento(state: ProgettoState): number | null {
+  // Gli slot a pezzo (infissi: tariffaPezzo) NON hanno una superficie: il loro
+  // prezzo è porte×tariffa + finestre×tariffa. Vanno esclusi da ogni conteggio
+  // di m², altrimenti una stima di soli infissi mostrerebbe "~80 m²".
+  const conMq = (s: MacroSlot) => !s.tariffaPezzo;
+
+  const haTutto = Object.values(MACRO_SLOT_BY_ID).some(
+    (s) => conMq(s) && s.ambiteApplicabili === 'tutto' && state.macroSlot[s.id]?.attivo,
+  );
+  if (haTutto) return mqTotaliEffettivi(state);
+
+  let tot = 0;
+  for (const s of Object.values(MACRO_SLOT_BY_ID)) {
+    if (!conMq(s) || s.ambiteApplicabili === 'tutto') continue;
+    if (!state.macroSlot[s.id]?.attivo) continue;
+    for (const tipo of s.ambiteApplicabili as AmbienteTipo[]) {
+      tot += mqPerTipo(state, tipo);
+    }
+  }
+  return tot > 0 ? tot : null;
+}
+
 export interface PricingResult {
   /** Totale centrale (mid-range) */
   totale: number;

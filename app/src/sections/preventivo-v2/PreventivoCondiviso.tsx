@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Loader2, Home, Download } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast, Toaster } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { calcolaPrezzo, fmt } from './pricing';
 import { FINITURE, TEMPISTICHE } from './data';
@@ -63,10 +63,38 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
 
   async function scaricaPdf() {
     if (!rec?.stato || scaricando) return;
+    // Il PDF deve stampare il prezzo CONGELATO nel record, non ricalcolarlo con
+    // le tariffe di oggi: un link già inviato mostrerebbe altrimenti a schermo
+    // una cifra e nel PDF un'altra dopo un aggiornamento del listino (e nel caso
+    // limite un totale a 0€). Se il totale salvato non è valido, non generiamo.
+    if (!(imponibile > 0)) {
+      toast.error('Questa stima non è più disponibile per il download.');
+      return;
+    }
     setScaricando(true);
     try {
       const state = statoDaSnapshot(rec.stato);
-      await scaricaStimaPdf(state, calcolaPrezzo(state), { id: rec.id });
+      // Ripartizione ricalcolata (per il donut), ma riscalata sul totale
+      // congelato così le percentuali e il totale restano coerenti.
+      const live = calcolaPrezzo(state);
+      const fattore = live.imponibile > 0 ? imponibile / live.imponibile : 1;
+      const perSlot = Object.fromEntries(
+        (Object.entries(live.perSlot) as [string, number][]).map(([k, v]) => [k, Math.round(v * fattore)]),
+      ) as typeof live.perSlot;
+      const congelato = {
+        ...live,
+        perSlot,
+        totale: imponibile,
+        imponibile,
+        ivaPct,
+        iva,
+        totaleIvato,
+        range: {
+          min: rec.totale_min ?? Math.round(imponibile * 0.85),
+          max: rec.totale_max ?? Math.round(imponibile * 1.15),
+        },
+      };
+      await scaricaStimaPdf(state, congelato, { id: rec.id });
     } catch (e) {
       console.error('[PreventivoCondiviso] PDF fallito:', e);
       toast.error('Non è stato possibile generare il PDF. Riprova tra poco.');
@@ -117,6 +145,9 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center px-4 py-10">
+      {/* Senza questo i toast di errore (es. PDF non generabile) non compaiono:
+          questa pagina è renderizzata da sola, fuori dall'app principale. */}
+      <Toaster richColors position="top-center" />
       <div className="w-full max-w-lg">
         <div className="flex items-center gap-2 justify-center mb-6">
           <span className="text-xl font-bold text-[#1A1A1A]">MB Ristrutturazioni</span>

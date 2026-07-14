@@ -11,9 +11,8 @@
 import { useState } from 'react';
 import { X, CheckCircle, Send } from 'lucide-react';
 import { useProgetto } from './state';
-import { calcolaPrezzo, fmt } from './pricing';
+import { calcolaPrezzo, fmt, mqDiRiferimento } from './pricing';
 import { MACRO_SLOT_BY_ID, FINITURE, TEMPISTICHE } from './data';
-import { mqTotaliEffettivi, mqPerTipo } from '@/lib/preventivoModel';
 import type { MacroSlotId } from '@/lib/preventivoModel';
 import { supabase } from '@/lib/supabase';
 import { EMAIL, TEL_DISPLAY } from '@/lib/contatti';
@@ -38,16 +37,10 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
     (id) => state.macroSlot[id]?.attivo
   );
   const interventiLabels = slotAttivi.map((id) => MACRO_SLOT_BY_ID[id]?.label ?? id);
-  // Superficie coerente con gli interventi attivi: i mq totali della casa solo se
-  // c'è un intervento "su tutta la casa", altrimenti la somma delle stanze
-  // puntuali; null (riga omessa) se sono solo infissi/niente metratura.
-  const haTutto = (['completa', 'elettrico', 'idraulico', 'termico', 'tinteggiatura'] as MacroSlotId[])
-    .some((id) => state.macroSlot[id]?.attivo);
-  const mqStanze =
-    (state.macroSlot.cucina?.attivo ? mqPerTipo(state, 'cucina') : 0) +
-    (state.macroSlot.bagno?.attivo ? mqPerTipo(state, 'bagno') : 0) +
-    (state.macroSlot.camera?.attivo ? mqPerTipo(state, 'camera') + mqPerTipo(state, 'soggiorno') : 0);
-  const mq: number | null = haTutto ? mqTotaliEffettivi(state) : (mqStanze > 0 ? mqStanze : null);
+  // Superficie coerente col prezzo (m² totali solo per interventi sull'intera
+  // casa, altrimenti la somma delle stanze; null se solo infissi). Selettore
+  // condiviso con PDF e riepilogo, così i canali dicono lo stesso numero.
+  const mq: number | null = mqDiRiferimento(state);
   const finituraLabel = FINITURE.find((f) => f.id === state.finitura)?.label ?? state.finitura;
   const tempLabel = TEMPISTICHE.find((t) => t.id === state.tempistica)?.label ?? state.tempistica;
 
@@ -60,7 +53,9 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
     if (mq != null) righe.push(`Superficie indicata: ~${mq} m²`);
     righe.push(
       `Finitura: ${finituraLabel} · Tempistica: ${tempLabel}`,
-      `Stima indicativa: ${fmt(result.totale)} (range ${fmt(result.range.min)}–${fmt(result.range.max)}, ±15%)`,
+      // All'azienda mandiamo la stessa cifra che il cliente ha visto (IVA inclusa)
+      // più l'imponibile, così non c'è ambiguità su quale numero sia.
+      `Stima indicativa: ${fmt(result.totaleIvato)} IVA incl. (imponibile ${fmt(result.imponibile)} + IVA ${result.ivaPct}%) · range imponibile ${fmt(result.range.min)}–${fmt(result.range.max)}, ±15%`,
     );
     if (form.note.trim()) {
       righe.push('', `Note del cliente: ${form.note.trim()}`);
@@ -175,12 +170,13 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
                   <span className="text-[#666]">{finituraLabel} · {tempLabel}</span>
                 </div>
                 <div className="flex items-baseline gap-2 pt-1">
+                  {/* Stessa cifra della card: totale IVA INCLUSA, etichettato.
+                      Prima qui compariva l'imponibile (IVA escl.) senza dirlo →
+                      due prezzi diversi per la stessa stima nello stesso flusso. */}
                   <span className="font-display text-2xl font-bold text-[#F5B800]">
-                    {fmt(result.totale)}
+                    {fmt(result.totaleIvato)}
                   </span>
-                  <span className="text-xs text-[#666]">
-                    range {fmt(result.range.min)} – {fmt(result.range.max)}
-                  </span>
+                  <span className="text-xs text-[#666]">IVA {result.ivaPct}% incl.</span>
                 </div>
               </div>
             </div>

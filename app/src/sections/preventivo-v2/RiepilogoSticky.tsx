@@ -8,9 +8,8 @@ import { useState } from 'react';
 import { Share2, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProgetto } from './state';
-import { calcolaPrezzo, fmt } from './pricing';
+import { calcolaPrezzo, fmt, mqDiRiferimento } from './pricing';
 import { MACRO_SLOT_BY_ID } from './data';
-import { mqTotaliEffettivi } from '@/lib/preventivoModel';
 import type { MacroSlotId } from '@/lib/preventivoModel';
 import { supabase } from '@/lib/supabase';
 import { scaricaStimaPdf } from '@/lib/pdf/scaricaStima';
@@ -77,7 +76,7 @@ export default function RiepilogoSticky({
           finitura: state.finitura,
           tempistica: state.tempistica,
           tipo_casa: state.tipoCasa,
-          mq: mqTotaliEffettivi(state),
+          mq: mqDiRiferimento(state), // superficie coerente col prezzo (non il default 80)
           interventi: interventiAttivi,
           contatti: state.contatti,
         },
