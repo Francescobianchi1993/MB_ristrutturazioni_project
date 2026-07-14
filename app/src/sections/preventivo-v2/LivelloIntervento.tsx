@@ -1659,7 +1659,10 @@ function SchermataConferma({
       <div className="space-y-3">
         <div className="flex items-start gap-2.5 rounded-2xl bg-[#FFF8E7] border border-[#F5B800]/50 p-4 text-left text-sm text-[#1A1A1A]">
           <CheckCircle2 className="w-5 h-5 text-[#F5B800] flex-shrink-0 mt-0.5" />
-          <span>Non devi scriverci tu: alla conferma pensiamo noi. Se vuoi, aggiungi intanto l'appuntamento al tuo calendario.</span>
+          <span>
+            Non serve altro da parte tua: ti ricontatteremo al più presto per confermare
+            l'appuntamento. Intanto, se vuoi, puoi aggiungerlo al tuo calendario.
+          </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

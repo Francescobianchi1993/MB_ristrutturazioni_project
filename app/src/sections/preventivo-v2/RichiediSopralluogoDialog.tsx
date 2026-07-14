@@ -79,6 +79,7 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
     try {
       const { error } = await supabase.functions.invoke('invia-sopralluogo', {
         body: {
+          tipo: 'sopralluogo',
           nome: form.nome,
           email: form.email,
           telefono: form.telefono,

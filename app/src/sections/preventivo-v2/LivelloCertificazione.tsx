@@ -3,9 +3,9 @@
  *
  * L'utente sceglie la tipologia di certificazione (gas, elettrica, idraulica,
  * altro), inserisce i dati generici + una descrizione e invia la richiesta.
- * Non c'è un prezzo: l'azienda richiama al telefono. La richiesta viaggia
- * riusando l'edge function `invia-sopralluogo` (email all'azienda), con il
- * riepilogo nel campo note.
+ * Non c'è un prezzo: l'azienda ricontatta il cliente. La richiesta viaggia
+ * riusando l'edge function `invia-sopralluogo` (notifica all'azienda + conferma
+ * al cliente), con il riepilogo nel campo note.
  */
 
 import { useState } from 'react';
@@ -71,6 +71,7 @@ export default function LivelloCertificazione({ onTorna }: Props) {
     try {
       const { error } = await supabase.functions.invoke('invia-sopralluogo', {
         body: {
+          tipo: 'certificazione',
           nome: form.nome,
           email: form.email,
           telefono: form.telefono,
@@ -95,11 +96,16 @@ export default function LivelloCertificazione({ onTorna }: Props) {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h3 className="font-display text-2xl font-bold mb-2">Richiesta inviata!</h3>
+          <h3 className="font-display text-2xl font-bold mb-2">Richiesta inviata</h3>
           <p className="text-[#666]">
             Abbiamo ricevuto la tua richiesta di certificazione{' '}
-            <strong>{tipiLabel.toLowerCase()}</strong>.
-            Ti richiamiamo al telefono al più presto per tutti i dettagli.
+            <strong>{tipiLabel.toLowerCase()}</strong>. Ti abbiamo inviato un'email di conferma
+            {form.email.trim() ? (
+              <>
+                {' '}a <strong>{form.email.trim()}</strong>
+              </>
+            ) : null}
+            : un nostro tecnico la esaminerà e ti ricontatteremo al più presto.
           </p>
           <button
             onClick={onTorna}
@@ -129,7 +135,7 @@ export default function LivelloCertificazione({ onTorna }: Props) {
           <div>
             <h3 className="font-display text-2xl font-bold">Richiedi una certificazione</h3>
             <p className="text-[#666] mt-1">
-              Scegli il tipo di certificazione, lascia i tuoi dati e ti richiamiamo noi al telefono.
+              Scegli il tipo di certificazione, lascia i tuoi dati e ti ricontatteremo al più presto.
             </p>
           </div>
         </div>

@@ -20,6 +20,12 @@
  */
 export const EMAIL_PUBBLICA = 'mbristrutturazioniroma@gmail.com';
 
+/** Numero mostrato ai clienti nelle email. Gemello di TEL_DISPLAY sul frontend. */
+export const TEL_DISPLAY = '339 126 8722';
+
+/** Ragione sociale usata nella firma delle email. */
+export const RAGIONE_SOCIALE = 'MB Ristrutturazioni';
+
 /**
  * Destinatario delle notifiche interne (nuovo lead, prenotazione, sopralluogo).
  * `LEAD_EMAIL` resta sovrascrivibile da secret, ma il default NON è più il

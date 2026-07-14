@@ -90,12 +90,12 @@ export default function Hub({ onScegli }: HubProps) {
           </div>
           <div className="font-display text-xl sm:text-2xl font-bold mb-2">Richiedi certificazione</div>
           <p className="text-sm text-[#666] mb-5">
-            Gas, elettrica, idraulica o altro. Scegli il tipo, lascia i tuoi dati e ti richiamiamo noi al telefono.
+            Gas, elettrica, idraulica o altro. Scegli il tipo, lascia i tuoi dati e ti ricontatteremo al più presto.
           </p>
           <ul className="text-sm space-y-2">
             <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Gas · Elettrica · Idraulica · Altro</li>
             <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Pochi dati, nessun impegno</li>
-            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Ti richiamiamo noi</li>
+            <li className="flex items-center gap-2"><span className="text-[#F5B800]">✓</span> Ti ricontattiamo noi</li>
           </ul>
           <div className="mt-6 inline-flex items-center gap-2 text-[#F5B800] font-semibold text-sm">
             Richiedi certificazione

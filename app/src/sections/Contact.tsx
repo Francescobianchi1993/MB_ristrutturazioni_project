@@ -222,6 +222,7 @@ export default function Contact() {
       }
       const { error } = await supabase.functions.invoke('invia-sopralluogo', {
         body: {
+          tipo: 'contatto',
           nome: formData.name,
           email: formData.email,
           telefono: formData.phone,
