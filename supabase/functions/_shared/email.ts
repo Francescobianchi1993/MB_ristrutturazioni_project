@@ -206,7 +206,7 @@ function corpoHtml(d: DatiEmail): string {
       <a href="${whatsapp}" style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:10px;margin:4px">💬 Contattaci</a>
     </div>
     ${bloccoGestione}
-    <p style="color:#444;margin-top:20px">Ti contatteremo a breve per confermare l'appuntamento. Per qualsiasi cosa rispondi pure a questa email.</p>
+    <p style="color:#444;margin-top:20px">Ti confermeremo l'appuntamento entro 24 ore lavorative. Per qualsiasi cosa rispondi pure a questa email.</p>
     <p style="color:#999;font-size:12px;margin-top:24px">Stima orientativa, confermata dopo sopralluogo gratuito. MB Ristrutturazioni · Roma</p>
   </div>
 </div>`;
@@ -229,7 +229,7 @@ function corpoTesto(d: DatiEmail): string {
           `Annulla appuntamento: ${buildManageUrl(d, 'annulla')}`,
         ]
       : []),
-    'Ti contatteremo a breve per confermare. Grazie!',
+    "Ti confermeremo l'appuntamento entro 24 ore lavorative. Grazie!",
   ].join('\n');
 }
 

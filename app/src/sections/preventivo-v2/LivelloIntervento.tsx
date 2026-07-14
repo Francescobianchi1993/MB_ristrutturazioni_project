@@ -45,6 +45,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useScrollInCima } from './scroll';
 import { supabase } from '@/lib/supabase';
 import { TEL_DISPLAY } from '@/lib/contatti';
 import ConfirmDialog from './ConfirmDialog';
@@ -365,17 +366,12 @@ export default function LivelloIntervento({ onTorna }: LivelloInterventoProps) {
   const [inviando, setInviando] = useState(false);
   const [conflitto, setConflitto] = useState<EsistenteSettimana | null>(null);
 
-  // Ancora in cima al wizard: a ogni cambio step ci si riposiziona qui, così
-  // (es.) la scelta di data/ora resta in vista e non finisce in fondo pagina.
+  // Ancora in cima al wizard: ci si riposiziona qui a ogni cambio step E al
+  // primo montaggio. Prima il primo giro veniva saltato di proposito: arrivando
+  // dall'Hub (che sta a metà pagina) il form si apriva sotto la posizione di
+  // scroll corrente e da telefono si finiva in mezzo al modulo.
   const topRef = useRef<HTMLDivElement>(null);
-  const montato = useRef(false);
-  useEffect(() => {
-    if (!montato.current) {
-      montato.current = true;
-      return;
-    }
-    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [step, confermato]);
+  useScrollInCima(topRef, [step, confermato]);
 
   const costi = useMemo(
     () => calcolaCosti(selezionati, urgenza ?? 'normale'),
@@ -1660,8 +1656,8 @@ function SchermataConferma({
         <div className="flex items-start gap-2.5 rounded-2xl bg-[#FFF8E7] border border-[#F5B800]/50 p-4 text-left text-sm text-[#1A1A1A]">
           <CheckCircle2 className="w-5 h-5 text-[#F5B800] flex-shrink-0 mt-0.5" />
           <span>
-            Non serve altro da parte tua: ti ricontatteremo al più presto per confermare
-            l'appuntamento. Intanto, se vuoi, puoi aggiungerlo al tuo calendario.
+            Ti confermeremo l'appuntamento entro 24 ore lavorative. Intanto puoi aggiungerlo al tuo
+            calendario.
           </span>
         </div>
 

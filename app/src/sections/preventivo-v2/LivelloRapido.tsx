@@ -10,7 +10,7 @@
  * Tutti gli step leggono e scrivono su `useProgetto()`.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Check, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProgetto } from './state';
@@ -22,6 +22,7 @@ import {
   type MacroSlot,
 } from './data';
 import { calcolaPrezzo, fmt } from './pricing';
+import { useScrollInCima } from './scroll';
 import RiepilogoSticky from './RiepilogoSticky';
 import Dimensioni from './Dimensioni';
 import { isCompletaAttiva, mqTotaliEffettivi, mqDistribuiti, mqPerTipo } from '@/lib/preventivoModel';
@@ -45,12 +46,8 @@ export default function LivelloRapido({ onTorna, initialStep = 1 }: LivelloRapid
   const result = calcolaPrezzo(state);
   const topRef = useRef<HTMLDivElement>(null);
 
-  // Quando il wizard monta, scrolla in cima (offset 88px per la navbar fissa da 80px)
-  useEffect(() => {
-    if (!topRef.current) return;
-    const y = topRef.current.getBoundingClientRect().top + window.scrollY - 88;
-    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-  }, []);
+  // Quando il wizard monta, la vista torna in cima al riquadro.
+  useScrollInCima(topRef);
 
   const haAlmenoUnIntervento = Object.values(state.macroSlot).some((s) => s?.attivo);
 

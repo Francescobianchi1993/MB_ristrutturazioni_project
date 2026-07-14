@@ -8,10 +8,11 @@
  * al cliente), con il riepilogo nel campo note.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle, Send, ShieldCheck, Flame, Zap, Droplets, MoreHorizontal, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { EMAIL, TEL_DISPLAY } from '@/lib/contatti';
+import { useScrollInCima } from './scroll';
 
 interface Props {
   onTorna: () => void;
@@ -33,6 +34,12 @@ export default function LivelloCertificazione({ onTorna }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [done, setDone] = useState(false);
+
+  // Da telefono si arriva qui da una card dell'Hub, che sta a metà pagina:
+  // senza questo, il form si apriva a metà. Riposiziona anche sulla schermata
+  // di conferma, altrimenti l'utente non vede il messaggio "Richiesta inviata".
+  const topRef = useRef<HTMLDivElement>(null);
+  useScrollInCima(topRef, [done]);
 
   // Etichette delle tipologie scelte, nell'ordine di TIPI (stabile).
   const tipiLabels = TIPI.filter((t) => tipi.includes(t.id)).map((t) => t.label);
@@ -91,7 +98,7 @@ export default function LivelloCertificazione({ onTorna }: Props) {
 
   if (done) {
     return (
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div ref={topRef} className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
         <div className="bg-white border border-[#E5E5E5] rounded-3xl shadow-sm p-8 sm:p-12 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -119,7 +126,7 @@ export default function LivelloCertificazione({ onTorna }: Props) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div ref={topRef} className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
       <button
         onClick={onTorna}
         className="text-sm text-[#1A1A1A] hover:text-black font-bold mb-6 flex items-center gap-1"
