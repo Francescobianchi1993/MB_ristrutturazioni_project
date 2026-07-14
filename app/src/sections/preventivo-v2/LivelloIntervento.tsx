@@ -1682,7 +1682,7 @@ function SchermataConferma({
             dell'appuntamento.
           </>
         ) : (
-          <>Ti contatteremo a breve via email per confermare l'appuntamento.</>
+          <>Il tuo appuntamento è confermato: qui sotto trovi tutti i dettagli.</>
         )}
       </p>
 
@@ -1690,8 +1690,8 @@ function SchermataConferma({
         <div className="flex items-start gap-2.5 rounded-2xl bg-[#FFF8E7] border border-[#F5B800]/50 p-4 text-left text-sm text-[#1A1A1A]">
           <CheckCircle2 className="w-5 h-5 text-[#F5B800] flex-shrink-0 mt-0.5" />
           <span>
-            Ti confermeremo l'appuntamento entro 24 ore lavorative. Intanto puoi aggiungerlo al tuo
-            calendario.
+            Il tuo appuntamento è confermato. Intanto puoi aggiungerlo al tuo calendario; se hai un
+            imprevisto puoi spostarlo o annullarlo dai link nell'email.
           </span>
         </div>
 
