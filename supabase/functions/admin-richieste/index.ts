@@ -14,6 +14,7 @@ import { getAccessToken } from '../_shared/google.ts';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientIp, confrontoSicuro, registraTentativo, tentativiRecenti } from '../_shared/ratelimit.ts';
+import { EMAIL_PUBBLICA } from '../_shared/contatti.ts';
 
 const BUCKET = 'sopralluogo-files';
 const SCADENZA_SEC = 60 * 60 * 24 * 365;
@@ -60,7 +61,9 @@ async function inviaEmailAnnullamentoCliente(row: any, propostaData?: string, pr
     await client.send({
       from: `MB Ristrutturazioni <${user}>`,
       to: row.email,
-      replyTo: user,
+      // Se il cliente risponde all'annullamento, deve arrivare a MB, non al
+      // mittente SMTP tecnico.
+      replyTo: EMAIL_PUBBLICA,
       subject: 'Appuntamento annullato — MB Ristrutturazioni',
       content: testo,
     });

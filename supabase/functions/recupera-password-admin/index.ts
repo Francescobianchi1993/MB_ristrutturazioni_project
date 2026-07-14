@@ -1,6 +1,6 @@
 /**
  * Recupero password del mini-gestionale: invia la password ATTUALE (secret
- * ADMIN_PASSWORD) SOLO alla mail aziendale fissa (GMAIL_USER / LEAD_EMAIL).
+ * ADMIN_PASSWORD) SOLO alla mail aziendale fissa (vedi `_shared/contatti.ts`).
  * Non accetta indirizzi dall'esterno → chi clicca "password dimenticata" non
  * può farsela mandare altrove: la riceve solo chi controlla la casella MB.
  *
@@ -10,6 +10,7 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { registraTentativo, tentativiRecenti } from '../_shared/ratelimit.ts';
+import { destinatarioLead } from '../_shared/contatti.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -31,7 +32,7 @@ Deno.serve(async (req) => {
     const pw = cfg?.valore ?? Deno.env.get('ADMIN_PASSWORD');
     const user = Deno.env.get('GMAIL_USER');
     const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
-    const destinatario = Deno.env.get('LEAD_EMAIL') ?? user;
+    const destinatario = destinatarioLead();
     if (!pw) return jsonResponse({ error: 'non_configurato' }, 503);
     if (!user || !passRaw || !destinatario) return jsonResponse({ error: 'email_non_configurata' }, 503);
 

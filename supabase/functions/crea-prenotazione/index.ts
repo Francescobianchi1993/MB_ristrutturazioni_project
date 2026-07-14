@@ -20,6 +20,7 @@ import { getAccessToken, getBusy } from '../_shared/google.ts';
 import { SLOT_DURATA_MIN, SLOT_ORARI, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
 import { inviaWhatsApp } from '../_shared/whatsapp.ts';
 import { inviaEmailConferma } from '../_shared/email.ts';
+import { EMAIL_PUBBLICA, destinatarioLead } from '../_shared/contatti.ts';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -100,7 +101,7 @@ function costruisciDescrizione(p: Payload, tipo: string): string {
 async function inviaNotificaAzienda(p: Payload, tipo: string, id: string | null): Promise<void> {
   const user = Deno.env.get('GMAIL_USER');
   const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
-  const destinatario = Deno.env.get('LEAD_EMAIL') ?? user;
+  const destinatario = destinatarioLead();
   if (!user || !passRaw || !destinatario) {
     console.warn('[crea-prenotazione] secret email mancanti (GMAIL_USER/GMAIL_APP_PASSWORD/LEAD_EMAIL): notifica azienda non inviata');
     return;
@@ -114,7 +115,7 @@ async function inviaNotificaAzienda(p: Payload, tipo: string, id: string | null)
     await client.send({
       from: `Sito MB Ristrutturazioni <${user}>`,
       to: destinatario,
-      replyTo: p.email || user,
+      replyTo: p.email || EMAIL_PUBBLICA,
       subject: `Nuova prenotazione intervento — ${p.nome || 'cliente'}`,
       content: testo,
     });

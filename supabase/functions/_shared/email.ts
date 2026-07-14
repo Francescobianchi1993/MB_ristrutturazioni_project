@@ -3,7 +3,8 @@
  *
  * Best-effort: senza secret esce in silenzio (la prenotazione resta valida).
  * Si attiva impostando:
- *   GMAIL_USER          — indirizzo Gmail mittente (es. mbristrutturazioniroma@gmail.com)
+ *   GMAIL_USER          — indirizzo Gmail MITTENTE (utenza SMTP autenticata; non è
+ *                         la casella che MB legge — quella è EMAIL_PUBBLICA)
  *   GMAIL_APP_PASSWORD  — "Password per le app" Gmail (16 char, no password normale)
  *
  * L'email parte DALLA Gmail società: il cliente vede MB come mittente e le
@@ -11,6 +12,7 @@
  */
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { romeWallToUTC, SLOT_DURATA_MIN } from './time.ts';
+import { EMAIL_PUBBLICA } from './contatti.ts';
 
 export interface DatiEmail {
   email: string;
@@ -248,8 +250,9 @@ export async function inviaEmailConferma(d: DatiEmail): Promise<void> {
   try {
     await client.send({
       from: `MB Ristrutturazioni <${user}>`,
+      // Il cliente risponde alla casella che MB legge davvero, non al mittente SMTP.
+      replyTo: EMAIL_PUBBLICA,
       to: d.email,
-      replyTo: user,
       subject: 'Conferma appuntamento — MB Ristrutturazioni',
       content: corpoTesto(d),
       html: corpoHtml(d),

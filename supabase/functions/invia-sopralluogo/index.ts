@@ -11,6 +11,7 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+import { EMAIL_PUBBLICA, destinatarioLead } from '../_shared/contatti.ts';
 
 interface Allegato { nome: string; path: string; }
 interface Body {
@@ -53,7 +54,7 @@ Deno.serve(async (req) => {
 
     const user = Deno.env.get('GMAIL_USER');
     const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
-    const destinatario = Deno.env.get('LEAD_EMAIL') ?? user;
+    const destinatario = destinatarioLead();
     const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
     const adminUrl = id ? `${base}/?admin=1&lead=${id}` : `${base}/?admin=1`;
 
@@ -100,7 +101,7 @@ Deno.serve(async (req) => {
         await client.send({
           from: `Sito MB Ristrutturazioni <${user}>`,
           to: destinatario,
-          replyTo: email || user,
+          replyTo: email || EMAIL_PUBBLICA,
           subject: `Nuova richiesta sopralluogo — ${nome || 'cliente'}`,
           content: testo,
           html,
