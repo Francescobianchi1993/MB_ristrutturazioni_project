@@ -11,6 +11,7 @@
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { limiteSuperato } from '../_shared/antiflood.ts';
 
 interface Body {
   stato?: unknown;
@@ -35,14 +36,30 @@ Deno.serve(async (req) => {
     // Una stima senza valore non è condivisibile.
     if (totale <= 0) return jsonResponse({ error: 'stima_incompleta' }, 400);
 
+    // Tetto alla dimensione dello snapshot `stato` (jsonb libero dal client):
+    // senza, un payload enorme riempirebbe la tabella. 100 KB è molto più del
+    // necessario per uno stato reale del configuratore.
+    if (b.stato != null && JSON.stringify(b.stato).length > 100_000) {
+      return jsonResponse({ error: 'payload_troppo_grande' }, 413);
+    }
+
     const interventi = Array.isArray(b.interventi)
-      ? b.interventi.map((x) => String(x)).slice(0, 30)
+      ? b.interventi.map((x) => String(x).slice(0, 200)).slice(0, 30)
       : [];
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    // Freno anti-abuso per IP: qui non parte nessuna email, ma è comunque una
+    // scrittura pubblica su DB. Soglia più larga (creare più stime è legittimo).
+    if (await limiteSuperato(supabase, req, {
+      azione: 'crea-preventivo',
+      maxIp: 20,
+    })) {
+      return jsonResponse({ error: 'troppe_richieste' }, 429);
+    }
 
     const { data: row, error } = await supabase
       .from('preventivi')

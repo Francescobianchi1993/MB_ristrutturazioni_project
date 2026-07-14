@@ -18,6 +18,7 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { EMAIL_PUBBLICA, RAGIONE_SOCIALE, TEL_DISPLAY, destinatarioLead } from '../_shared/contatti.ts';
+import { limiteSuperato } from '../_shared/antiflood.ts';
 
 interface Allegato { nome: string; path: string; }
 type TipoRichiesta = 'contatto' | 'sopralluogo' | 'certificazione';
@@ -60,10 +61,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
     const b = (await req.json()) as Body;
-    const nome = (b.nome ?? '').trim();
-    const email = (b.email ?? '').trim();
-    const telefono = (b.telefono ?? '').trim();
-    const note = (b.note ?? '').trim();
+    // Troncatura degli input di origine utente: un payload gonfiato appesantirebbe
+    // email e DB (e il testo finisce nell'email all'azienda).
+    const nome = (b.nome ?? '').trim().slice(0, 120);
+    const email = (b.email ?? '').trim().slice(0, 160);
+    const telefono = (b.telefono ?? '').trim().slice(0, 40);
+    const note = (b.note ?? '').trim().slice(0, 4000);
     const allegati = Array.isArray(b.allegati) ? b.allegati.slice(0, 5) : [];
     const tipo = normalizzaTipo(b.tipo, note);
 
@@ -71,6 +74,18 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    // Freno anti-abuso: questi indirizzi sono pubblici e ogni richiesta manda
+    // due email dalla Gmail di MB. Soglie un po' più larghe della prenotazione
+    // perché contatti/sopralluogo/certificazione passano tutti da qui.
+    if (await limiteSuperato(supabase, req, {
+      azione: 'invia-sopralluogo',
+      contatto: email || telefono,
+      maxIp: 10,
+      maxContatto: 6,
+    })) {
+      return jsonResponse({ error: 'troppe_richieste' }, 429);
+    }
 
     const { data: row, error: insErr } = await supabase.from('lead_sopralluogo').insert({
       nome: nome || null,
@@ -155,9 +170,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Conferma al CLIENTE — best-effort: un fallimento qui non deve trasformare
-    // in errore una richiesta che è stata registrata e notificata all'azienda.
-    if (user && passRaw && email) {
+    // Conferma al CLIENTE — solo se il lead è effettivamente al sicuro (salvato a
+    // DB o almeno notificato all'azienda). Altrimenti diremmo al cliente "abbiamo
+    // ricevuto la tua richiesta" mentre il sito gli mostra errore e nel database
+    // non c'è nulla: lui non richiama, l'azienda non sa che esiste.
+    // Resta best-effort: un fallimento del solo invio non trasforma in errore una
+    // richiesta andata a buon fine.
+    if ((dbOk || mailOk) && user && passRaw && email) {
       const password = passRaw.replace(/\s/g, '');
       const saluto = nome ? `Gentile ${esc(nome)},` : 'Gentile cliente,';
       const oggetto = OGGETTO_RICHIESTA[tipo];

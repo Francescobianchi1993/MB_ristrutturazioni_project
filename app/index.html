@@ -26,9 +26,11 @@
     <meta name="twitter:title" content="MB Ristrutturazioni — ristrutturazioni chiavi in mano a Roma" />
     <meta name="twitter:description" content="Preventivo online, sopralluogo gratuito e squadra interna dalla demolizione alla consegna." />
     <meta name="twitter:image" content="https://dev.mbristrutturazioniroma.it/og-image.jpg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Font ospitati sul nostro dominio (public/fonts.css → public/fonts/*.woff2).
+         NON usiamo il CDN di Google: caricava l'IP di ogni visitatore sui server
+         Google (USA) prima del consenso cookie — trattamento senza base giuridica
+         già sanzionato in UE. I .woff2 vengono dallo stesso dominio, nessun terzo. -->
+    <link rel="stylesheet" href="/fonts.css" />
     <!-- Meta Pixel — caricato SOLO dopo il consenso cookie (vedi src/lib/consent.ts).
          Nulla viene inviato a Facebook finché non si chiama window.loadMetaPixel(). -->
     <script>

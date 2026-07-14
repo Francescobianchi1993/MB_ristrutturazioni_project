@@ -17,7 +17,11 @@ import { clientIp, confrontoSicuro, registraTentativo, tentativiRecenti } from '
 import { EMAIL_PUBBLICA } from '../_shared/contatti.ts';
 
 const BUCKET = 'sopralluogo-files';
-const SCADENZA_SEC = 60 * 60 * 24 * 365;
+// Validità dei link firmati agli allegati privati dei clienti. Prima era 1 anno:
+// un link uscito dal dispositivo dell'admin (cronologia sincronizzata, screenshot)
+// restava accessibile a terzi per mesi. 2 ore bastano a guardare i file nella
+// sessione admin; per rivederli si rigenera il link riaprendo la richiesta.
+const SCADENZA_SEC = 60 * 60 * 2;
 
 /** Email al cliente quando è MB ad annullare l'appuntamento (best-effort).
  *  Se MB propone un nuovo orario, l'email lo include con un link che apre la

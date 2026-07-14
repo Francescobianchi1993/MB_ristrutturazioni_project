@@ -21,6 +21,7 @@ import { SLOT_DURATA_MIN, SLOT_ORARI, TIME_ZONE, romeWallToUTC } from '../_share
 import { inviaWhatsApp } from '../_shared/whatsapp.ts';
 import { inviaEmailConferma } from '../_shared/email.ts';
 import { EMAIL_PUBBLICA, destinatarioLead } from '../_shared/contatti.ts';
+import { limiteSuperato } from '../_shared/antiflood.ts';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -139,6 +140,39 @@ Deno.serve(async (req) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(p.data)) return jsonResponse({ error: 'data_non_valida' }, 400);
     if (!SLOT_ORARI.includes(p.ora)) return jsonResponse({ error: 'ora_non_valida' }, 400);
 
+    // Limiti di dimensione sugli input di origine utente: un payload gonfiato
+    // (migliaia di voci, note enormi) appesantirebbe email, calendario e DB. Le
+    // stringhe vengono anche troncate prima dell'uso.
+    if (!Array.isArray(p.voci)) p.voci = [];
+    if (!Array.isArray(p.vociCustom)) p.vociCustom = [];
+    if (p.voci.length > 40 || p.vociCustom.length > 40) {
+      return jsonResponse({ error: 'troppe_voci' }, 400);
+    }
+    const tronca = (s: unknown, n: number) => String(s ?? '').slice(0, n);
+    p.nome = tronca(p.nome, 120);
+    p.telefono = tronca(p.telefono, 40);
+    p.email = tronca(p.email, 160);
+    p.indirizzo = tronca(p.indirizzo, 200);
+    p.cap = tronca(p.cap, 10);
+    p.citta = tronca(p.citta, 120);
+    p.vociCustom = p.vociCustom.map((c) => tronca(c, 200));
+    p.voci = p.voci.map((v) => ({ ...v, voce: tronca(v.voce, 200) }));
+
+    const supabaseRL = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    // Freno anti-abuso PRIMA di toccare Google Calendar / inviare email: una
+    // prenotazione legittima è un evento raro, quindi soglie basse.
+    if (await limiteSuperato(supabaseRL, req, {
+      azione: 'crea-prenotazione',
+      contatto: p.email || p.telefono,
+      maxIp: 8,
+      maxContatto: 5,
+    })) {
+      return jsonResponse({ error: 'troppe_richieste' }, 429);
+    }
+
     // Niente prenotazioni nel weekend (sab/dom): si lavora solo lun–ven.
     {
       const [gy, gm, gd] = p.data.split('-').map(Number);
@@ -153,10 +187,7 @@ Deno.serve(async (req) => {
     const start = romeWallToUTC(p.data, p.ora);
     const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const supabase = supabaseRL; // stesso client service-role già creato sopra
 
     // 1. anti doppia-prenotazione: lo slot deve essere ancora libero
     const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);

@@ -14,6 +14,21 @@ import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { romeWallToUTC, SLOT_DURATA_MIN } from './time.ts';
 import { EMAIL_PUBBLICA } from './contatti.ts';
 
+/**
+ * Escaping HTML dei valori che arrivano dal cliente (nome, voci, note): senza,
+ * un attaccante può iniettare markup/link nell'email di conferma, che parte
+ * dalla Gmail vera di MB (SPF/DKIM validi) → phishing molto credibile a nome
+ * dell'azienda. Va applicato a OGNI campo di origine utente interpolato nell'HTML.
+ */
+function esc(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export interface DatiEmail {
   email: string;
   nome: string;
@@ -169,10 +184,10 @@ function corpoHtml(d: DatiEmail): string {
     </div>`
     : '';
   const righeVoci = d.voci
-    .map((v) => `<tr><td style="padding:2px 0;color:#444">${v.voce}</td><td style="padding:2px 0;text-align:right;color:#666">€ ${v.prezzo}</td></tr>`)
+    .map((v) => `<tr><td style="padding:2px 0;color:#444">${esc(v.voce)}</td><td style="padding:2px 0;text-align:right;color:#666">€ ${Number(v.prezzo) || 0}</td></tr>`)
     .join('');
   const righeCustom = d.vociCustom
-    .map((c) => `<tr><td style="padding:2px 0;color:#444">${c}</td><td style="padding:2px 0;text-align:right;color:#999">da definire</td></tr>`)
+    .map((c) => `<tr><td style="padding:2px 0;color:#444">${esc(c)}</td><td style="padding:2px 0;text-align:right;color:#999">da definire</td></tr>`)
     .join('');
   const bloccoVoci = d.voci.length || d.vociCustom.length
     ? `<table style="width:100%;border-collapse:collapse;margin:8px 0 16px">${righeVoci}${righeCustom}</table>`
@@ -184,7 +199,7 @@ function corpoHtml(d: DatiEmail): string {
   </div>
   <div style="border:1px solid #eee;border-top:none;border-radius:0 0 16px 16px;padding:24px">
     <h2 style="margin:0 0 8px">Prenotazione confermata ✅</h2>
-    <p style="color:#444">Ciao ${d.nome || 'gentile cliente'}, abbiamo registrato la tua richiesta di intervento <strong>${d.tipo}</strong>.</p>
+    <p style="color:#444">Ciao ${esc(d.nome) || 'gentile cliente'}, abbiamo registrato la tua richiesta di intervento <strong>${esc(d.tipo)}</strong>.</p>
     <table style="border-collapse:collapse;margin:16px 0">
       <tr><td style="padding:4px 16px 4px 0;color:#888">Quando</td><td style="text-transform:capitalize"><strong>${quando}</strong> alle <strong>${d.ora}</strong></td></tr>
       <tr><td style="padding:4px 16px 4px 0;color:#888">Urgenza</td><td>${d.urgenza === 'alta' ? 'Alta (prioritario)' : 'Normale'}</td></tr>

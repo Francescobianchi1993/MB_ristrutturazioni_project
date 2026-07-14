@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+/* I font sono ospitati localmente (vedi public/fonts.css, caricato da index.html):
+   niente più richieste al CDN di Google. */
 
 @tailwind base;
 @tailwind components;

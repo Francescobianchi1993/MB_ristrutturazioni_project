@@ -215,11 +215,11 @@ export default function Contact() {
     try {
       const numFile = files.length;
       const allegati = await uploadFiles();
-      // Tutti gli allegati selezionati hanno fallito l'upload: blocco l'invio
-      // (le foto sono spesso decisive) e chiedo di riprovare.
-      if (numFile > 0 && allegati.length === 0) {
-        throw new Error('upload_allegati_fallito');
-      }
+      // Le foto sono OPZIONALI: se non salgono (rete mobile instabile) NON
+      // blocchiamo l'invio. I dati di contatto bastano per richiamare il cliente
+      // — buttare tutto il lead perché una foto non è partita è il modo più
+      // sicuro di perdere clienti. Avvisiamo di mandare le foto su WhatsApp.
+      const fotoNonCaricate = numFile > 0 && allegati.length < numFile;
       const { error } = await supabase.functions.invoke('invia-sopralluogo', {
         body: {
           tipo: 'contatto',
@@ -232,9 +232,12 @@ export default function Contact() {
       });
       if (error) throw error;
 
-      // Invio riuscito ma alcuni (non tutti) allegati non sono saliti: avviso.
-      if (numFile > 0 && allegati.length < numFile) {
-        setWarnMsg(`Alcuni allegati non sono stati caricati. Se vuoi, inviaci le foto via WhatsApp al +39 ${TEL_DISPLAY}.`);
+      if (fotoNonCaricate) {
+        setWarnMsg(
+          allegati.length === 0
+            ? `La richiesta è partita, ma le foto non sono state caricate. Inviacele via WhatsApp al +39 ${TEL_DISPLAY}.`
+            : `Alcuni allegati non sono stati caricati. Se vuoi, inviaci le foto via WhatsApp al +39 ${TEL_DISPLAY}.`,
+        );
       }
       trackLead(); // conversione: sopralluogo richiesto (no valore monetario)
       setIsSubmitted(true);
