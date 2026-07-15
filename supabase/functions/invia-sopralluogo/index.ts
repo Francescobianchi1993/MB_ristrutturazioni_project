@@ -97,9 +97,15 @@ Deno.serve(async (req) => {
     if (insErr) console.error('[sopralluogo] insert fallita:', insErr.message);
     const dbOk = !insErr && !!row;
     const id = row?.id ?? null;
-    // Traccia se la notifica email è andata a buon fine: se NÉ il DB NÉ l'email
-    // funzionano, il lead sarebbe perso in silenzio → in quel caso rispondiamo
-    // 500 così il sito mostra il fallback (telefono), invece di "Inviato!".
+
+    // Le due email (avviso all'azienda + conferma al cliente) sono l'operazione
+    // LENTA (SMTP Gmail). Prima le aspettavamo TUTTE prima di rispondere: su una
+    // rete lenta il fetch del sito andava in timeout e l'utente ritentava → lead
+    // DUPLICATO (nessuna deduplica). Ora le mandiamo in BACKGROUND e rispondiamo
+    // subito sul salvataggio a DB, che è veloce ed è la nostra garanzia.
+    // NB: `mailOk` resta interno a questa funzione (serve solo a decidere se
+    // inviare la conferma al cliente quando il DB non ha salvato).
+    const inviaEmail = async (): Promise<void> => {
     let mailOk = false;
 
     const user = Deno.env.get('GMAIL_USER');
@@ -236,9 +242,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Il lead è "salvo" se almeno un canale ha funzionato (DB o email all'azienda).
-    // Se entrambi falliscono NON diciamo "ok": il sito mostrerà il fallback.
-    if (!dbOk && !mailOk) {
+    }; // fine inviaEmail (background)
+
+    // Manteniamo viva la funzione finché le email non sono partite, SENZA far
+    // aspettare il client: EdgeRuntime.waitUntil è il meccanismo Supabase per il
+    // lavoro post-risposta. In ambienti senza background (es. locale) ripieghiamo
+    // su un fire-and-forget con gli errori già gestiti internamente.
+    const edgeRuntime = (globalThis as {
+      EdgeRuntime?: { waitUntil(p: Promise<unknown>): void };
+    }).EdgeRuntime;
+    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(inviaEmail());
+    else void inviaEmail();
+
+    // Rispondiamo sul salvataggio a DB (già avvenuto). Se il DB NON ha salvato non
+    // possiamo garantire nulla in tempo utile → 500 e il sito mostra il fallback
+    // (telefono); l'avviso all'azienda parte comunque in background con i path
+    // degli allegati, così il lead non sparisce del tutto.
+    if (!dbOk) {
       return jsonResponse({ error: 'salvataggio_fallito' }, 500);
     }
     return jsonResponse({ ok: true, id });

@@ -129,7 +129,7 @@ export default function Contact() {
   // su mobile quando lo ScrollTrigger non scattava esattamente come previsto.
   // Il fade-in CSS è sufficiente per la sezione Contact.
 
-  const addFiles = useCallback((incoming: FileList | File[]) => {
+  const addFiles = useCallback(async (incoming: FileList | File[]) => {
     setFileError('');
     const arr = Array.from(incoming);
     const valid: File[] = [];
@@ -145,11 +145,18 @@ export default function Contact() {
         setFileError(`Formato non supportato: ${f.name}`);
         continue;
       }
-      if (f.size > MAX_MB * 1024 * 1024) {
+      // Comprimiamo le immagini PRIMA di controllare il peso: un JPEG da
+      // telefono (tipico Android) può superare gli 8MB da originale ma scendere
+      // a poche centinaia di KB dopo la compressione. Il limite va applicato a
+      // ciò che verrà davvero caricato, non all'originale — altrimenti scartiamo
+      // foto che sarebbero andate benissimo. (HEIC/PDF/DOC/video non sono
+      // comprimibili e restano invariati → controllati sul peso originale.)
+      const finale = await comprimiImmagine(f);
+      if (finale.size > MAX_MB * 1024 * 1024) {
         setFileError(`File troppo grande (max ${MAX_MB} MB): ${f.name}`);
         continue;
       }
-      valid.push(f);
+      valid.push(finale);
     }
     setFiles(prev => {
       const merged = [...prev, ...valid];
@@ -185,15 +192,16 @@ export default function Contact() {
     const prefix = `${Date.now()}-${safe(formData.name.toLowerCase()) || 'anon'}`;
     const out: { nome: string; path: string }[] = [];
     for (let i = 0; i < files.length; i++) {
-      const original = files[i];
-      const file = await comprimiImmagine(original);
+      // I file sono già stati compressi (quando comprimibili) al momento
+      // dell'aggiunta — vedi addFiles/comprimiImmagine. Qui carichiamo così com'è.
+      const file = files[i];
       try {
         // Prefissiamo l'indice al nome: due file con lo stesso nome nella stessa
         // richiesta avrebbero la stessa chiave e con upsert:true si sovrascriverebbero.
         const { data, error } = await supabase.storage
           .from(BUCKET)
           .upload(`${prefix}/${i}-${safe(file.name)}`, file, { upsert: true, contentType: file.type });
-        if (!error && data) out.push({ nome: original.name, path: data.path });
+        if (!error && data) out.push({ nome: file.name, path: data.path });
       } catch {
         // upload singolo fallito: lo saltiamo
       }

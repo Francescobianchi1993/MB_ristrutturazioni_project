@@ -349,6 +349,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ ok: true, id: row?.id ?? null, eventId: evento.id });
   } catch (e) {
-    return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
+    console.error('[crea-prenotazione] errore non gestito:', e instanceof Error ? e.message : String(e));
+    return jsonResponse({ error: 'errore_interno' }, 500);
   }
 });

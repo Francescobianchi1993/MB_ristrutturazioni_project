@@ -552,7 +552,12 @@ export default function LivelloIntervento({
         onConfirm={confermaSostituzione}
         onCancel={() => setConflitto(null)}
       />
-      {confermato && riepilogoConfermato ? (
+      {/* La conferma è ancorata allo step finale (4): senza il vincolo su `step`
+          restava a schermo anche mentre il tasto Indietro del telefono faceva
+          scendere lo step, dando la sensazione di ~4 pressioni "bloccate" prima
+          di uscire. Legandola allo step, ogni Indietro mostra la schermata giusta
+          (i campi restano compilati). */}
+      {confermato && riepilogoConfermato && step === 4 ? (
         <SchermataConferma riepilogo={riepilogoConfermato} onRicomincia={ricomincia} onTorna={onTorna} />
       ) : (
         <>

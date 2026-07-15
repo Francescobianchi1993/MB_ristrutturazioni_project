@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ preventivo: { ...resto, stato: statoPubblico } });
   } catch (e) {
-    return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
+    console.error('[leggi-preventivo] errore non gestito:', e instanceof Error ? e.message : String(e));
+    return jsonResponse({ error: 'errore_interno' }, 500);
   }
 });

@@ -18,6 +18,7 @@ import {
 } from '@/lib/preventivoModel';
 import { Home, Bath, ChefHat, Bed, Ruler } from 'lucide-react';
 import { useProgetto } from './state';
+import { MACRO_SLOT_BY_ID } from './data';
 import EditorAmbienti from './EditorAmbienti';
 
 const ICONA_TIPO: Record<string, React.ElementType> = {
@@ -30,11 +31,23 @@ export default function Dimensioni() {
   const { state } = useProgetto();
   const completaAttiva = isCompletaAttiva(state);
 
-  // Quali macro-slot di tipo "stanza" sono attivi
+  // Quali ambienti richiedono uno slider: TUTTI quelli su cui incide un macro-slot
+  // "stanza" attivo, ricavati dal modello dati (ambiteApplicabili) e non elencati a
+  // mano. È importante che siano ESATTAMENTE gli stessi ambienti che il prezzo
+  // somma in calcolaSlot: p.es. lo slot "Camera / Stanza" fattura camera+soggiorno,
+  // quindi devono comparire entrambi gli slider — altrimenti i m² del soggiorno
+  // (rimasti da un preset o dalla modalità completa) finirebbero nel totale senza
+  // essere visibili né modificabili ("prezzo = ciò che vedi").
+  const STANZA_SLOT_IDS = ['cucina', 'bagno', 'camera'] as const;
   const stanzeAttive: AmbienteTipo[] = [];
-  if (state.macroSlot.cucina?.attivo) stanzeAttive.push('cucina');
-  if (state.macroSlot.bagno?.attivo) stanzeAttive.push('bagno');
-  if (state.macroSlot.camera?.attivo) stanzeAttive.push('camera');
+  for (const id of STANZA_SLOT_IDS) {
+    if (!state.macroSlot[id]?.attivo) continue;
+    const amb = MACRO_SLOT_BY_ID[id]?.ambiteApplicabili;
+    if (!Array.isArray(amb)) continue;
+    for (const tipo of amb) {
+      if (!stanzeAttive.includes(tipo)) stanzeAttive.push(tipo);
+    }
+  }
 
   // Quali macro-slot trasversali sono attivi (richiedono mq totali)
   const haTrasversali =

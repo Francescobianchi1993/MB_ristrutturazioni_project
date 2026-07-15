@@ -261,7 +261,17 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     }
     return <span className="text-[10px] font-bold uppercase tracking-wide bg-[#1A1A1A]/10 text-[#1A1A1A] px-2 py-0.5 rounded">{r.categoria === 'idro' ? 'Idraulico' : 'Elettricista'}</span>;
   };
-  const statoCol = (s: string) => s === 'nuovo' || s === 'nuova' ? 'text-[#C0392B]' : 'text-[#2E7D32]';
+  // Colori di stato: rosso = nuovo (da lavorare), ambra = spostata dal cliente
+  // (DA ATTENZIONARE: l'appuntamento è cambiato, non è "a posto"), grigio =
+  // annullata (nessuna azione), verde = tutto il resto (gestito/confermato).
+  const statoCol = (s: string) =>
+    s === 'nuovo' || s === 'nuova'
+      ? 'text-[#C0392B]'
+      : s === 'spostata'
+        ? 'text-[#B36B00]'
+        : s === 'annullata'
+          ? 'text-[#999]'
+          : 'text-[#2E7D32]';
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] px-4 py-8">
