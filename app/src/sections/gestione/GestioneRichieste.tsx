@@ -193,6 +193,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   const [spostaOra, setSpostaOra] = useState('');
   const [spostando, setSpostando] = useState(false);
   const [spostaErr, setSpostaErr] = useState('');
+  const [spostaEsito, setSpostaEsito] = useState<{ ok: boolean; testo: string } | null>(null);
 
   const chiama = useCallback(async (azione: string, extra: Record<string, unknown> = {}, password = pw) => {
     if (!supabase) throw new Error('config');
@@ -279,7 +280,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
 
   // ── Azioni ─────────────────────────────────────────────────────────────────
   async function apri(p: Pratica) {
-    setSel(p); setFirme([]); setAnnullaEsito(null); setAzioneErr('');
+    setSel(p); setFirme([]); setAnnullaEsito(null); setSpostaEsito(null); setAzioneErr('');
     if (p.kind !== 'preventivo' && p.sop?.allegati?.length) {
       try {
         const data = await chiama('firma', { paths: p.sop.allegati.map((a) => a.path) });
@@ -380,10 +381,14 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     if (!spostaData || !spostaOra) { setSpostaErr('Scegli data e ora.'); return; }
     setSpostando(true); setSpostaErr('');
     try {
-      await chiama('sposta', { tipo: 'intervento', id: i.id, data: spostaData, ora: spostaOra });
+      const res = await chiama('sposta', { tipo: 'intervento', id: i.id, data: spostaData, ora: spostaOra });
       setInterventi((prev) => prev.map((x) => (x.id === i.id ? { ...x, data_intervento: spostaData, ora_intervento: spostaOra } : x)));
       setSel((s) => (s && s.id === i.id && s.int ? { ...s, int: { ...s.int, data_intervento: spostaData, ora_intervento: spostaOra } } : s));
       setSpostaTarget(null);
+      const em = (res as { email?: string } | null)?.email;
+      if (em === 'inviata') setSpostaEsito({ ok: true, testo: 'Appuntamento spostato ed email inviata al cliente.' });
+      else if (em && em !== 'senza_email') setSpostaEsito({ ok: false, testo: 'Spostato, ma l’email al cliente NON è partita. Avvisalo tu.' });
+      else setSpostaEsito({ ok: true, testo: 'Appuntamento spostato.' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
       if (msg === 'password_errata') { setSpostaTarget(null); esci(); setErrore('Sessione scaduta, accedi di nuovo.'); }
@@ -807,6 +812,11 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
           {annullaEsito && (
             <p className={`text-sm mt-4 rounded-lg px-3 py-2 ${annullaEsito.ok ? 'text-[#2E7D32] bg-[#2E7D32]/8' : 'text-[#B26A00] bg-[#F5B800]/12'}`}>
               {annullaEsito.ok ? '✓ ' : '⚠️ '}{annullaEsito.testo}
+            </p>
+          )}
+          {spostaEsito && (
+            <p className={`text-sm mt-4 rounded-lg px-3 py-2 ${spostaEsito.ok ? 'text-[#2E7D32] bg-[#2E7D32]/8' : 'text-[#B26A00] bg-[#F5B800]/12'}`}>
+              {spostaEsito.ok ? '✓ ' : '⚠️ '}{spostaEsito.testo}
             </p>
           )}
 

@@ -82,6 +82,45 @@ async function inviaEmailAnnullamentoCliente(row: any, propostaData?: string, pr
   }
 }
 
+/** Email al cliente quando MB SPOSTA l'appuntamento (best-effort). Include il
+ *  link self-service per spostare/annullare ancora se il nuovo orario non va. */
+// deno-lint-ignore no-explicit-any
+async function inviaEmailSpostamentoCliente(row: any, data: string, ora: string): Promise<EsitoEmail> {
+  const user = Deno.env.get('GMAIL_USER');
+  const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
+  if (!user || !passRaw) return 'non_configurata';
+  if (!row.email) return 'senza_email';
+  const password = passRaw.replace(/\s/g, '');
+  const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+  const gestisciUrl = `${base}/?gestisci=${encodeURIComponent(row.id)}`;
+  const quando = `${data.split('-').reverse().join('/')} alle ${ora}`;
+  const testo = [
+    'Appuntamento spostato — MB Ristrutturazioni',
+    `Ciao ${row.nome || 'gentile cliente'},`,
+    `il tuo appuntamento è stato spostato a: ${quando}.`,
+    '',
+    `Se il nuovo orario non ti va bene puoi spostarlo o annullarlo da qui: ${gestisciUrl}`,
+    'Oppure chiamaci o scrivici su WhatsApp al +39 339 126 8722.',
+    'MB Ristrutturazioni · Roma',
+  ].join('\n');
+  const client = new SMTPClient({ connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password } } });
+  try {
+    await client.send({
+      from: `MB Ristrutturazioni <${user}>`,
+      to: row.email,
+      replyTo: EMAIL_PUBBLICA,
+      subject: 'Appuntamento spostato — MB Ristrutturazioni',
+      content: testo,
+    });
+    return 'inviata';
+  } catch (e) {
+    console.error('[admin] email spostamento fallita:', e instanceof Error ? e.message : String(e));
+    return 'non_inviata';
+  } finally {
+    try { await client.close(); } catch { /* best-effort */ }
+  }
+}
+
 // Promemoria dell'evento sul telefono di chi ha il calendario (1 giorno + 2 ore
 // prima): è così che il gestionale "manda le notifiche" a chi lavora.
 const REMINDERS = { useDefault: false, overrides: [{ method: 'popup', minutes: 24 * 60 }, { method: 'popup', minutes: 120 }] };
@@ -382,7 +421,9 @@ Deno.serve(async (req) => {
       const { error: updErr } = await supabase
         .from('prenotazioni_intervento').update({ data_intervento: data, ora_intervento: ora }).eq('id', id);
       if (updErr) { console.error('[admin] sposta update fallita:', updErr.message); return jsonResponse({ error: 'update_fallita' }, 500); }
-      return jsonResponse({ ok: true, data, ora });
+      // Avvisa il cliente del nuovo orario (best-effort, come per l'annullamento).
+      const email = await inviaEmailSpostamentoCliente(row, data, ora);
+      return jsonResponse({ ok: true, data, ora, email });
     }
 
     return jsonResponse({ error: 'azione_sconosciuta' }, 400);
