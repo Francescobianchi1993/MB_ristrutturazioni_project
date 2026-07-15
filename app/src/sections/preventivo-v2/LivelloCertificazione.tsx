@@ -106,7 +106,7 @@ export default function LivelloCertificazione({ onTorna }: Props) {
           <h3 className="font-display text-2xl font-bold mb-2">Richiesta inviata</h3>
           <p className="text-[#666]">
             Abbiamo ricevuto la tua richiesta di certificazione{' '}
-            <strong>{tipiLabel.toLowerCase()}</strong>. Ti abbiamo inviato un'email di conferma
+            <strong>{tipiLabel.toLowerCase()}</strong>. A breve riceverai un'email di conferma
             {form.email.trim() ? (
               <>
                 {' '}a <strong>{form.email.trim()}</strong>

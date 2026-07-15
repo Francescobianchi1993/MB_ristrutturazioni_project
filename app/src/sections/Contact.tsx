@@ -323,7 +323,7 @@ export default function Contact() {
                 <div className="flex justify-between"><span>Domenica</span><span>Chiuso</span></div>
               </div>
               <p className="text-xs text-white/60 mt-3">
-                <span className="underline">Il sabato solo interventi o contatti telefonici/email.</span>
+                <span className="underline">Il sabato (09:00 - 13:00) rispondiamo solo al telefono o via email. Non svolgiamo interventi sul posto, salvo emergenze da concordare telefonicamente.</span>
               </p>
             </div>
           </div>
