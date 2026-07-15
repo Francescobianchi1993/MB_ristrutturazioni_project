@@ -1,8 +1,11 @@
 /**
- * Recupero password del mini-gestionale: invia la password ATTUALE (secret
- * ADMIN_PASSWORD) SOLO alla mail aziendale fissa (vedi `_shared/contatti.ts`).
- * Non accetta indirizzi dall'esterno → chi clicca "password dimenticata" non
- * può farsela mandare altrove: la riceve solo chi controlla la casella MB.
+ * "Password dimenticata" del gestionale — RESET sicuro.
+ *
+ * La password è salvata come HASH (app_config.admin_password_hash) e non è
+ * recuperabile. Quindi qui GENERIAMO una nuova password, ne salviamo l'hash e
+ * inviamo quella nuova SOLO alla mail aziendale fissa (vedi `_shared/contatti.ts`):
+ * chi clicca "password dimenticata" non può farsela mandare altrove: la riceve
+ * solo chi controlla la casella MB. La password precedente smette di funzionare.
  *
  * Output: { ok: true } | { error }
  */
@@ -11,6 +14,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { registraTentativo, tentativiRecenti } from '../_shared/ratelimit.ts';
 import { destinatarioLead } from '../_shared/contatti.ts';
+import { hashPassword, generaPassword } from '../_shared/password.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -20,23 +24,28 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Throttle: max 3 invii/ora complessivi. L'email va sempre e solo alla casella
-    // aziendale fissa, quindi un throttle globale evita il flooding della inbox e
-    // l'esaurimento della quota SMTP condivisa con le email di conferma, senza
-    // penalizzare l'uso legittimo. Oltre la soglia rispondiamo ok senza inviare.
+    // Throttle: max 3 reset/ora complessivi. Oltre la soglia rispondiamo ok senza
+    // fare nulla (niente flooding della inbox né reset a raffica della password).
     if (await tentativiRecenti(supabase, 'recupera-pw', 3600) >= 3) {
       return jsonResponse({ ok: true });
     }
 
-    const { data: cfg } = await supabase.from('app_config').select('valore').eq('chiave', 'admin_password').single();
-    const pw = cfg?.valore ?? Deno.env.get('ADMIN_PASSWORD');
     const user = Deno.env.get('GMAIL_USER');
     const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
     const destinatario = destinatarioLead();
-    if (!pw) return jsonResponse({ error: 'non_configurato' }, 503);
     if (!user || !passRaw || !destinatario) return jsonResponse({ error: 'email_non_configurata' }, 503);
 
     await registraTentativo(supabase, 'recupera-pw', 3600);
+
+    // Nuova password → salviamo solo il suo HASH, poi la inviamo in chiaro una
+    // volta sola via email. Rimuoviamo l'eventuale plaintext legacy.
+    const nuova = generaPassword();
+    const hash = await hashPassword(nuova);
+    const { error: upErr } = await supabase
+      .from('app_config').upsert({ chiave: 'admin_password_hash', valore: hash }, { onConflict: 'chiave' });
+    if (upErr) { console.error('[recupera] salvataggio hash fallito:', upErr.message); return jsonResponse({ error: 'errore_interno' }, 500); }
+    await supabase.from('app_config').delete().eq('chiave', 'admin_password');
+
     const password = passRaw.replace(/\s/g, '');
     const client = new SMTPClient({
       connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password } },
@@ -45,23 +54,21 @@ Deno.serve(async (req) => {
       await client.send({
         from: `Gestionale MB <${user}>`,
         to: destinatario,
-        subject: 'Password del gestionale richieste',
+        subject: 'Nuova password del gestionale',
         content:
-          `La password per accedere al gestionale richieste (…/?admin=1) è:\n\n${pw}\n\n` +
-          `Se NON hai richiesto tu questo promemoria, ignora questa email. ` +
-          `Per cambiarla: pannello Supabase → Project Settings → Edge Functions → Secrets → ADMIN_PASSWORD.`,
+          `È stata generata una NUOVA password per accedere al gestionale (…/?admin=1):\n\n${nuova}\n\n` +
+          `La password precedente non è più valida. Se NON hai richiesto tu il reset, ` +
+          `rigenerane un'altra dalla stessa schermata ("password dimenticata").`,
         html:
           `<div style='font-family:Arial,sans-serif;color:#1A1A1A'>` +
-          `<p>La password per accedere al <strong>gestionale richieste</strong> (…/?admin=1) è:</p>` +
-          `<p style='font-size:20px;font-weight:bold;letter-spacing:1px'>${pw}</p>` +
-          `<p style='color:#888;font-size:13px'>Se non hai richiesto tu questo promemoria, ignora l'email. ` +
-          `Per cambiarla: Supabase → Project Settings → Edge Functions → Secrets → ADMIN_PASSWORD.</p></div>`,
+          `<p>È stata generata una <strong>nuova password</strong> per accedere al gestionale (…/?admin=1):</p>` +
+          `<p style='font-size:20px;font-weight:bold;letter-spacing:1px'>${nuova}</p>` +
+          `<p style='color:#888;font-size:13px'>La password precedente non è più valida. ` +
+          `Se non hai richiesto tu il reset, rigenerane un'altra dalla stessa schermata.</p></div>`,
       });
     } finally {
       try { await client.close(); } catch { /* best-effort */ }
     }
-    // Non restituiamo `destinatario`: è l'indirizzo aziendale interno e non
-    // deve trapelare a un chiamante non autenticato.
     return jsonResponse({ ok: true });
   } catch (e) {
     console.error('[recupera-password-admin] errore:', e instanceof Error ? e.message : String(e));

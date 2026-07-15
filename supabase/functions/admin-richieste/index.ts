@@ -15,6 +15,7 @@ import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientIp, confrontoSicuro, registraTentativo, tentativiRecenti } from '../_shared/ratelimit.ts';
 import { EMAIL_PUBBLICA } from '../_shared/contatti.ts';
+import { verifyPassword } from '../_shared/password.ts';
 
 const BUCKET = 'sopralluogo-files';
 // Validità dei link firmati agli allegati privati dei clienti. Prima era 1 anno:
@@ -90,9 +91,17 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
-    const { data: cfg } = await supabase.from('app_config').select('valore').eq('chiave', 'admin_password').single();
-    const pw = cfg?.valore ?? Deno.env.get('ADMIN_PASSWORD');
-    if (!pw) return jsonResponse({ error: 'non_configurato' }, 503);
+    // Password: preferiamo l'HASH (app_config.admin_password_hash). Fallback al
+    // plaintext legacy (app_config.admin_password o secret ADMIN_PASSWORD) finché
+    // qualcuno non è ancora migrato.
+    const { data: cfgHash } = await supabase.from('app_config').select('valore').eq('chiave', 'admin_password_hash').maybeSingle();
+    const hash = cfgHash?.valore ?? null;
+    let plain: string | null = null;
+    if (!hash) {
+      const { data: cfgPlain } = await supabase.from('app_config').select('valore').eq('chiave', 'admin_password').maybeSingle();
+      plain = cfgPlain?.valore ?? Deno.env.get('ADMIN_PASSWORD') ?? null;
+    }
+    if (!hash && !plain) return jsonResponse({ error: 'non_configurato' }, 503);
 
     // Anti brute-force: max 10 tentativi ERRATI / 10 min per IP. I login corretti
     // non incrementano il contatore (nessun auto-lockout per la sessione admin).
@@ -100,7 +109,10 @@ Deno.serve(async (req) => {
     if (await tentativiRecenti(supabase, ipKey, 600) >= 10) {
       return jsonResponse({ error: 'troppi_tentativi' }, 429);
     }
-    if (!confrontoSicuro(String(password ?? ''), String(pw))) {
+    const okPw = hash
+      ? await verifyPassword(String(password ?? ''), hash)
+      : confrontoSicuro(String(password ?? ''), String(plain));
+    if (!okPw) {
       await registraTentativo(supabase, ipKey, 600);
       return jsonResponse({ error: 'password_errata' }, 401);
     }
