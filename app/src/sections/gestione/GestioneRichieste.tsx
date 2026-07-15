@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/lib/supabase';
 
 const PW_KEY = 'mb_admin_pw';
+const INP = 'w-full h-10 px-3 rounded-lg border border-[#ECE7DD] focus:border-[#F5B800] outline-none text-sm';
 const SLOT_ORARI = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 const oggiISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 
@@ -79,6 +80,13 @@ function dataLeggibile(d: string | null): string {
   if (!d) return '—';
   const p = d.split('-');
   return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+}
+function giornoLeggibile(iso: string): string {
+  try {
+    const [y, m, d] = iso.split('-').map(Number);
+    const s = new Date(y, m - 1, d).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  } catch { return iso; }
 }
 function isImg(nome: string): boolean { return /\.(jpe?g|png|webp|heic|heif)$/i.test(nome); }
 function normEmail(e: string | null | undefined): string { return (e ?? '').trim().toLowerCase(); }
@@ -154,7 +162,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   const [preventivi, setPreventivi] = useState<Preventivo[]>([]);
   const [attivita, setAttivita] = useState<AttivitaPdf[]>([]);
 
-  const [tab, setTab] = useState<'oggi' | 'richieste' | 'preventivi'>('oggi');
+  const [tab, setTab] = useState<'oggi' | 'agenda' | 'richieste' | 'preventivi'>('oggi');
   const [ricerca, setRicerca] = useState('');
   const [filtroKind, setFiltroKind] = useState<'tutti' | Kind>('tutti');
   const [filtroStato, setFiltroStato] = useState<'tutti' | 'da_lavorare' | 'chiusi'>('tutti');
@@ -174,6 +182,17 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   const [propData, setPropData] = useState('');
   const [propOra, setPropOra] = useState('');
   const [annullando, setAnnullando] = useState(false);
+
+  // Nuovo appuntamento / sposta dal gestionale
+  const [nuovoOpen, setNuovoOpen] = useState(false);
+  const [nuovoBusy, setNuovoBusy] = useState(false);
+  const [nuovoErr, setNuovoErr] = useState('');
+  const [nuovo, setNuovo] = useState({ nome: '', telefono: '', email: '', categoria: 'idro', indirizzo: '', cap: '', citta: '', data: '', ora: '', note: '' });
+  const [spostaTarget, setSpostaTarget] = useState<Intervento | null>(null);
+  const [spostaData, setSpostaData] = useState('');
+  const [spostaOra, setSpostaOra] = useState('');
+  const [spostando, setSpostando] = useState(false);
+  const [spostaErr, setSpostaErr] = useState('');
 
   const chiama = useCallback(async (azione: string, extra: Record<string, unknown> = {}, password = pw) => {
     if (!supabase) throw new Error('config');
@@ -328,6 +347,56 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     try { await chiama('nota_elimina', { id }); } catch { /* best-effort */ }
   }
 
+  async function creaAppuntamento() {
+    if (nuovoBusy) return;
+    setNuovoErr('');
+    if (!nuovo.nome.trim() && !nuovo.telefono.trim()) { setNuovoErr('Inserisci almeno nome o telefono.'); return; }
+    if (!nuovo.data || !nuovo.ora) { setNuovoErr('Scegli data e ora.'); return; }
+    setNuovoBusy(true);
+    try {
+      await chiama('crea_appuntamento', { ...nuovo });
+      setNuovoOpen(false);
+      setNuovo({ nome: '', telefono: '', email: '', categoria: 'idro', indirizzo: '', cap: '', citta: '', data: '', ora: '', note: '' });
+      await caricaLista(pw);
+      setTab('agenda');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'password_errata') { setNuovoOpen(false); esci(); setErrore('Sessione scaduta, accedi di nuovo.'); }
+      else setNuovoErr(
+        msg === 'slot_occupato' ? 'Quello slot è già occupato. Scegline un altro.'
+          : msg === 'giorno_non_valido' ? 'Niente appuntamenti nel weekend.'
+            : msg === 'passato' ? 'Quella data/ora è già passata.'
+              : msg === 'ora_non_valida' ? 'Orario non valido.'
+                : msg === 'calendario_non_aggiornato' ? 'Calendario non aggiornato. Riprova.'
+                  : 'Creazione non riuscita. Riprova.');
+    }
+    setNuovoBusy(false);
+  }
+
+  function apriSposta(i: Intervento) { setSpostaData(i.data_intervento ?? ''); setSpostaOra(i.ora_intervento ?? ''); setSpostaErr(''); setSpostaTarget(i); }
+  async function confermaSposta() {
+    const i = spostaTarget;
+    if (!i || spostando) return;
+    if (!spostaData || !spostaOra) { setSpostaErr('Scegli data e ora.'); return; }
+    setSpostando(true); setSpostaErr('');
+    try {
+      await chiama('sposta', { tipo: 'intervento', id: i.id, data: spostaData, ora: spostaOra });
+      setInterventi((prev) => prev.map((x) => (x.id === i.id ? { ...x, data_intervento: spostaData, ora_intervento: spostaOra } : x)));
+      setSel((s) => (s && s.id === i.id && s.int ? { ...s, int: { ...s.int, data_intervento: spostaData, ora_intervento: spostaOra } } : s));
+      setSpostaTarget(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'password_errata') { setSpostaTarget(null); esci(); setErrore('Sessione scaduta, accedi di nuovo.'); }
+      else setSpostaErr(
+        msg === 'slot_occupato' ? 'Slot occupato. Scegline un altro.'
+          : msg === 'giorno_non_valido' ? 'Niente appuntamenti nel weekend.'
+            : msg === 'passato' ? 'Data/ora già passata.'
+              : msg === 'calendario_non_aggiornato' ? 'Calendario non aggiornato. Riprova.'
+                : 'Spostamento non riuscito. Riprova.');
+    }
+    setSpostando(false);
+  }
+
   function login(e: React.FormEvent) {
     e.preventDefault();
     if (!pwInput.trim()) return;
@@ -419,6 +488,16 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
   const appOggi = interventi
     .filter((i) => i.data_intervento === oggi && i.stato !== 'annullata')
     .sort((a, b) => (a.ora_intervento ?? '').localeCompare(b.ora_intervento ?? ''));
+  // Agenda: appuntamenti da oggi in poi, raggruppati per giorno.
+  const agendaGiorni: [string, Intervento[]][] = [];
+  {
+    const mp = new Map<string, Intervento[]>();
+    interventi
+      .filter((i) => i.data_intervento && i.data_intervento >= oggi && i.stato !== 'annullata')
+      .sort((a, b) => `${a.data_intervento}${a.ora_intervento ?? ''}`.localeCompare(`${b.data_intervento}${b.ora_intervento ?? ''}`))
+      .forEach((i) => { const k = i.data_intervento!; if (!mp.has(k)) mp.set(k, []); mp.get(k)!.push(i); });
+    agendaGiorni.push(...mp.entries());
+  }
   const nuoviRecenti = pratiche.filter((p) => {
     const h = (Date.now() - new Date(p.created_at).getTime()) / 3_600_000;
     return h <= 48;
@@ -463,6 +542,39 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
     </button>
   );
 
+  const AppCard = ({ i }: { i: Intervento }) => {
+    const p = pratiche.find((x) => x.id === i.id && x.kind === 'intervento');
+    const ml = mapsLink(i);
+    return (
+      <div className="bg-white rounded-2xl border border-[#ECE7DD] p-3.5">
+        <div className="flex items-start gap-3">
+          <div className="text-center shrink-0 w-14">
+            <div className="text-xl font-extrabold leading-none">{i.ora_intervento ?? '—'}</div>
+            <div className="text-[10px] uppercase tracking-wide text-[#938D80] mt-1">{i.categoria === 'idro' ? 'Idraulico' : 'Elettr.'}</div>
+          </div>
+          <button onClick={() => p && apri(p)} className="flex-1 min-w-0 text-left">
+            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+              <p className="font-semibold truncate">{i.nome || 'Senza nome'}</p>
+              <StatoBadge s={i.stato} />
+              {i.fuori_zona && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#C0392B]/12 text-[#C0392B]">Fuori zona</span>}
+            </div>
+            <p className="text-sm text-[#6B665C] truncate flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 shrink-0" />{[i.indirizzo, i.citta].filter(Boolean).join(', ') || 'Indirizzo non indicato'}
+            </p>
+          </button>
+        </div>
+        <div className="flex gap-1.5 mt-2.5 flex-wrap">
+          {i.telefono && <AzMini href={`tel:${i.telefono}`} icona={<Phone className="w-3.5 h-3.5" />} testo="Chiama" />}
+          {waLink(i.telefono) && <AzMini href={waLink(i.telefono)!} icona={<MessageCircle className="w-3.5 h-3.5" />} testo="WhatsApp" />}
+          {ml && <AzMini href={ml} icona={<MapPin className="w-3.5 h-3.5" />} testo="Mappa" />}
+          <button onClick={() => apriSposta(i)} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full bg-white border border-[#ECE7DD] text-[#1A1A1A] hover:border-[#F5B800]/60">
+            <CalendarClock className="w-3.5 h-3.5" /> Sposta
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#FBFAF7] text-[#1A1A1A]">
       {/* Header + tabs */}
@@ -486,7 +598,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
             </div>
           </div>
           <div className="flex gap-1">
-            {([['oggi', 'Oggi'], ['richieste', 'Richieste'], ['preventivi', 'Preventivi']] as const).map(([v, label]) => (
+            {([['oggi', 'Oggi'], ['agenda', 'Agenda'], ['richieste', 'Richieste'], ['preventivi', 'Preventivi']] as const).map(([v, label]) => (
               <button key={v} onClick={() => setTab(v)}
                 className={`relative px-3.5 py-2.5 text-sm font-semibold rounded-t-lg transition ${tab === v ? 'text-[#1A1A1A]' : 'text-[#938D80] hover:text-[#6B665C]'}`}>
                 {label}
@@ -508,38 +620,7 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
           <div className="space-y-6">
             <Sezione titolo="Appuntamenti di oggi" contatore={appOggi.length} icona={<CalendarClock className="w-4 h-4" />}>
               {appOggi.length === 0 ? <Vuoto testo="Nessun appuntamento oggi." /> : (
-                <div className="space-y-2">
-                  {appOggi.map((i) => {
-                    const p = pratiche.find((x) => x.id === i.id && x.kind === 'intervento')!;
-                    const ml = mapsLink(i);
-                    return (
-                      <div key={i.id} className="bg-white rounded-2xl border border-[#ECE7DD] p-3.5">
-                        <div className="flex items-start gap-3">
-                          <div className="text-center shrink-0 w-14">
-                            <div className="text-xl font-extrabold leading-none text-[#1A1A1A]">{i.ora_intervento ?? '—'}</div>
-                            <div className="text-[10px] uppercase tracking-wide text-[#938D80] mt-1">{i.categoria === 'idro' ? 'Idraulico' : 'Elettr.'}</div>
-                          </div>
-                          <button onClick={() => apri(p)} className="flex-1 min-w-0 text-left">
-                            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                              <p className="font-semibold truncate">{i.nome || 'Senza nome'}</p>
-                              <StatoBadge s={i.stato} />
-                              {i.fuori_zona && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#C0392B]/12 text-[#C0392B]">Fuori zona</span>}
-                            </div>
-                            <p className="text-sm text-[#6B665C] truncate flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5 shrink-0" />
-                              {[i.indirizzo, i.citta].filter(Boolean).join(', ') || 'Indirizzo non indicato'}
-                            </p>
-                          </button>
-                        </div>
-                        <div className="flex gap-1.5 mt-2.5">
-                          {i.telefono && <AzMini href={`tel:${i.telefono}`} icona={<Phone className="w-3.5 h-3.5" />} testo="Chiama" />}
-                          {waLink(i.telefono) && <AzMini href={waLink(i.telefono)!} icona={<MessageCircle className="w-3.5 h-3.5" />} testo="WhatsApp" />}
-                          {ml && <AzMini href={ml} icona={<MapPin className="w-3.5 h-3.5" />} testo="Mappa" />}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <div className="space-y-2">{appOggi.map((i) => <AppCard key={i.id} i={i} />)}</div>
               )}
             </Sezione>
 
@@ -554,6 +635,25 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
                 <div className="space-y-2">{nuoviRecenti.slice(0, 12).map((p) => <RigaPratica key={`n-${p.kind}-${p.id}`} p={p} sub={dtBreve(p.created_at)} />)}</div>
               )}
             </Sezione>
+          </div>
+        )}
+
+        {/* ── AGENDA ── */}
+        {tab === 'agenda' && (
+          <div>
+            <button onClick={() => setNuovoOpen(true)} className="w-full mb-4 py-3 rounded-xl bg-[#F5B800] text-[#1A1A1A] font-bold flex items-center justify-center gap-2 hover:bg-[#E0A800]">
+              <Plus className="w-4 h-4" /> Nuovo appuntamento
+            </button>
+            {agendaGiorni.length === 0 ? <Vuoto testo="Nessun appuntamento in programma." /> : (
+              <div className="space-y-5">
+                {agendaGiorni.map(([giorno, lista]) => (
+                  <div key={giorno}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#938D80] mb-2">{giornoLeggibile(giorno)}</p>
+                    <div className="space-y-2">{lista.map((i) => <AppCard key={i.id} i={i} />)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -740,9 +840,14 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
               </button>
             )}
             {sel.kind === 'intervento' && sel.int && sel.stato !== 'annullata' && (
-              <button onClick={() => apriAnnulla(sel.int!)} className="w-full py-3 rounded-xl border-2 border-[#C0392B] text-[#C0392B] font-semibold hover:bg-[#C0392B]/5 flex items-center justify-center gap-2">
-                <X className="w-4 h-4" /> Annulla appuntamento
-              </button>
+              <>
+                <button onClick={() => apriSposta(sel.int!)} className="w-full py-3 rounded-xl border-2 border-[#ECE7DD] font-semibold hover:bg-[#F5F2EB] flex items-center justify-center gap-2">
+                  <CalendarClock className="w-4 h-4" /> Sposta appuntamento
+                </button>
+                <button onClick={() => apriAnnulla(sel.int!)} className="w-full py-3 rounded-xl border-2 border-[#C0392B] text-[#C0392B] font-semibold hover:bg-[#C0392B]/5 flex items-center justify-center gap-2">
+                  <X className="w-4 h-4" /> Annulla appuntamento
+                </button>
+              </>
             )}
           </div>
         </Drawer>
@@ -847,6 +952,59 @@ export default function GestioneRichieste({ leadId }: { leadId?: string }) {
           </div>
         </div>
       )}
+
+      {/* ── NUOVO APPUNTAMENTO ── */}
+      {nuovoOpen && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => !nuovoBusy && setNuovoOpen(false)}>
+          <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-auto p-5 sm:p-6" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">Nuovo appuntamento</h3>
+              <button onClick={() => setNuovoOpen(false)} className="text-[#999] hover:text-[#1A1A1A]"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Nome"><input value={nuovo.nome} onChange={(e) => setNuovo({ ...nuovo, nome: e.target.value })} className={INP} placeholder="Mario Rossi" /></Campo>
+                <Campo label="Telefono"><input value={nuovo.telefono} onChange={(e) => setNuovo({ ...nuovo, telefono: e.target.value })} className={INP} placeholder="333…" /></Campo>
+              </div>
+              <Campo label="Email (opzionale)"><input value={nuovo.email} onChange={(e) => setNuovo({ ...nuovo, email: e.target.value })} className={INP} placeholder="mario@email.it" /></Campo>
+              <Campo label="Indirizzo"><input value={nuovo.indirizzo} onChange={(e) => setNuovo({ ...nuovo, indirizzo: e.target.value })} className={INP} placeholder="Via e civico" /></Campo>
+              <div className="grid grid-cols-3 gap-2">
+                <Campo label="CAP"><input value={nuovo.cap} onChange={(e) => setNuovo({ ...nuovo, cap: e.target.value })} className={INP} /></Campo>
+                <div className="col-span-2"><Campo label="Città"><input value={nuovo.citta} onChange={(e) => setNuovo({ ...nuovo, citta: e.target.value })} className={INP} /></Campo></div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Campo label="Data"><input type="date" min={oggiISO()} value={nuovo.data} onChange={(e) => setNuovo({ ...nuovo, data: e.target.value })} className={INP} /></Campo>
+                <Campo label="Ora"><select value={nuovo.ora} onChange={(e) => setNuovo({ ...nuovo, ora: e.target.value })} className={`${INP} bg-white`}><option value="">—</option>{SLOT_ORARI.map((o) => <option key={o} value={o}>{o}</option>)}</select></Campo>
+                <Campo label="Tipo"><select value={nuovo.categoria} onChange={(e) => setNuovo({ ...nuovo, categoria: e.target.value })} className={`${INP} bg-white`}><option value="idro">Idraulico</option><option value="elettr">Elettricista</option></select></Campo>
+              </div>
+              <Campo label="Note (opzionale)"><textarea rows={2} value={nuovo.note} onChange={(e) => setNuovo({ ...nuovo, note: e.target.value })} className={`${INP} h-auto py-2 resize-none`} placeholder="Cosa fare…" /></Campo>
+            </div>
+            {nuovoErr && <p className="text-sm text-[#C0392B] mt-3">{nuovoErr}</p>}
+            <button onClick={creaAppuntamento} disabled={nuovoBusy} className="mt-4 w-full py-3 rounded-xl bg-[#F5B800] text-[#1A1A1A] font-bold hover:bg-[#E0A800] disabled:opacity-50 flex items-center justify-center gap-2">
+              {nuovoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Crea e metti in calendario
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── SPOSTA APPUNTAMENTO ── */}
+      {spostaTarget && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={() => !spostando && setSpostaTarget(null)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <h3 className="font-bold text-lg mb-1">Sposta appuntamento</h3>
+            <p className="text-sm text-[#6B665C] mb-4">Scegli la nuova data e ora. Il calendario di lavoro si aggiorna in automatico.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs text-[#6B665C]">Data<input type="date" min={oggiISO()} value={spostaData} onChange={(e) => setSpostaData(e.target.value)} className="mt-1 w-full h-10 px-2 rounded-lg border border-[#ECE7DD] focus:border-[#F5B800] outline-none text-sm" /></label>
+              <label className="text-xs text-[#6B665C]">Ora<select value={spostaOra} onChange={(e) => setSpostaOra(e.target.value)} className="mt-1 w-full h-10 px-2 rounded-lg border border-[#ECE7DD] focus:border-[#F5B800] outline-none text-sm bg-white"><option value="">—</option>{SLOT_ORARI.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
+            </div>
+            {spostaErr && <p className="text-sm text-[#C0392B] mt-3">{spostaErr}</p>}
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setSpostaTarget(null)} disabled={spostando} className="flex-1 py-2.5 rounded-full border-2 border-[#ECE7DD] font-semibold text-sm hover:bg-[#F5F2EB] disabled:opacity-50">Indietro</button>
+              <button onClick={confermaSposta} disabled={spostando} className="flex-1 py-2.5 rounded-full bg-[#F5B800] text-[#1A1A1A] font-semibold text-sm hover:bg-[#E0A800] disabled:opacity-50">{spostando ? 'Sposto…' : 'Sposta'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -882,6 +1040,9 @@ function AzMini({ href, icona, testo }: { href: string; icona: React.ReactNode; 
 }
 function Info({ label, valore }: { label: string; valore: string }) {
   return <div><p className="text-[10px] font-mono uppercase tracking-wide text-[#938D80]">{label}</p><p className="font-medium">{valore}</p></div>;
+}
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block"><span className="text-[11px] text-[#6B665C]">{label}</span><div className="mt-1">{children}</div></label>;
 }
 function Drawer({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (

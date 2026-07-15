@@ -236,8 +236,12 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           summary,
           description: costruisciDescrizione(p, tipo),
+          // Indirizzo come `location`: sul telefono di chi ha il calendario diventa
+          // tap-to-navigatore. Promemoria 1 giorno + 2 ore prima = notifiche push.
+          location: [p.indirizzo, [p.cap, p.citta].filter(Boolean).join(' ')].filter(Boolean).join(', ') || undefined,
           start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
           end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
+          reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 24 * 60 }, { method: 'popup', minutes: 120 }] },
         }),
       },
     );

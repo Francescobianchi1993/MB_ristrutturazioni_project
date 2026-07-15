@@ -10,7 +10,8 @@
  *   azione = 'lista' | 'firma' | 'segna' | 'annulla'
  */
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
-import { getAccessToken } from '../_shared/google.ts';
+import { getAccessToken, getBusy } from '../_shared/google.ts';
+import { SLOT_DURATA_MIN, SLOT_ORARI, TIME_ZONE, romeWallToUTC } from '../_shared/time.ts';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientIp, confrontoSicuro, registraTentativo, tentativiRecenti } from '../_shared/ratelimit.ts';
@@ -79,6 +80,20 @@ async function inviaEmailAnnullamentoCliente(row: any, propostaData?: string, pr
   } finally {
     try { await client.close(); } catch { /* best-effort */ }
   }
+}
+
+// Promemoria dell'evento sul telefono di chi ha il calendario (1 giorno + 2 ore
+// prima): è così che il gestionale "manda le notifiche" a chi lavora.
+const REMINDERS = { useDefault: false, overrides: [{ method: 'popup', minutes: 24 * 60 }, { method: 'popup', minutes: 120 }] };
+
+/** Valida data (ISO, non weekend) + ora (slot valido). Ritorna null se ok. */
+function validaSlot(data: string, ora: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return 'data_non_valida';
+  if (!SLOT_ORARI.includes(ora)) return 'ora_non_valida';
+  const [gy, gm, gd] = data.split('-').map(Number);
+  const dow = new Date(Date.UTC(gy, gm - 1, gd)).getUTCDay(); // 0=dom, 6=sab
+  if (dow === 0 || dow === 6) return 'giorno_non_valido';
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -251,6 +266,123 @@ Deno.serve(async (req) => {
       // 3. Evento rimosso e DB aggiornato: ora possiamo avvisare il cliente.
       const email = await inviaEmailAnnullamentoCliente(row, propostaData, propostaOra);
       return jsonResponse({ ok: true, stato: 'annullata', email });
+    }
+
+    // Crea un appuntamento a mano dal gestionale (non da prenotazione cliente):
+    // evento sul Calendar (con indirizzo + promemoria) + riga prenotazioni_intervento.
+    if (azione === 'crea_appuntamento') {
+      const b = body ?? {};
+      const nome = String(b.nome ?? '').trim().slice(0, 120);
+      const telefono = String(b.telefono ?? '').trim().slice(0, 40);
+      const email = String(b.email ?? '').trim().slice(0, 160);
+      const indirizzo = String(b.indirizzo ?? '').trim().slice(0, 200);
+      const cap = String(b.cap ?? '').trim().slice(0, 10);
+      const citta = String(b.citta ?? '').trim().slice(0, 80);
+      const categoria = b.categoria === 'elettr' ? 'elettr' : 'idro';
+      const note = String(b.note ?? '').trim().slice(0, 1000);
+      const data = String(b.data ?? '');
+      const ora = String(b.ora ?? '');
+      if (!nome && !telefono) return jsonResponse({ error: 'parametri_mancanti' }, 400);
+      const errV = validaSlot(data, ora); if (errV) return jsonResponse({ error: errV }, 400);
+      const start = romeWallToUTC(data, ora);
+      if (start.getTime() < Date.now()) return jsonResponse({ error: 'passato' }, 409);
+      const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
+      const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID');
+      if (!calendarId) return jsonResponse({ error: 'calendario_non_configurato' }, 503);
+      const token = await getAccessToken();
+      const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);
+      if (busy.length > 0) return jsonResponse({ error: 'slot_occupato' }, 409);
+
+      const tipo = categoria === 'idro' ? 'Idraulico' : 'Elettricista';
+      const indirizzoCompleto = [indirizzo, [cap, citta].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+      const descr = [
+        'Appuntamento creato dal gestionale',
+        `Tipo: ${tipo}`,
+        nome ? `Cliente: ${nome}` : '',
+        telefono ? `Telefono: ${telefono}` : '',
+        email ? `Email: ${email}` : '',
+        indirizzoCompleto ? `Indirizzo: ${indirizzoCompleto}` : '',
+        note ? `\nNote: ${note}` : '',
+      ].filter(Boolean).join('\n');
+      const evRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+        {
+          method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            summary: `Intervento MB — ${tipo}${nome ? ` (${nome})` : ''}`,
+            description: descr,
+            location: indirizzoCompleto || undefined,
+            start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
+            end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
+            reminders: REMINDERS,
+          }),
+        },
+      );
+      if (!evRes.ok) { console.error('[admin] crea evento fallita: HTTP', evRes.status); return jsonResponse({ error: 'calendario_non_aggiornato' }, 502); }
+      const evento = await evRes.json();
+
+      const { data: row, error: insErr } = await supabase.from('prenotazioni_intervento').insert({
+        categoria, urgenza: 'normale', data_intervento: data, ora_intervento: ora,
+        voci: [], voci_custom: note ? [note] : [], totale_stimato: 0, stato: 'in_lavorazione',
+        google_event_id: evento.id, nome: nome || null, telefono: telefono || null, email: email || null,
+        indirizzo: indirizzo || null, cap: cap || null, citta: citta || null, fuori_zona: false,
+      }).select('id').single();
+      if (insErr || !row) {
+        console.error('[admin] insert prenotazione manuale fallita:', insErr?.message);
+        // Rollback dell'evento appena creato: niente evento orfano.
+        try {
+          await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${evento.id}`,
+            { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+        } catch { /* best-effort */ }
+        return jsonResponse({ error: 'insert_fallita' }, 500);
+      }
+      return jsonResponse({ ok: true, id: row.id });
+    }
+
+    // Sposta un appuntamento esistente a nuova data/ora dal gestionale: aggiorna
+    // l'evento Calendar e il DB (il telefono del tecnico si aggiorna da solo).
+    if (azione === 'sposta') {
+      if (tipo !== 'intervento' || !id) return jsonResponse({ error: 'parametri_mancanti' }, 400);
+      const data = String(body?.data ?? '');
+      const ora = String(body?.ora ?? '');
+      const errV = validaSlot(data, ora); if (errV) return jsonResponse({ error: errV }, 400);
+      const start = romeWallToUTC(data, ora);
+      if (start.getTime() < Date.now()) return jsonResponse({ error: 'passato' }, 409);
+      const end = new Date(start.getTime() + SLOT_DURATA_MIN * 60_000);
+      const { data: row } = await supabase.from('prenotazioni_intervento').select('*').eq('id', id).single();
+      if (!row) return jsonResponse({ error: 'non_trovata' }, 404);
+      if (row.stato === 'annullata') return jsonResponse({ error: 'gia_annullata' }, 409);
+      const noOp = row.data_intervento === data && row.ora_intervento === ora;
+
+      const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID');
+      if (calendarId) {
+        const token = await getAccessToken();
+        const busy = await getBusy(token, calendarId, start.toISOString(), end.toISOString(), TIME_ZONE);
+        // Se lo slot risulta occupato ma NON stiamo spostando sullo stesso orario
+        // (dove l'unico "busy" è l'evento stesso), è davvero preso.
+        if (busy.length > 0 && !noOp) return jsonResponse({ error: 'slot_occupato' }, 409);
+        if (row.google_event_id) {
+          const patch = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${row.google_event_id}`,
+            {
+              method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
+                end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
+                reminders: REMINDERS,
+              }),
+            },
+          );
+          if (!patch.ok && patch.status !== 404 && patch.status !== 410) {
+            console.error('[admin] sposta evento Google: HTTP', patch.status);
+            return jsonResponse({ error: 'calendario_non_aggiornato' }, 502);
+          }
+        }
+      }
+      const { error: updErr } = await supabase
+        .from('prenotazioni_intervento').update({ data_intervento: data, ora_intervento: ora }).eq('id', id);
+      if (updErr) { console.error('[admin] sposta update fallita:', updErr.message); return jsonResponse({ error: 'update_fallita' }, 500); }
+      return jsonResponse({ ok: true, data, ora });
     }
 
     return jsonResponse({ error: 'azione_sconosciuta' }, 400);
