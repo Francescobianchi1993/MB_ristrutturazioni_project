@@ -931,10 +931,10 @@ function StepIntervento({
       </div>
 
       {/* Due colonne SEMPRE, anche su telefono: la lista voci può essere molto
-          lunga e a colonna singola diventava scomoda da scorrere. Le card sono
-          compatte (nome + prezzo + info) e reggono la larghezza dimezzata; su
-          desktop restano due colonne come prima. */}
-      <div className="grid grid-cols-2 items-start gap-2 sm:gap-3">
+          lunga e a colonna singola diventava scomoda da scorrere. Niente
+          `items-start`: le card si estendono a pari altezza per riga (allineate),
+          il prezzo e la "i" stanno in fondo. Desktop invariato a due colonne. */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         {filtrate.map((v) => (
           <CardIntervento
             key={v.id}
@@ -1072,27 +1072,31 @@ function CardIntervento({
 }) {
   return (
     <div
-      className={`rounded-xl border-2 transition ${
+      className={`flex flex-col h-full rounded-xl border-2 transition ${
         selezionato ? 'border-[#F5B800] bg-[#FFF8E7]' : 'border-[#E5E5E5] bg-white hover:border-[#F5B800]/50'
       }`}
     >
-      <div className="flex items-start gap-2 p-3">
-        <button onClick={onToggle} className="flex-1 flex items-start gap-3 text-left min-w-0">
-          <div
-            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition ${
-              selezionato ? 'bg-[#F5B800] border-[#F5B800]' : 'border-[#CCC]'
-            }`}
-          >
-            {selezionato && <Check className="w-3.5 h-3.5 text-[#1A1A1A]" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <span className="font-semibold text-sm text-[#1A1A1A] leading-snug block">{voce.voce}</span>
-            <span className="font-display text-sm font-bold text-[#F5B800]">
-              € {voce.prezzo}
-              <span className="text-[11px] text-[#666] font-mono font-normal"> /{voce.unita}</span>
-            </span>
-          </div>
-        </button>
+      {/* Il titolo (con la checkbox) è la zona di selezione ed è flessibile: spinge
+          in fondo la riga prezzo+info, così su tutte le card di una riga il fondo
+          è allineato. */}
+      <button onClick={onToggle} className="flex-1 flex items-start gap-2.5 text-left p-3 min-w-0">
+        <div
+          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition ${
+            selezionato ? 'bg-[#F5B800] border-[#F5B800]' : 'border-[#CCC]'
+          }`}
+        >
+          {selezionato && <Check className="w-3.5 h-3.5 text-[#1A1A1A]" />}
+        </div>
+        <span className="flex-1 min-w-0 font-semibold text-sm text-[#1A1A1A] leading-snug">{voce.voce}</span>
+      </button>
+
+      {/* Riga in fondo: prezzo a sinistra, info in basso a destra (l'angolo che
+          l'utente ha chiesto). Su card strette non collide più col titolo. */}
+      <div className="flex items-end justify-between gap-2 px-3 pb-3">
+        <span className="font-display text-sm font-bold text-[#F5B800] leading-none">
+          € {voce.prezzo}
+          <span className="text-[11px] text-[#666] font-mono font-normal"> /{voce.unita}</span>
+        </span>
         <button
           onClick={onInfo}
           aria-label="Dettagli intervento"
