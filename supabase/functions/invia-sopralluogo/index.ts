@@ -19,12 +19,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { EMAIL_PUBBLICA, RAGIONE_SOCIALE, TEL_DISPLAY, destinatarioLead } from '../_shared/contatti.ts';
 import { limiteSuperato } from '../_shared/antiflood.ts';
+import { registraAttivita, firmaStima } from '../_shared/crm.ts';
 
 interface Allegato { nome: string; path: string; }
 type TipoRichiesta = 'contatto' | 'sopralluogo' | 'certificazione';
 interface Body {
   nome?: string; email?: string; telefono?: string; note?: string;
   allegati?: Allegato[]; tipo?: string;
+  /** Contenuto della stima per il CRM (totale, interventi, mq…). */
+  dettaglio?: Record<string, unknown>;
 }
 
 function esc(s: string): string {
@@ -85,6 +88,30 @@ Deno.serve(async (req) => {
       maxContatto: 6,
     })) {
       return jsonResponse({ error: 'troppe_richieste' }, 429);
+    }
+
+    const tipoRaw = (b.tipo ?? '').trim();
+    const isPdf = tipoRaw === 'pdf';
+    const dettaglio =
+      b.dettaglio && typeof b.dettaglio === 'object' ? (b.dettaglio as Record<string, unknown>) : undefined;
+
+    // CRM: registriamo SEMPRE contatto (dedup per email) + attività con data-ora e
+    // contenuto, così ogni preventivo/azione resta tracciato per il marketing —
+    // anche quando i dati erano già noti e il form non è ricomparso.
+    await registraAttivita(supabase, {
+      email,
+      nome,
+      telefono,
+      tipo: isPdf ? 'pdf' : tipo,
+      dettaglio,
+      firma: dettaglio ? firmaStima(dettaglio) : null,
+    });
+
+    // I download del PDF sono "silenziosi": registrati nel CRM ma SENZA riga in
+    // lead_sopralluogo né email — non intasano il gestionale né la casella (scelta
+    // dell'utente: mail solo per contatti/sopralluoghi/certificazioni).
+    if (isPdf) {
+      return jsonResponse({ ok: true });
     }
 
     const { data: row, error: insErr } = await supabase.from('lead_sopralluogo').insert({

@@ -75,23 +75,45 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
       toast.error('Questa stima non è più disponibile per il download.');
       return;
     }
-    if (datiCliente) void generaPdf(datiCliente);
-    else setGateOpen(true);
+    if (datiCliente) {
+      logAttivitaPdf(datiCliente); // già coi dati: download tracciato (silenzioso)
+      void generaPdf(datiCliente);
+    } else {
+      setGateOpen(true);
+    }
   }
 
-  // Gate confermato: notifichiamo l'azienda (lead), ricordiamo i dati e generiamo
-  // il PDF intestato. La notifica è awaitata (errore → il gate lo mostra).
+  // Contenuto della stima condivisa per il CRM.
+  function dettaglioCondiviso() {
+    return {
+      totale: imponibile,
+      totale_ivato: totaleIvato,
+      interventi: rec?.interventi ?? [],
+      mq: rec?.mq ?? null,
+      finitura: finituraLabel,
+      tempistica: tempLabel,
+      tipo_casa: rec?.tipo_casa ?? null,
+      fonte: 'link_condiviso',
+    };
+  }
+
+  // Registrazione silenziosa del download nel CRM (nessuna email). Fire-and-forget.
+  function logAttivitaPdf(dati: DatiCliente) {
+    if (!supabase || !dati.email.trim()) return;
+    void supabase.functions
+      .invoke('invia-sopralluogo', {
+        body: { tipo: 'pdf', nome: dati.nome, email: dati.email, telefono: dati.telefono, dettaglio: dettaglioCondiviso(), allegati: [] },
+      })
+      .catch(() => { /* best-effort */ });
+  }
+
+  // Gate confermato: registriamo contatto+attività nel CRM (PDF silenzioso →
+  // nessuna email), ricordiamo i dati e generiamo il PDF intestato. L'invoke è
+  // awaitato (errore → il gate lo mostra).
   async function onConfermatoGate(dati: DatiCliente) {
     if (!supabase) throw new Error('servizio non disponibile');
-    const note = [
-      '[Richiesta PDF da link stima condiviso]',
-      `Interventi: ${rec?.interventi?.join(', ') || '—'}`,
-      rec?.mq != null ? `Superficie indicata: ~${rec.mq} m²` : '',
-      `Finitura: ${finituraLabel ?? '—'} · Tempistica: ${tempLabel ?? '—'}`,
-      `Stima: ${fmt(totaleIvato)} IVA incl. (imponibile ${fmt(imponibile)} + IVA ${ivaPct}%)`,
-    ].filter(Boolean).join('\n');
     const { error } = await supabase.functions.invoke('invia-sopralluogo', {
-      body: { tipo: 'contatto', nome: dati.nome, email: dati.email, telefono: dati.telefono, note, allegati: [] },
+      body: { tipo: 'pdf', nome: dati.nome, email: dati.email, telefono: dati.telefono, dettaglio: dettaglioCondiviso(), allegati: [] },
     });
     if (error) throw error;
     setDatiCliente(dati);

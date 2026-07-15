@@ -61,42 +61,50 @@ export default function RiepilogoSticky({
 
   function scaricaPdf() {
     if (!stimaCompleta || scaricando) return;
-    if (haDatiCliente) void generaPdf(state);
-    else setGateOpen(true);
+    if (haDatiCliente) {
+      // Registriamo il download nel CRM anche quando i dati sono già noti e il
+      // gate non ricompare, così ogni preventivo scaricato resta tracciato.
+      logAttivitaPdf(state.contatti);
+      void generaPdf(state);
+    } else {
+      setGateOpen(true);
+    }
   }
 
-  // Riepilogo della stima per il lead all'azienda (canale invia-sopralluogo).
-  function noteStima(intro: string): string {
-    const interventiAttivi = (Object.keys(state.macroSlot) as MacroSlotId[])
+  // Contenuto della stima per il CRM (dettaglio strutturato dell'attività).
+  function dettaglioStima() {
+    const interventi = (Object.keys(state.macroSlot) as MacroSlotId[])
       .filter((id) => state.macroSlot[id]?.attivo)
       .map((id) => MACRO_SLOT_BY_ID[id]?.label ?? id);
-    const mq = mqDiRiferimento(state);
-    const finituraLabel = FINITURE.find((f) => f.id === state.finitura)?.label ?? state.finitura;
-    const tempLabel = TEMPISTICHE.find((t) => t.id === state.tempistica)?.label ?? state.tempistica;
-    return [
-      intro,
-      `Interventi: ${interventiAttivi.join(', ') || '—'}`,
-      mq != null ? `Superficie indicata: ~${mq} m²` : '',
-      `Finitura: ${finituraLabel} · Tempistica: ${tempLabel}`,
-      `Stima: ${fmt(result.totaleIvato)} IVA incl. (imponibile ${fmt(result.imponibile)} + IVA ${result.ivaPct}%)`,
-    ].filter(Boolean).join('\n');
+    return {
+      totale: result.imponibile,
+      totale_ivato: result.totaleIvato,
+      interventi,
+      mq: mqDiRiferimento(state),
+      finitura: FINITURE.find((f) => f.id === state.finitura)?.label ?? state.finitura,
+      tempistica: TEMPISTICHE.find((t) => t.id === state.tempistica)?.label ?? state.tempistica,
+      tipo_casa: state.tipoCasa,
+    };
   }
 
-  // Gate confermato: notifichiamo l'azienda (lead), salviamo i dati nello stato e
-  // generiamo il PDF col nome appena inserito. La notifica è awaitata (se fallisce
-  // il gate mostra l'errore e NON si duplica il lead); il PDF parte dopo, con il
-  // suo toast d'errore indipendente.
+  // Registrazione silenziosa del download PDF nel CRM (nessuna email): fire-and-forget.
+  function logAttivitaPdf(contatti: { name: string; email: string; phone: string }) {
+    if (!supabase || !contatti.email.trim()) return;
+    void supabase.functions
+      .invoke('invia-sopralluogo', {
+        body: { tipo: 'pdf', nome: contatti.name, email: contatti.email, telefono: contatti.phone, dettaglio: dettaglioStima(), allegati: [] },
+      })
+      .catch(() => { /* best-effort */ });
+  }
+
+  // Gate confermato: registriamo il contatto+attività nel CRM (il PDF è "silenzioso"
+  // → nessuna email, solo tracciamento), salviamo i dati nello stato e generiamo il
+  // PDF intestato. L'invoke è awaitato (errore → il gate lo mostra); il download
+  // parte dopo, col suo toast indipendente.
   async function onConfermatoGate(dati: DatiCliente) {
     if (!supabase) throw new Error('servizio non disponibile');
     const { error } = await supabase.functions.invoke('invia-sopralluogo', {
-      body: {
-        tipo: 'contatto',
-        nome: dati.nome,
-        email: dati.email,
-        telefono: dati.telefono,
-        note: noteStima('[Richiesta PDF preventivo dal configuratore online]'),
-        allegati: [],
-      },
+      body: { tipo: 'pdf', nome: dati.nome, email: dati.email, telefono: dati.telefono, dettaglio: dettaglioStima(), allegati: [] },
     });
     if (error) throw error;
     dispatch({ type: 'SET_CONTATTI', patch: { name: dati.nome, email: dati.email, phone: dati.telefono } });

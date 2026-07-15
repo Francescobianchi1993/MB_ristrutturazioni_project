@@ -83,6 +83,16 @@ export default function RichiediSopralluogoDialog({ open, onClose, onScaricaPdf 
           telefono: form.telefono,
           note: buildNote(),
           allegati: [],
+          // Contenuto strutturato per il CRM (storico attività del contatto).
+          dettaglio: {
+            totale: result.imponibile,
+            totale_ivato: result.totaleIvato,
+            interventi: interventiLabels,
+            mq,
+            finitura: finituraLabel,
+            tempistica: tempLabel,
+            tipo_casa: state.tipoCasa,
+          },
         },
       });
       if (error) throw error;
