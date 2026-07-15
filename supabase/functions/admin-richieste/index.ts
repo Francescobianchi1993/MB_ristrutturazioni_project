@@ -111,12 +111,33 @@ Deno.serve(async (req) => {
         .select('id, created_at, nome, email, telefono, note, allegati, stato')
         .order('created_at', { ascending: false })
         .limit(500);
+      // Estesa: indirizzo/cap/citta/fuori_zona e voci sono indispensabili per il
+      // tecnico che va a domicilio (prima non venivano nemmeno letti).
       const { data: interventi } = await supabase
         .from('prenotazioni_intervento')
-        .select('id, created_at, nome, email, telefono, categoria, urgenza, data_intervento, ora_intervento, totale_stimato, stato')
+        .select('id, created_at, nome, email, telefono, categoria, urgenza, data_intervento, ora_intervento, totale_stimato, stato, indirizzo, cap, citta, fuori_zona, voci, voci_custom, google_event_id')
         .order('created_at', { ascending: false })
         .limit(500);
-      return jsonResponse({ ok: true, sopralluoghi: sopralluoghi ?? [], interventi: interventi ?? [] });
+      // Preventivi condivisi: prima invisibili nel gestionale.
+      const { data: preventivi } = await supabase
+        .from('preventivi')
+        .select('id, created_at, totale, totale_ivato, finitura, tempistica, mq, interventi, contatti, tipo_casa')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      // Attività CRM (download PDF ecc.) col contatto collegato, per la timeline
+      // della Scheda Cliente.
+      const { data: attivita } = await supabase
+        .from('mb_attivita')
+        .select('tipo, dettaglio, conteggio, created_at, ultima_volta, contatto:mb_contatti(email, nome, telefono)')
+        .order('ultima_volta', { ascending: false })
+        .limit(500);
+      return jsonResponse({
+        ok: true,
+        sopralluoghi: sopralluoghi ?? [],
+        interventi: interventi ?? [],
+        preventivi: preventivi ?? [],
+        attivita: attivita ?? [],
+      });
     }
 
     if (azione === 'firma') {
@@ -134,8 +155,41 @@ Deno.serve(async (req) => {
 
     if (azione === 'segna') {
       const tabella = tipo === 'intervento' ? 'prenotazioni_intervento' : 'lead_sopralluogo';
+      // Whitelist: prima 'segna' scriveva QUALSIASI stringa nello stato (e su id
+      // inesistente passava in silenzio). Ora accettiamo solo il vocabolario
+      // valido impostabile a mano; annullato/riprogrammato restano guidati dai
+      // rispettivi flussi (annulla / self-service).
+      const STATI_OK = ['nuovo', 'in_lavorazione', 'preventivo_inviato', 'chiuso', 'perso'];
       if (!id || !stato) return jsonResponse({ error: 'parametri_mancanti' }, 400);
-      await supabase.from(tabella).update({ stato }).eq('id', id);
+      if (!STATI_OK.includes(String(stato))) return jsonResponse({ error: 'stato_non_valido' }, 400);
+      const { data: upd, error: updErr } = await supabase
+        .from(tabella).update({ stato }).eq('id', id).select('id');
+      if (updErr) { console.error('[admin] segna fallita:', updErr.message); return jsonResponse({ error: 'update_fallita' }, 500); }
+      if (!upd || upd.length === 0) return jsonResponse({ error: 'non_trovata' }, 404);
+      return jsonResponse({ ok: true });
+    }
+
+    // Note interne / promemoria sul contatto (chiave = email normalizzata).
+    if (azione === 'note_lista') {
+      const email = String(body?.email ?? '').trim().toLowerCase();
+      if (!email) return jsonResponse({ ok: true, note: [] });
+      const { data } = await supabase
+        .from('mb_note').select('id, testo, autore, fatto, created_at')
+        .eq('email', email).order('created_at', { ascending: false });
+      return jsonResponse({ ok: true, note: data ?? [] });
+    }
+    if (azione === 'nota_aggiungi') {
+      const email = String(body?.email ?? '').trim().toLowerCase();
+      const testo = String(body?.testo ?? '').trim().slice(0, 2000);
+      if (!email || !testo) return jsonResponse({ error: 'parametri_mancanti' }, 400);
+      const { data, error } = await supabase
+        .from('mb_note').insert({ email, testo }).select('id, testo, autore, fatto, created_at').single();
+      if (error) { console.error('[admin] nota_aggiungi fallita:', error.message); return jsonResponse({ error: 'insert_fallita' }, 500); }
+      return jsonResponse({ ok: true, nota: data });
+    }
+    if (azione === 'nota_elimina') {
+      if (!id) return jsonResponse({ error: 'parametri_mancanti' }, 400);
+      await supabase.from('mb_note').delete().eq('id', id);
       return jsonResponse({ ok: true });
     }
 
