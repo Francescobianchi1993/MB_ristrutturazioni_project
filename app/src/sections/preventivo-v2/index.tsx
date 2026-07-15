@@ -11,7 +11,7 @@
  * potrebbero divergere e il tasto Indietro del telefono farebbe cose sbagliate.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
 import { ProgettoProvider } from './state';
 import Hub from './Hub';
@@ -19,7 +19,15 @@ import LivelloRapido from './LivelloRapido';
 import LivelloDettaglio from './LivelloDettaglio';
 import LivelloIntervento from './LivelloIntervento';
 import LivelloCertificazione from './LivelloCertificazione';
-import { apriVista, sostituisciVista, tornaIndietro, useStoriaVista, type Vista } from './storia';
+import {
+  apriVista,
+  sostituisciVista,
+  tornaIndietro,
+  useStoriaVista,
+  salvaVistaSessione,
+  leggiVistaSessione,
+  type Vista,
+} from './storia';
 
 type Modalita = Vista['m'];
 
@@ -33,7 +41,24 @@ const STEP_INIZIALE: Record<Modalita, number> = {
 };
 
 export default function PreventivoV2() {
-  const [vista, setVista] = useState<Vista>({ m: 'hub', s: 0 });
+  // Al primo render proviamo a ripristinare la vista salvata nella scheda: se la
+  // pagina si è ricaricata (es. dopo l'apertura del PDF su iOS) l'utente torna
+  // sulla sua stima invece che sull'Hub. I dati della stima sono già in
+  // localStorage; qui recuperiamo solo "dove eravamo".
+  const [vista, setVista] = useState<Vista>(() => leggiVistaSessione() ?? { m: 'hub', s: 0 });
+
+  // Se abbiamo ripristinato una vista diversa dall'Hub, allineiamo la voce di
+  // cronologia corrente (dopo un reload history.state è vuoto) così il tasto
+  // Indietro continua a comportarsi bene. Solo al mount.
+  useEffect(() => {
+    if (vista.m !== 'hub') sostituisciVista(vista);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Ogni cambio di vista viene ricordato nella scheda (azzerato sull'Hub).
+  useEffect(() => {
+    salvaVistaSessione(vista);
+  }, [vista]);
 
   /** Apre una schermata nuova: avanza nella cronologia. */
   const apri = useCallback((m: Modalita, s: number = STEP_INIZIALE[m]) => {

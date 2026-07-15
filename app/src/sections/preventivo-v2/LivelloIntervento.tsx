@@ -930,7 +930,11 @@ function StepIntervento({
         {filtrate.length} {filtrate.length === 1 ? 'intervento' : 'interventi'}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-3">
+      {/* Due colonne SEMPRE, anche su telefono: la lista voci può essere molto
+          lunga e a colonna singola diventava scomoda da scorrere. Le card sono
+          compatte (nome + prezzo + info) e reggono la larghezza dimezzata; su
+          desktop restano due colonne come prima. */}
+      <div className="grid grid-cols-2 items-start gap-2 sm:gap-3">
         {filtrate.map((v) => (
           <CardIntervento
             key={v.id}

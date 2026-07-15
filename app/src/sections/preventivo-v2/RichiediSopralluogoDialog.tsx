@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { X, CheckCircle, Send } from 'lucide-react';
+import { X, CheckCircle, Send, Download } from 'lucide-react';
 import { useProgetto } from './state';
 import { calcolaPrezzo, fmt, mqDiRiferimento } from './pricing';
 import { MACRO_SLOT_BY_ID, FINITURE, TEMPISTICHE } from './data';
@@ -20,10 +20,13 @@ import { EMAIL, TEL_DISPLAY } from '@/lib/contatti';
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Se passato, la schermata di conferma mostra "Scarica il PDF" (i dati appena
+   *  inseriti sono già salvati nello stato, quindi il PDF esce intestato). */
+  onScaricaPdf?: () => void;
 }
 
-export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
-  const { state } = useProgetto();
+export default function RichiediSopralluogoDialog({ open, onClose, onScaricaPdf }: Props) {
+  const { state, dispatch } = useProgetto();
   const result = calcolaPrezzo(state);
 
   const [form, setForm] = useState({ nome: '', email: '', telefono: '', note: '' });
@@ -83,6 +86,12 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
         },
       });
       if (error) throw error;
+      // Salviamo i dati nello stato: sbloccano il download del PDF (intestato) e
+      // restano compilati per eventuali passi successivi.
+      dispatch({
+        type: 'SET_CONTATTI',
+        patch: { name: form.nome.trim(), email: form.email.trim(), phone: form.telefono.trim() },
+      });
       setDone(true);
     } catch (err) {
       console.error('[RichiediSopralluogo] invio fallito:', err);
@@ -121,12 +130,22 @@ export default function RichiediSopralluogoDialog({ open, onClose }: Props) {
               Abbiamo ricevuto la tua richiesta con la stima allegata. Ti ricontatteremo presto
               per fissare il sopralluogo gratuito.
             </p>
-            <button
-              onClick={chiudi}
-              className="mt-6 px-6 py-2.5 rounded-full bg-[#1A1A1A] hover:bg-black text-white text-sm font-semibold"
-            >
-              Chiudi
-            </button>
+            <div className="mt-6 flex flex-col sm:flex-row gap-2 justify-center">
+              {onScaricaPdf && (
+                <button
+                  onClick={() => { onScaricaPdf(); chiudi(); }}
+                  className="px-6 py-2.5 rounded-full bg-[#F5B800] hover:bg-[#D9A200] text-[#1A1A1A] text-sm font-semibold inline-flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Scarica il PDF
+                </button>
+              )}
+              <button
+                onClick={chiudi}
+                className="px-6 py-2.5 rounded-full bg-[#1A1A1A] hover:bg-black text-white text-sm font-semibold"
+              >
+                Chiudi
+              </button>
+            </div>
           </div>
         ) : (
           <form onSubmit={submit} className="p-5 sm:p-6">

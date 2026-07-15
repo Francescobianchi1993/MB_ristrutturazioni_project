@@ -58,6 +58,48 @@ export function tornaIndietro(): void {
 }
 
 /**
+ * Persistenza della vista entro la SCHEDA (sessionStorage, si azzera chiudendola).
+ *
+ * Serve a non perdere la stima quando la scheda si ricarica: su iOS l'apertura
+ * del PDF poteva navigare via dal sito e, tornando indietro, l'SPA si ricaricava
+ * ripartendo dall'Hub. Ricordando qui l'ultima vista possiamo riportare l'utente
+ * dov'era. La cronologia (pushState) NON sopravvive a un reload: questa è la sua
+ * scorta.
+ */
+const SESSIONE_KEY = 'mbVistaSessione';
+
+/** Salva la vista corrente; sull'Hub azzera (niente da ripristinare). */
+export function salvaVistaSessione(v: Vista | null): void {
+  try {
+    if (!v || v.m === 'hub') sessionStorage.removeItem(SESSIONE_KEY);
+    else sessionStorage.setItem(SESSIONE_KEY, JSON.stringify(v));
+  } catch {
+    /* storage non disponibile (private mode ecc.): amen, si riparte dall'Hub */
+  }
+}
+
+/**
+ * Vista da ripristinare al caricamento, se presente. Ripristiniamo SOLO le
+ * modalità i cui dati sopravvivono a un reload — la stima rapida e quella
+ * dettagliata sono guidate dallo stato persistito in localStorage. L'intervento
+ * tiene lo stato del wizard in memoria locale (non persistito): ripristinarlo
+ * mostrerebbe uno step vuoto, quindi lo lasciamo ripartire dall'Hub.
+ */
+export function leggiVistaSessione(): Vista | null {
+  try {
+    const raw = sessionStorage.getItem(SESSIONE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<Vista>;
+    if ((v.m === 'rapida' || v.m === 'esperto') && typeof v.s === 'number') {
+      return { m: v.m, s: v.s };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Ascolta il tasto Indietro. `onVista` riceve la schermata di destinazione,
  * oppure `null` quando si torna alla voce da cui il configuratore è partito:
  * in quel caso si mostra l'Hub. Dall'Hub non abbiamo voci nostre, quindi

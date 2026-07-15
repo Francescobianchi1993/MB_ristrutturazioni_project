@@ -19,6 +19,7 @@ import {
   type ProgettoState,
 } from '@/lib/preventivoModel';
 import { scaricaStimaPdf } from '@/lib/pdf/scaricaStima';
+import DatiClienteGate, { type DatiCliente } from './DatiClienteGate';
 
 interface PreventivoRecord {
   id: string;
@@ -60,8 +61,45 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
   const [fase, setFase] = useState<Fase>('caricamento');
   const [rec, setRec] = useState<PreventivoRecord | null>(null);
   const [scaricando, setScaricando] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
+  // Dati inseriti per scaricare: memorizzati così un secondo download non li
+  // richiede di nuovo.
+  const [datiCliente, setDatiCliente] = useState<DatiCliente | null>(null);
 
-  async function scaricaPdf() {
+  // Click su "Scarica": se abbiamo già i dati scarichiamo, altrimenti apriamo il
+  // cancello dati (il link è pubblico → il PDF era anonimo: ora chi lo scarica si
+  // presenta, il PDF esce intestato e l'azienda riceve il contatto).
+  function richiediScarica() {
+    if (!rec?.stato || scaricando) return;
+    if (!(imponibile > 0)) {
+      toast.error('Questa stima non è più disponibile per il download.');
+      return;
+    }
+    if (datiCliente) void generaPdf(datiCliente);
+    else setGateOpen(true);
+  }
+
+  // Gate confermato: notifichiamo l'azienda (lead), ricordiamo i dati e generiamo
+  // il PDF intestato. La notifica è awaitata (errore → il gate lo mostra).
+  async function onConfermatoGate(dati: DatiCliente) {
+    if (!supabase) throw new Error('servizio non disponibile');
+    const note = [
+      '[Richiesta PDF da link stima condiviso]',
+      `Interventi: ${rec?.interventi?.join(', ') || '—'}`,
+      rec?.mq != null ? `Superficie indicata: ~${rec.mq} m²` : '',
+      `Finitura: ${finituraLabel ?? '—'} · Tempistica: ${tempLabel ?? '—'}`,
+      `Stima: ${fmt(totaleIvato)} IVA incl. (imponibile ${fmt(imponibile)} + IVA ${ivaPct}%)`,
+    ].filter(Boolean).join('\n');
+    const { error } = await supabase.functions.invoke('invia-sopralluogo', {
+      body: { tipo: 'contatto', nome: dati.nome, email: dati.email, telefono: dati.telefono, note, allegati: [] },
+    });
+    if (error) throw error;
+    setDatiCliente(dati);
+    setGateOpen(false);
+    void generaPdf(dati);
+  }
+
+  async function generaPdf(dati: DatiCliente) {
     if (!rec?.stato || scaricando) return;
     // Il PDF deve stampare il prezzo CONGELATO nel record, non ricalcolarlo con
     // le tariffe di oggi: un link già inviato mostrerebbe altrimenti a schermo
@@ -73,7 +111,8 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
     }
     setScaricando(true);
     try {
-      const state = statoDaSnapshot(rec.stato);
+      // Intestiamo il PDF a chi lo scarica (lo snapshot non ha contatti).
+      const state = { ...statoDaSnapshot(rec.stato), contatti: { name: dati.nome, email: dati.email, phone: dati.telefono } };
       // Ripartizione ricalcolata (per il donut), ma riscalata sul totale
       // congelato così le percentuali e il totale restano coerenti.
       const live = calcolaPrezzo(state);
@@ -238,7 +277,7 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
 
               {rec.stato && (
                 <button
-                  onClick={scaricaPdf}
+                  onClick={richiediScarica}
                   disabled={scaricando}
                   className="mt-5 w-full inline-flex items-center justify-center gap-2 border-2 border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white font-semibold py-2.5 rounded-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -259,6 +298,27 @@ export default function PreventivoCondiviso({ id }: { id: string }) {
 
         <p className="text-center text-xs text-[#AAA] mt-6">MB Ristrutturazioni · Roma</p>
       </div>
+
+      <DatiClienteGate
+        open={gateOpen}
+        onClose={() => setGateOpen(false)}
+        onConfermato={onConfermatoGate}
+        titolo="Scarica la stima in PDF"
+        sottotitolo="Lascia i tuoi dati: il PDF esce intestato a te e ti ricontattiamo solo se vuoi procedere."
+        ctaLabel="Scarica il PDF"
+        ctaLoadingLabel="Preparo il PDF…"
+        riepilogo={
+          <div className="bg-[#FFF8E7] border border-[#F5B800]/30 rounded-xl p-4 mb-5">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1">
+              La stima
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-2xl font-bold text-[#F5B800]">{fmt(totaleIvato)}</span>
+              <span className="text-xs text-[#666]">IVA {ivaPct}% incl.</span>
+            </div>
+          </div>
+        }
+      />
     </div>
   );
 }

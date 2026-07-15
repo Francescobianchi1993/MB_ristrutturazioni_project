@@ -9,11 +9,12 @@ import { Share2, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProgetto } from './state';
 import { calcolaPrezzo, fmt, mqDiRiferimento } from './pricing';
-import { MACRO_SLOT_BY_ID } from './data';
-import type { MacroSlotId } from '@/lib/preventivoModel';
+import { MACRO_SLOT_BY_ID, FINITURE, TEMPISTICHE } from './data';
+import type { MacroSlotId, ProgettoState } from '@/lib/preventivoModel';
 import { supabase } from '@/lib/supabase';
 import { scaricaStimaPdf } from '@/lib/pdf/scaricaStima';
 import RichiediSopralluogoDialog from './RichiediSopralluogoDialog';
+import DatiClienteGate, { type DatiCliente } from './DatiClienteGate';
 
 interface RiepilogoStickyProps {
   variant?: 'inline' | 'sticky';
@@ -31,6 +32,7 @@ export default function RiepilogoSticky({
   const { state, dispatch } = useProgetto();
   const result = calcolaPrezzo(state);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
   const [condividendo, setCondividendo] = useState(false);
   const [scaricando, setScaricando] = useState(false);
 
@@ -40,18 +42,66 @@ export default function RiepilogoSticky({
 
   // La stima è "completa" (condivisibile) quando ha un valore.
   const stimaCompleta = result.totale > 0;
+  // Il PDF si scarica solo dopo aver lasciato i dati: già presenti (immessi prima
+  // o da una richiesta sopralluogo) → download diretto; altrimenti apriamo il gate.
+  const haDatiCliente = !!state.contatti.name.trim() && !!state.contatti.email.trim();
 
-  async function scaricaPdf() {
-    if (!stimaCompleta || scaricando) return;
+  async function generaPdf(statoPerPdf: ProgettoState) {
+    if (scaricando) return;
     setScaricando(true);
     try {
-      await scaricaStimaPdf(state, result);
+      await scaricaStimaPdf(statoPerPdf, result);
     } catch (e) {
       console.error('[scaricaPdf] errore:', e);
       toast.error('Non è stato possibile generare il PDF. Riprova tra poco.');
     } finally {
       setScaricando(false);
     }
+  }
+
+  function scaricaPdf() {
+    if (!stimaCompleta || scaricando) return;
+    if (haDatiCliente) void generaPdf(state);
+    else setGateOpen(true);
+  }
+
+  // Riepilogo della stima per il lead all'azienda (canale invia-sopralluogo).
+  function noteStima(intro: string): string {
+    const interventiAttivi = (Object.keys(state.macroSlot) as MacroSlotId[])
+      .filter((id) => state.macroSlot[id]?.attivo)
+      .map((id) => MACRO_SLOT_BY_ID[id]?.label ?? id);
+    const mq = mqDiRiferimento(state);
+    const finituraLabel = FINITURE.find((f) => f.id === state.finitura)?.label ?? state.finitura;
+    const tempLabel = TEMPISTICHE.find((t) => t.id === state.tempistica)?.label ?? state.tempistica;
+    return [
+      intro,
+      `Interventi: ${interventiAttivi.join(', ') || '—'}`,
+      mq != null ? `Superficie indicata: ~${mq} m²` : '',
+      `Finitura: ${finituraLabel} · Tempistica: ${tempLabel}`,
+      `Stima: ${fmt(result.totaleIvato)} IVA incl. (imponibile ${fmt(result.imponibile)} + IVA ${result.ivaPct}%)`,
+    ].filter(Boolean).join('\n');
+  }
+
+  // Gate confermato: notifichiamo l'azienda (lead), salviamo i dati nello stato e
+  // generiamo il PDF col nome appena inserito. La notifica è awaitata (se fallisce
+  // il gate mostra l'errore e NON si duplica il lead); il PDF parte dopo, con il
+  // suo toast d'errore indipendente.
+  async function onConfermatoGate(dati: DatiCliente) {
+    if (!supabase) throw new Error('servizio non disponibile');
+    const { error } = await supabase.functions.invoke('invia-sopralluogo', {
+      body: {
+        tipo: 'contatto',
+        nome: dati.nome,
+        email: dati.email,
+        telefono: dati.telefono,
+        note: noteStima('[Richiesta PDF preventivo dal configuratore online]'),
+        allegati: [],
+      },
+    });
+    if (error) throw error;
+    dispatch({ type: 'SET_CONTATTI', patch: { name: dati.nome, email: dati.email, phone: dati.telefono } });
+    setGateOpen(false);
+    void generaPdf({ ...state, contatti: { name: dati.nome, email: dati.email, phone: dati.telefono } });
   }
 
   async function condividiStima() {
@@ -205,7 +255,34 @@ export default function RiepilogoSticky({
           Richiedi sopralluogo gratuito
         </button>
 
-        <RichiediSopralluogoDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+        <RichiediSopralluogoDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onScaricaPdf={scaricaPdf}
+        />
+
+        <DatiClienteGate
+          open={gateOpen}
+          onClose={() => setGateOpen(false)}
+          onConfermato={onConfermatoGate}
+          titolo="Scarica la tua stima in PDF"
+          sottotitolo="Lascia i tuoi dati: il PDF esce intestato a te e ti ricontattiamo solo se vuoi procedere."
+          ctaLabel="Scarica il PDF"
+          ctaLoadingLabel="Preparo il PDF…"
+          riepilogo={
+            <div className="bg-[#FFF8E7] border border-[#F5B800]/30 rounded-xl p-4 mb-5">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mb-1">
+                La tua stima
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-2xl font-bold text-[#F5B800]">
+                  {fmt(result.totaleIvato)}
+                </span>
+                <span className="text-xs text-[#666]">IVA {result.ivaPct}% incl.</span>
+              </div>
+            </div>
+          }
+        />
 
         <p className="text-[11px] text-[#666] pt-1 leading-snug">
           Stima orientativa: il prezzo definitivo, confermato dopo il sopralluogo gratuito, può

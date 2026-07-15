@@ -36,6 +36,14 @@ export async function scaricaStimaPdf(
   const a = document.createElement('a');
   a.href = url;
   a.download = nomeFile;
+  // target/rel: su desktop l'attributo `download` ha la precedenza e il file
+  // viene scaricato in loco (nessuna scheda nuova). Su iOS Safari `download` è
+  // ignorato: senza target il click NAVIGAVA la scheda corrente al blob, così
+  // tornando indietro il sito si ricaricava e il configuratore ripartiva da capo
+  // (l'utente perdeva la stima). Con target=_blank il PDF si apre in una scheda
+  // separata e quella del sito resta viva.
+  a.target = '_blank';
+  a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
   a.remove();
