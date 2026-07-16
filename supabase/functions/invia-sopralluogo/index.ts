@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     const user = Deno.env.get('GMAIL_USER');
     const passRaw = Deno.env.get('GMAIL_APP_PASSWORD');
     const destinatario = destinatarioLead();
-    const base = Deno.env.get('SITE_URL') ?? 'https://mbristrutturazioniroma.it';
+    const base = Deno.env.get('SITE_URL') ?? 'https://www.mbristrutturazioniroma.it';
     const adminUrl = id ? `${base}/?admin=1&lead=${id}` : `${base}/?admin=1`;
 
     if (user && passRaw && destinatario) {

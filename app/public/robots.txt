@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://mbristrutturazioniroma.it/sitemap.xml
+Sitemap: https://www.mbristrutturazioniroma.it/sitemap.xml
