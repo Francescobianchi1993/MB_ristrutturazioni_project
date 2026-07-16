@@ -108,7 +108,7 @@ async function inviaNotificaAzienda(p: Payload, tipo: string, id: string | null)
     return;
   }
   const password = passRaw.replace(/\s/g, '');
-  const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+  const base = Deno.env.get('SITE_URL') ?? 'https://mbristrutturazioniroma.it';
   const adminUrl = id ? `${base}/?admin=1&lead=${id}` : `${base}/?admin=1`;
   const testo = costruisciDescrizione(p, tipo) + `\n\nApri nel gestionale: ${adminUrl}`;
   const client = new SMTPClient({ connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password } } });

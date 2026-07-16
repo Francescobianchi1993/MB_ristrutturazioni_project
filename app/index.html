@@ -5,27 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FFFFFF" />
     <meta name="description" content="MB Ristrutturazioni — ristrutturazioni chiavi in mano a Roma. Preventivo online, sopralluogo gratuito e squadra interna dalla demolizione alla consegna." />
-    <meta name="robots" content="noindex, nofollow" />
-    <meta name="googlebot" content="noindex, nofollow" />
+    <!-- Il sito è pubblico e indicizzabile sul dominio vero. Dev e *.vercel.app
+         restano fuori dall'indice tramite header X-Robots-Tag host-based in vercel.json
+         (così l'URL grezzo di Vercel non fa contenuto duplicato). -->
+    <link rel="canonical" href="https://mbristrutturazioniroma.it/" />
     <title>MB Ristrutturazioni — Roma</title>
 
     <!-- Anteprima quando il link viene condiviso (WhatsApp, Facebook, ecc.).
-         L'URL assoluto va tenuto allineato al dominio pubblico: al lancio,
-         cambiare og:url e og:image sul dominio vero. Oggi punta al dev. -->
+         URL assoluti sul dominio pubblico vero (senza www). -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="MB Ristrutturazioni" />
     <meta property="og:title" content="MB Ristrutturazioni — ristrutturazioni chiavi in mano a Roma" />
     <meta property="og:description" content="Preventivo online, sopralluogo gratuito e squadra interna dalla demolizione alla consegna." />
     <meta property="og:locale" content="it_IT" />
-    <meta property="og:url" content="https://dev.mbristrutturazioniroma.it/" />
-    <meta property="og:image" content="https://dev.mbristrutturazioniroma.it/og-image.jpg" />
+    <meta property="og:url" content="https://mbristrutturazioniroma.it/" />
+    <meta property="og:image" content="https://mbristrutturazioniroma.it/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="MB Ristrutturazioni — ristrutturazioni chiavi in mano a Roma" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="MB Ristrutturazioni — ristrutturazioni chiavi in mano a Roma" />
     <meta name="twitter:description" content="Preventivo online, sopralluogo gratuito e squadra interna dalla demolizione alla consegna." />
-    <meta name="twitter:image" content="https://dev.mbristrutturazioniroma.it/og-image.jpg" />
+    <meta name="twitter:image" content="https://mbristrutturazioniroma.it/og-image.jpg" />
     <!-- Font ospitati sul nostro dominio (public/fonts.css → public/fonts/*.woff2).
          NON usiamo il CDN di Google: caricava l'IP di ogni visitatore sui server
          Google (USA) prima del consenso cookie — trattamento senza base giuridica

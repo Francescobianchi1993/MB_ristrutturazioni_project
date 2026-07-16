@@ -87,7 +87,7 @@ const WHATSAPP_NUMERO = '393391268722';
  */
 function buildManageUrl(d: DatiEmail, azione: 'sposta' | 'annulla'): string | null {
   if (!d.id) return null;
-  const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+  const base = Deno.env.get('SITE_URL') ?? 'https://mbristrutturazioniroma.it';
   return `${base}/?gestisci=${encodeURIComponent(d.id)}&do=${azione}`;
 }
 

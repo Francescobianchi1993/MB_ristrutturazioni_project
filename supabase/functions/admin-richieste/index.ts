@@ -40,7 +40,7 @@ async function inviaEmailAnnullamentoCliente(row: any, propostaData?: string, pr
   }
   if (!row.email) return 'senza_email';
   const password = passRaw.replace(/\s/g, '');
-  const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+  const base = Deno.env.get('SITE_URL') ?? 'https://mbristrutturazioniroma.it';
   const haProposta = !!(propostaData && propostaOra);
   const riprenotaUrl = `${base}/?gestisci=${encodeURIComponent(row.id)}&do=riprenota`
     + (haProposta ? `&data=${encodeURIComponent(propostaData!)}&ora=${encodeURIComponent(propostaOra!)}` : '');
@@ -91,7 +91,7 @@ async function inviaEmailSpostamentoCliente(row: any, data: string, ora: string)
   if (!user || !passRaw) return 'non_configurata';
   if (!row.email) return 'senza_email';
   const password = passRaw.replace(/\s/g, '');
-  const base = Deno.env.get('SITE_URL') ?? 'https://mb-ristrutturazioni-project.vercel.app';
+  const base = Deno.env.get('SITE_URL') ?? 'https://mbristrutturazioniroma.it';
   const gestisciUrl = `${base}/?gestisci=${encodeURIComponent(row.id)}`;
   const quando = `${data.split('-').reverse().join('/')} alle ${ora}`;
   const testo = [
