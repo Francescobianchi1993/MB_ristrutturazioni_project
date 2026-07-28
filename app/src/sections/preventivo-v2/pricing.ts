@@ -61,6 +61,8 @@ export interface PricingResult {
   totale: number;
   /** Range min-max (±15% del totale base, modulato per finitura) */
   range: { min: number; max: number };
+  /** Range min-max IVA INCLUSA — coerente col prezzo che il cliente paga. */
+  rangeIvato: { min: number; max: number };
   /** Subtotale per macro-slot (dopo finitura+tempistica) */
   perSlot: Partial<Record<MacroSlotId, number>>;
   /** Totale calcolato dalle voci dettagliate (Livello 2). 0 se non ci sono voci. */
@@ -173,6 +175,12 @@ export function calcolaPrezzo(state: ProgettoState): PricingResult {
     range: {
       min: Math.round(totale * (1 - RANGE_PCT)),
       max: Math.round(totale * (1 + RANGE_PCT)),
+    },
+    // Stessa forbice, IVA inclusa: è il numero che il configuratore mostra in
+    // evidenza, quindi deve essere confrontabile col totale che il cliente paga.
+    rangeIvato: {
+      min: Math.round(totale * (1 - RANGE_PCT) * (1 + ivaPct / 100)),
+      max: Math.round(totale * (1 + RANGE_PCT) * (1 + ivaPct / 100)),
     },
     perSlot,
     totaleDettagliato,
