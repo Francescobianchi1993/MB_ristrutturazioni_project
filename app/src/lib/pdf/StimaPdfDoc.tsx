@@ -594,3 +594,137 @@ function Riepilogo({ dati }: { dati: DatiStimaPdf }) {
             </View>
             <View
               style=
+{{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottomWidth: 1,
+                borderBottomColor: '#3A3A36',
+                borderBottomStyle: 'solid',
+                paddingVertical: 7,
+              }}
+            >
+              <Text style={{ fontSize: 6.5, fontWeight: 700, color: '#9C9C98', letterSpacing: 1.2 }}>
+                IVA {dati.ivaPct}% · {dati.tipoCasa === 'prima' ? 'PRIMA CASA' : 'SECONDA CASA'}
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF' }}>{euro(dati.iva)}</Text>
+            </View>
+            <View style={{ paddingTop: 8 }}>
+              <Text style={{ fontSize: 7, fontWeight: 700, color: GIALLO, letterSpacing: 1.2 }}>
+                STIMA ORIENTATIVA (IVA INCL.)
+              </Text>
+              <Text
+                style={{
+                  fontFamily: 'Playfair',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  fontStyle: 'italic',
+                  color: GIALLO,
+                  marginTop: 3,
+                }}
+              >
+                {euro(dati.rangeIvatoMin)} – {euro(dati.rangeIvatoMax)}
+              </Text>
+              <Text style={{ fontSize: 7, color: '#FFFFFF', marginTop: 4 }}>
+                Valore centrale {euro(dati.totaleIvato)}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 6.4, color: '#9C9C98', marginTop: 6, lineHeight: 1.4 }}>
+              L'importo definitivo viene confermato dopo il sopralluogo gratuito, in base a materiali e stato dei
+              luoghi.
+            </Text>
+          </View>
+
+          <View
+            style={{
+              marginTop: 10,
+              borderWidth: 1,
+              borderColor: GIALLO,
+              borderStyle: 'solid',
+              borderRadius: 4,
+              padding: 10,
+            }}
+          >
+            <Text style={{ fontSize: 6.5, fontWeight: 700, color: GIALLO, letterSpacing: 1.4 }}>
+              COSA COMPRENDE
+            </Text>
+            <Text style={{ fontSize: 6.2, color: GRIGIO, letterSpacing: 0.8, marginTop: 2, marginBottom: 5 }}>
+              LAVORAZIONI E MATERIALI DI BASE
+            </Text>
+            <TestoConGrassetto
+              testo={`Il totale comprende **manodopera e materiali di base** del livello di finitura ${dati.finitura}.`}
+              style={{ fontSize: 7.2, color: '#55554F', lineHeight: 1.45, marginBottom: 4 }}
+            />
+            <TestoConGrassetto
+              testo="Sono **esclusi** arredi, elettrodomestici, finiture di pregio fuori standard e pratiche edilizie."
+              style={{ fontSize: 7.2, color: '#55554F', lineHeight: 1.45, marginBottom: 4 }}
+            />
+            <Text style={{ fontSize: 7.2, color: '#55554F', lineHeight: 1.45 }}>
+              Su richiesta prepariamo un preventivo dedicato per ceramiche, sanitari e finiture.
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View
+        style={{
+          marginTop: 12,
+          backgroundColor: CREMA,
+          borderLeftWidth: 3,
+          borderLeftColor: GIALLO,
+          borderLeftStyle: 'solid',
+          padding: 11,
+        }}
+      >
+        <Text style={{ ...s.etichetta, color: '#9A7A12', marginBottom: 5 }}>NOTE E CONDIZIONI</Text>
+        {CONDIZIONI.map((c) => (
+          <View key={c} style={{ flexDirection: 'row', marginBottom: 3 }}>
+            <Text style={{ fontSize: 7.2, color: GIALLO, marginRight: 5, fontWeight: 700 }}>›</Text>
+            <TestoConGrassetto testo={c} style={{ fontSize: 7.2, color: '#55554F', lineHeight: 1.45, flex: 1 }} />
+          </View>
+        ))}
+        <Text style={{ fontSize: 7.2, color: '#55554F', lineHeight: 1.45, marginTop: 3 }}>
+          <Text style={{ color: GIALLO, fontWeight: 700 }}>› </Text>
+          Validità della stima: <Text style={{ fontWeight: 700, color: NERO }}>
+            {dati.validitaGiorni} giorni
+          </Text>{' '}
+          dalla data di emissione. Tempistica indicata dal cliente: {dati.tempistica.toLowerCase()}.
+        </Text>
+      </View>
+
+      <View style={{ alignItems: 'flex-end', marginTop: 18 }}>
+        <Text style={{ ...s.etichetta, marginBottom: 16 }}>IN FEDE</Text>
+        <View
+          style={{
+            width: 150,
+            borderTopWidth: 1,
+            borderTopColor: NERO,
+            borderTopStyle: 'solid',
+            paddingTop: 4,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ fontFamily: 'Playfair', fontSize: 10, fontWeight: 700 }}>{TITOLARE}</Text>
+          <Text style={{ fontSize: 6.5, color: GRIGIO, marginTop: 1 }}>Titolare · {RAGIONE_SOCIALE}</Text>
+        </View>
+      </View>
+
+      <PiePagina />
+    </Page>
+  );
+}
+
+export default function StimaPdfDoc({ dati }: { dati: DatiStimaPdf }) {
+  return (
+    <Document
+      title={`${dati.riferimento} · ${RAGIONE_SOCIALE}`}
+      author={RAGIONE_SOCIALE}
+      subject="Stima preliminare di ristrutturazione"
+      creator={RAGIONE_SOCIALE}
+    >
+      <Copertina dati={dati} />
+      <DettaglioLavori dati={dati} />
+      <Riepilogo dati={dati} />
+    </Document>
+  );
+}
