@@ -221,20 +221,31 @@ export default function RiepilogoSticky({
               <span className="font-mono">{fmt(result.iva)}</span>
             </div>
           </div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mt-3">
-            Totale (IVA incl.)
-          </div>
-          <div className="font-display text-4xl font-bold text-[#F5B800] mt-0.5 transition-all">
-            {fmt(result.totaleIvato)}
-          </div>
-          {!result.haDettaglio && (
-            <div className="text-xs text-[#666] mt-1">
-              Imponibile orientativo{' '}
-              <strong className="text-[#1A1A1A]">
-                {fmt(result.range.min)} – {fmt(result.range.max)}
-              </strong>{' '}
-              (oltre IVA)
-            </div>
+
+          {/* In evidenza la FORBICE (IVA incl.): il valore puntuale, da solo,
+              suona come un prezzo definitivo e spaventa. Col dettaglio voci
+              (L2) il prezzo è invece puntuale davvero: lì resta il numero singolo. */}
+          {result.haDettaglio ? (
+            <>
+              <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mt-3">
+                Totale (IVA incl.)
+              </div>
+              <div className="font-display text-4xl font-bold text-[#F5B800] mt-0.5 transition-all">
+                {fmt(result.totaleIvato)}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-[10px] font-mono uppercase tracking-wider text-[#666] mt-3">
+                Stima orientativa (IVA incl.)
+              </div>
+              <div className="font-display text-3xl font-bold text-[#F5B800] mt-0.5 leading-tight transition-all">
+                {fmt(result.rangeIvato.min)} – {fmt(result.rangeIvato.max)}
+              </div>
+              <div className="text-xs text-[#666] mt-1">
+                Valore centrale <strong className="text-[#1A1A1A]">{fmt(result.totaleIvato)}</strong>
+              </div>
+            </>
           )}
         </>
       )}
