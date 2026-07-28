@@ -54,6 +54,9 @@ export interface DatiStimaPdf {
   totaleIvato: number;
   rangeMin: number;
   rangeMax: number;
+  /** Forbice IVA inclusa — quella mostrata in evidenza sul documento. */
+  rangeIvatoMin: number;
+  rangeIvatoMax: number;
   validitaGiorni: number;
 }
 
@@ -199,6 +202,8 @@ export function costruisciDatiStima(
     totaleIvato: result.totaleIvato,
     rangeMin: result.range.min,
     rangeMax: result.range.max,
+    rangeIvatoMin: result.rangeIvato.min,
+    rangeIvatoMax: result.rangeIvato.max,
     validitaGiorni: VALIDITA_GIORNI,
   };
 }
