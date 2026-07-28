@@ -32,10 +32,6 @@ import {
 } from '@/lib/contatti';
 import type { DatiStimaPdf } from './datiStima';
 
-// ────────────────────────────────────────────────────────────────────────────
-// Palette — gli stessi colori del sito e del preventivo cartaceo
-// ────────────────────────────────────────────────────────────────────────────
-
 const NERO = '#1A1A18';
 const GIALLO = '#F5B800';
 const CREMA = '#FDF4DC';
@@ -63,8 +59,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 46,
   },
   pageCopertina: { fontFamily: 'Inter', fontSize: 9, color: NERO },
-
-  // Occhiello giallo spaziato ("INTERVENTI", "RIEPILOGO", …)
   occhiello: {
     fontSize: 7,
     fontWeight: 700,
@@ -74,10 +68,8 @@ const s = StyleSheet.create({
   },
   titoloSezione: { fontFamily: 'Playfair', fontSize: 22, fontWeight: 700 },
   corsivoGiallo: { fontFamily: 'Playfair', fontStyle: 'italic', color: GIALLO },
-
   etichetta: { fontSize: 6, fontWeight: 700, color: GRIGIO, letterSpacing: 1.4 },
   testo: { fontSize: 8.5, lineHeight: 1.5, color: '#3A3A38' },
-
   headerChiaro: {
     position: 'absolute',
     top: 0,
@@ -106,7 +98,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   footerTesto: { fontSize: 6, color: '#9C9C98' },
-
   card: {
     backgroundColor: CARD,
     borderLeftWidth: 2,
@@ -117,16 +108,11 @@ const s = StyleSheet.create({
   },
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// Marchio
-// ────────────────────────────────────────────────────────────────────────────
-
 function Logo({ chiaro = false }: { chiaro?: boolean }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
       <Svg width={26} height={26} viewBox="0 0 26 26">
         <Rect x={0} y={0} width={26} height={26} rx={7} ry={7} fill={GIALLO} />
-        {/* casetta: tetto + corpo + porta */}
         <Path d="M 13 6 L 20.5 12.6 L 18.6 12.6 L 18.6 20 L 7.4 20 L 7.4 12.6 L 5.5 12.6 Z" fill="#FFFFFF" />
         <Rect x={11.4} y={14.6} width={3.2} height={5.4} fill={GIALLO} />
       </Svg>
@@ -179,10 +165,6 @@ function PiePagina() {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Ciambella della ripartizione
-// ────────────────────────────────────────────────────────────────────────────
-
 function settore(cx: number, cy: number, rOut: number, rIn: number, a0: number, a1: number): string {
   const p = (r: number, a: number) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   const grande = a1 - a0 > Math.PI ? 1 : 0;
@@ -206,11 +188,7 @@ function Ciambella({ dati }: { dati: DatiStimaPdf }) {
   const rOut = 66;
   const rIn = 40;
   const totale = dati.interventi.reduce((acc, i) => acc + i.importo, 0);
-
-  // Un solo intervento: l'arco da 360° sarebbe degenere (inizio = fine) e non
-  // verrebbe disegnato. Un anello pieno lo risolve.
   const unicoSettore = dati.interventi.length === 1 || totale <= 0;
-
   let angolo = -Math.PI / 2;
 
   return (
@@ -236,17 +214,11 @@ function Ciambella({ dati }: { dati: DatiStimaPdf }) {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Pagina 1 — copertina
-// ────────────────────────────────────────────────────────────────────────────
-
 function Copertina({ dati }: { dati: DatiStimaPdf }) {
   return (
     <Page size="A4" style={s.pageCopertina}>
       <View style={{ height: 150, backgroundColor: NERO, position: 'relative' }}>
         <Svg width={595} height={150} viewBox="0 0 595 150" style={{ position: 'absolute', top: 0, left: 0 }}>
-          {/* react-pdf non ritaglia l'SVG al viewBox né rispetta overflow:hidden:
-              senza questo clip i cerchi sbordano sotto la fascia nera. */}
           <Defs>
             <ClipPath id="fascia">
               <Rect x={0} y={0} width={595} height={150} />
@@ -361,10 +333,6 @@ function Copertina({ dati }: { dati: DatiStimaPdf }) {
     </Page>
   );
 }
-
-// ────────────────────────────────────────────────────────────────────────────
-// Pagina 2 — dettaglio dei lavori
-// ────────────────────────────────────────────────────────────────────────────
 
 const FASI = [
   ['Sopralluogo', 'Verifica gratuita dello stato dei luoghi e delle misure reali.'],
@@ -485,10 +453,6 @@ function DettaglioLavori({ dati }: { dati: DatiStimaPdf }) {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Pagina 3 — riepilogo economico
-// ────────────────────────────────────────────────────────────────────────────
-
 const CONDIZIONI = [
   'Gli importi sono una **stima orientativa** calcolata su tariffe medie di mercato: non costituiscono un preventivo contrattuale.',
   'Il prezzo definitivo viene confermato **dopo il sopralluogo gratuito** e può variare di circa ±15% (vedi range indicato).',
@@ -497,7 +461,6 @@ const CONDIZIONI = [
   'IVA agevolata al 10% applicabile in regime di ristrutturazione di abitazione privata; 22% negli altri casi. Da verificare caso per caso.',
 ];
 
-/** Rende il **grassetto** in stile markdown dentro un <Text> di react-pdf. */
 function TestoConGrassetto({ testo, style }: { testo: string; style: Style }) {
   return (
     <Text style={style}>
@@ -577,7 +540,6 @@ function Riepilogo({ dati }: { dati: DatiStimaPdf }) {
       </View>
 
       <View style={{ flexDirection: 'row', gap: 12 }}>
-        {/* Ripartizione */}
         <View style={{ width: '46%', backgroundColor: CARD, borderRadius: 4, padding: 12, alignItems: 'center' }}>
           <Ciambella dati={dati} />
           <View style={{ width: '100%', marginTop: 8 }}>
@@ -587,4 +549,48 @@ function Riepilogo({ dati }: { dati: DatiStimaPdf }) {
                   style={{
                     width: 6,
                     height: 6,
-           
+                    borderRadius: 1,
+                    backgroundColor: SETTORI[idx % SETTORI.length],
+                    marginRight: 6,
+                  }}
+                />
+                <Text style={{ fontSize: 7.4, flex: 1 }}>{i.titolo}</Text>
+                <Text style={{ fontSize: 7.4, fontWeight: 600, marginRight: 6 }}>{euro(i.importo)}</Text>
+                <Text style={{ fontSize: 7.4, color: GRIGIO, width: 22, textAlign: 'right' }}>{i.pct}%</Text>
+              </View>
+            ))}
+          </View>
+          <Text
+            style={{
+              fontFamily: 'Playfair',
+              fontStyle: 'italic',
+              fontSize: 6.8,
+              color: GRIGIO,
+              marginTop: 6,
+              textAlign: 'center',
+            }}
+          >
+            Ripartizione indicativa dell'impegno per intervento.
+          </Text>
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <View style={{ backgroundColor: NERO, borderRadius: 4, padding: 12 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottomWidth: 1,
+                borderBottomColor: '#3A3A36',
+                borderBottomStyle: 'solid',
+                paddingBottom: 7,
+              }}
+            >
+              <Text style={{ fontSize: 6.5, fontWeight: 700, color: '#9C9C98', letterSpacing: 1.2 }}>
+                IMPONIBILE (IVA ESCL.)
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF' }}>{euro(dati.imponibile)}</Text>
+            </View>
+            <View
+              style=
