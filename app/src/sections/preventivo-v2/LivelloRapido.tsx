@@ -390,7 +390,7 @@ function StepFiniture() {
 
       <h3 className="font-display text-2xl font-bold mb-2">Tempistica</h3>
       <p className="text-[#666] mb-2">Quando vorresti iniziare i lavori?</p>
-      <p className="text-xs text-[#444] font-semibold mb-6 leading-snug">
+      <p className="text-sm text-[#444] font-semibold mb-6 leading-snug">
         Non incide sul prezzo: ci serve solo per organizzare i lavori.
       </p>
 
