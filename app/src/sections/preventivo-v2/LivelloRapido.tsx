@@ -389,7 +389,10 @@ function StepFiniture() {
       </div>
 
       <h3 className="font-display text-2xl font-bold mb-2">Tempistica</h3>
-      <p className="text-[#666] mb-6">Quando vorresti iniziare i lavori?</p>
+      <p className="text-[#666] mb-2">Quando vorresti iniziare i lavori?</p>
+      <p className="text-xs text-[#444] font-semibold mb-6 leading-snug">
+        Non incide sul prezzo: ci serve solo per organizzare i lavori.
+      </p>
 
       <div className="grid sm:grid-cols-3 gap-3">
         {TEMPISTICHE.map((t) => {
@@ -410,10 +413,6 @@ function StepFiniture() {
           );
         })}
       </div>
-      <p className="text-xs text-[#444] font-semibold mt-3 leading-snug">
-        La tempistica non incide sul prezzo: serve solo a noi di MB per organizzare al meglio la tua
-        richiesta.
-      </p>
     </div>
   );
 }
