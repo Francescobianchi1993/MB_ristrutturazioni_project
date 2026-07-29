@@ -410,7 +410,7 @@ function StepFiniture() {
           );
         })}
       </div>
-      <p className="text-xs text-[#666] mt-3 leading-snug">
+      <p className="text-xs text-[#444] font-semibold mt-3 leading-snug">
         La tempistica non incide sul prezzo: serve solo a noi di MB per organizzare al meglio la tua
         richiesta.
       </p>
