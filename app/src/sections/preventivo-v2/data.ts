@@ -318,7 +318,7 @@ export const MACRO_SLOT_BY_ID: Record<MacroSlotId, MacroSlot> = MACRO_SLOT.reduc
 
 export const FINITURE = [
   { id: 'intelligent', label: 'Intelligent', desc: 'Materiali standard, ottimo qualità/prezzo', mult: 0.85 },
-  { id: 'smart', label: 'Smart', desc: 'Marche note, buona qualità', mult: 1.0 },
+  { id: 'smart', label: 'Smart', desc: 'Marche note, ottima qualità', mult: 1.0 },
   { id: 'prestige', label: 'Prestige', desc: 'Alta gamma, design, materiali nobili', mult: 1.35 },
 ] as const;
 
