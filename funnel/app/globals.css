@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-white text-ink-soft antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply text-ink;
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  /* CTA primaria unica ripetuta lungo la pagina */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600
+      px-6 py-4 text-base font-semibold text-white shadow-cta
+      transition-transform duration-150 hover:bg-brand-700 active:scale-[0.98]
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+      focus-visible:outline-brand-600;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300
+      bg-white px-6 py-4 text-base font-semibold text-ink-soft
+      transition-colors hover:bg-slate-50 active:scale-[0.98]
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+      focus-visible:outline-brand-600;
+  }
+  .section {
+    @apply mx-auto w-full max-w-5xl px-5 sm:px-6;
+  }
+}
